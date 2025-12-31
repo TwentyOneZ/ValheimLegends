@@ -1000,33 +1000,56 @@ public class ValheimLegends : BaseUnityPlugin
 							player.RaiseSkill(ValheimLegends.DisciplineSkill, 0.001f * VL_GlobalConfigs.g_SkillGainModifer * (1f + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 16f)));
 						}
 					}
-					if (vl_player.vl_class == ValheimLegends.PlayerClass.Shaman && !Class_Shaman.gotWindfuryCooldown)
-					{
-						if (player.GetCurrentWeapon() != null && (player.GetCurrentWeapon().m_shared.m_skillType == hit.m_skill) && (player.GetCurrentWeapon().m_shared.m_skillType != Skills.SkillType.Unarmed) && (!hit.m_ranged))
-						{
-							float level2 = player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.EvocationSkillDef)
-								.m_level * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddCriticalChance() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 80f), 0f, 0.5f));
-							if (UnityEngine.Random.value < (0.05f + (level2 / 800f)))
-							{
-								HitData hitData2 = new HitData();
-								hitData2.m_pushForce = player.GetCurrentWeapon().GetDeflectionForce();
-								hitData2.m_dir = attacker.transform.position - __instance.transform.position;
-								hitData2.m_dir.y = 0f;
-								hitData2.m_dir.Normalize();
-								hitData2.m_point = attacker.GetEyePoint();
-								hitData2.m_damage = hit.m_damage;
-								hitData2.ApplyModifier(0.3f + (level2 / 160));
-								UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("fx_VL_ParticleLightburst"), player.GetEyePoint(), UnityEngine.Quaternion.LookRotation(player.GetLookDir()));
-								UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("fx_VL_Shock"), player.GetEyePoint() + player.GetLookDir() * 2.5f + player.transform.right * 0.25f, UnityEngine.Quaternion.LookRotation(player.GetLookDir()));
-								__instance.Damage(hitData2);
-								__instance.Damage(hitData2);
-								StatusEffect statusEffectW = (SE_Windfury_CD)ScriptableObject.CreateInstance(typeof(SE_Windfury_CD));
-								player.GetSEMan().AddStatusEffect(statusEffectW);
-								Class_Shaman.gotWindfuryCooldown = true;
-							}
-						}
-					}
-					if (vl_player.vl_class == ValheimLegends.PlayerClass.Rogue && attacker.GetHoverName() == vl_player.vl_name && !hit.m_ranged)
+                    if (vl_player.vl_class == ValheimLegends.PlayerClass.Shaman && !Class_Shaman.gotWindfuryCooldown)
+                    {
+                        // item equipado na mão principal
+                        ItemDrop.ItemData rightHand = player.GetCurrentWeapon();
+
+                        if (rightHand != null && rightHand.IsWeapon() && rightHand.m_shared.m_name.ToLower() != "unarmed" && !hit.m_ranged)
+                        {
+                            float level2 = player.GetSkills().GetSkillList()
+                                .FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.EvocationSkillDef)
+                                .m_level * (1f + Mathf.Clamp(
+                                    (EpicMMOSystem.LevelSystem.Instance.getAddCriticalChance() / 40f) +
+                                    (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 80f),
+                                    0f, 0.5f));
+
+                            if (UnityEngine.Random.value < (0.05f + (level2 / 800f)))
+                            {
+                                HitData hitData2 = new HitData();
+                                hitData2.m_pushForce = rightHand.GetDeflectionForce();
+                                hitData2.m_dir = attacker.transform.position - __instance.transform.position;
+                                hitData2.m_dir.y = 0f;
+                                hitData2.m_dir.Normalize();
+                                hitData2.m_point = attacker.GetEyePoint();
+                                hitData2.m_damage = hit.m_damage;
+                                hitData2.ApplyModifier(0.3f + (level2 / 160));
+
+                                UnityEngine.Object.Instantiate(
+                                    ZNetScene.instance.GetPrefab("fx_VL_ParticleLightburst"),
+                                    player.GetEyePoint(),
+                                    UnityEngine.Quaternion.LookRotation(player.GetLookDir())
+                                );
+
+                                UnityEngine.Object.Instantiate(
+                                    ZNetScene.instance.GetPrefab("fx_VL_Shock"),
+                                    player.GetEyePoint() + player.GetLookDir() * 2.5f + player.transform.right * 0.25f,
+                                    UnityEngine.Quaternion.LookRotation(player.GetLookDir())
+                                );
+
+                                __instance.Damage(hitData2);
+                                __instance.Damage(hitData2);
+
+                                StatusEffect statusEffectW =
+                                    (SE_Windfury_CD)ScriptableObject.CreateInstance(typeof(SE_Windfury_CD));
+                                player.GetSEMan().AddStatusEffect(statusEffectW);
+
+                                Class_Shaman.gotWindfuryCooldown = true;
+                            }
+                        }
+                    }
+
+                    if (vl_player.vl_class == ValheimLegends.PlayerClass.Rogue && attacker.GetHoverName() == vl_player.vl_name && !hit.m_ranged)
 					{
 						Player localPlayer = Player.m_localPlayer;
 						if (localPlayer.GetCurrentWeapon() != null)

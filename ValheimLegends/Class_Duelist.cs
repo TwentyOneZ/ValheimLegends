@@ -29,63 +29,75 @@ public class Class_Duelist
 		float level = player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.DisciplineSkillDef)
 			.m_level * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddPhysicDamage() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddAttackSpeed() / 40f), 0f, 0.5f));
 		float num = (1.25f + (level / 300f)) * VL_GlobalConfigs.g_DamageModifer * VL_GlobalConfigs.c_duelistSeismicSlash;
-		UnityEngine.Vector3 vector = player.GetEyePoint() + player.GetLookDir() * 6f;
-		List<Character> list = new List<Character>();
-		list.Clear();
-		Character.GetCharactersInRange(vector, 6f, list);
-		foreach (Character item in list)
-		{
-			if (BaseAI.IsEnemy(player, item) && VL_Utility.LOS_IsValid(item, vector, vector))
-			{
-				UnityEngine.Vector3 Vector2 = item.transform.position - player.transform.position;
-				HitData hitData = new HitData();
-				hitData.m_damage = player.GetCurrentWeapon().GetDamage();
-				hitData.ApplyModifier(UnityEngine.Random.Range(0.8f, 1.2f) * num);
-				hitData.m_pushForce = 25f + 0.1f * level;
-				hitData.m_point = item.GetEyePoint();
-				hitData.m_dir = player.transform.position - item.transform.position;
-				hitData.m_skill = ValheimLegends.DisciplineSkill;
-				item.Damage(hitData);
-				if (Class_Duelist.challengedMastery != null && Class_Duelist.challengedMastery.Contains(item.GetInstanceID()))
-				{
-					Class_Duelist.challengedMastery.Remove(item.GetInstanceID());
-					ItemDrop.DropItem(ValheimLegends.coinsItem.m_itemData, 1, player.transform.position, UnityEngine.Quaternion.identity);
-					int coinsSpoiled = Mathf.CeilToInt(Mathf.Sqrt(item.GetMaxHealth()) + ((1f + (EpicMMOSystem.LevelSystem.Instance.getAddCriticalChance() / 40f)) * Mathf.Sqrt(item.GetMaxHealth())));
-					if (coinsSpoiled < EpicMMOSystem.LevelSystem.Instance.getLevel())
-					{
-						UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("sfx_coins_destroyed"), player.GetCenterPoint(), UnityEngine.Quaternion.identity);
-						UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("vfx_coin_stack_destroyed"), player.GetCenterPoint(), UnityEngine.Quaternion.identity);
-					}
-					else
-					{
-						UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("sfx_coins_pile_destroyed"), player.GetCenterPoint(), UnityEngine.Quaternion.identity);
-						UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("vfx_coin_pile_destroyed"), player.GetCenterPoint(), UnityEngine.Quaternion.identity);
-					}
-					ItemDrop coinsFinalItem = null;
-					foreach (ItemDrop go in Resources.FindObjectsOfTypeAll(typeof(ItemDrop)) as ItemDrop[])
-					{
-						if (go.m_itemData.m_shared.m_name.ToLower().Contains("$item_wood"))
-						{
-							coinsFinalItem = go;
-							break;
-						}
-					}
-					if (player.GetInventory().CanAddItem(ValheimLegends.coinsItem.m_itemData.m_dropPrefab, coinsSpoiled))
-					{
-						player.GetInventory().AddItem(ValheimLegends.coinsItem.m_itemData.m_dropPrefab, coinsSpoiled);
-					}
-					else
-					{
-						ItemDrop.DropItem(ValheimLegends.coinsItem.m_itemData, coinsSpoiled, player.transform.position, UnityEngine.Quaternion.identity);
-					}
-					player.Message(MessageHud.MessageType.TopLeft, "Spoiled " + coinsSpoiled.ToString("#") + " coins from " + item.GetHoverName() + "!");
-					//ItemDrop.DropItem(ValheimLegends.coinsItem.m_itemData, coinsSpoiled, localPlayer.transform.position, UnityEngine.Quaternion.identity);
-				}
-			}
-		}
-	}
+        // Direção horizontal do jogador
+        Vector3 forward = player.transform.forward;
+        forward.y = 0f;
+        forward.Normalize();
 
-	public static void Process_Input(Player player, ref Rigidbody playerBody)
+        float coneRange = 7f;
+        float coneAngle = 90f;
+        float halfConeDot = Mathf.Cos(coneAngle * 0.5f * Mathf.Deg2Rad);
+
+        List<Character> targets = new List<Character>();
+        Character.GetCharactersInRange(player.transform.position, coneRange, targets);
+
+        foreach (Character item in targets)
+        {
+            if (!BaseAI.IsEnemy(player, item))
+                continue;
+
+            Vector3 toTarget = item.transform.position - player.transform.position;
+            toTarget.y = 0f;
+
+            float distance = toTarget.magnitude;
+            if (distance > coneRange)
+                continue;
+
+            toTarget.Normalize();
+
+            float dot = Vector3.Dot(forward, toTarget);
+            if (dot < halfConeDot)
+                continue;
+
+            if (!VL_Utility.LOS_IsValid(item, item.GetEyePoint(), player.GetEyePoint()))
+                continue;
+
+            // ===== DANO =====
+            HitData hitData = new HitData();
+            hitData.m_damage = player.GetCurrentWeapon().GetDamage();
+            hitData.ApplyModifier(UnityEngine.Random.Range(1.8f, 2.2f) * num);
+            hitData.m_pushForce = 25f + 0.1f * level;
+            hitData.m_point = item.GetEyePoint();
+            hitData.m_dir = forward;
+            hitData.m_skill = ValheimLegends.DisciplineSkill;
+
+            item.Damage(hitData);
+
+            // ===== FINALIZA DUEL OF MASTERY =====
+            if (Class_Duelist.challengedMastery.Contains(item.GetInstanceID()))
+            {
+                Class_Duelist.challengedMastery.Remove(item.GetInstanceID());
+
+                int coinsSpoiled = Mathf.CeilToInt(
+                    Mathf.Sqrt(item.GetMaxHealth()) +
+                    (1f + EpicMMOSystem.LevelSystem.Instance.getAddCriticalChance() / 40f)
+                    * Mathf.Sqrt(item.GetMaxHealth())
+                );
+
+                if (player.GetInventory().CanAddItem(ValheimLegends.coinsItem.m_itemData.m_dropPrefab, coinsSpoiled))
+                    player.GetInventory().AddItem(ValheimLegends.coinsItem.m_itemData.m_dropPrefab, coinsSpoiled);
+                else
+                    ItemDrop.DropItem(ValheimLegends.coinsItem.m_itemData, coinsSpoiled, player.transform.position, Quaternion.identity);
+
+                player.Message(
+                    MessageHud.MessageType.TopLeft,
+                    $"Spoiled {coinsSpoiled:#} coins from {item.GetHoverName()}!"
+                );
+            }
+        }
+    }
+
+    public static void Process_Input(Player player, ref Rigidbody playerBody)
 	{
 		System.Random random = new System.Random();
 		if (VL_Utility.Ability3_Input_Down)
@@ -268,97 +280,102 @@ public class Class_Duelist
 							}
 							if (flag && !component.IsPlayer())
 							{
-								if ((Class_Duelist.challengedDeath != null && !Class_Duelist.challengedDeath.Contains(component.GetInstanceID())) || (Class_Duelist.challengedMastery != null && !Class_Duelist.challengedMastery.Contains(component.GetInstanceID())))
-								{
-									if (Vector3.Distance(player.transform.position, component.transform.position) <= 70f)
-									{
-										if (player.GetStamina() >= VL_Utility.GetQuickShotCost)
-										{
-											int coinsSpoiled = Mathf.CeilToInt(Mathf.Sqrt(component.GetMaxHealth()));
-											if (player.GetInventory() != null && player.GetInventory().HaveItem(ValheimLegends.coinsItem.m_itemData.m_shared.m_name) && player.GetInventory().CountItems("$item_coins") >= coinsSpoiled)
-											{
-												ItemDrop.ItemData item = null;
-												ItemDrop.ItemData coinsItemData = null;
-												for (int j = 0; j < player.GetInventory().GetHeight(); j++)
-												{
-													if (coinsItemData != null)
-													{
-														break;
-													}
-													for (int i = 0; i < player.GetInventory().GetWidth(); i++)
-													{
-														item = player.GetInventory().GetItemAt(i, j);
-														if (item == null)
-														{
-															continue;
-														}
+                                int targetId = component.GetInstanceID();
 
-														if (item.m_shared.m_name == "$item_coins")
-														{
-															if (player.GetInventory().GetItemAt(i, j).m_stack >= coinsSpoiled)
-																coinsItemData = item;
-														}
-														if (coinsItemData != null) break;
-													}
-												}
-												for (int i = 0; i < coinsSpoiled; i++)
+                                bool alreadyChallenged =
+                                    (Class_Duelist.challengedDeath != null && Class_Duelist.challengedDeath.Contains(targetId)) ||
+                                    (Class_Duelist.challengedMastery != null && Class_Duelist.challengedMastery.Contains(targetId));
+
+                                if (alreadyChallenged)
+                                {
+                                    player.Message(MessageHud.MessageType.TopLeft, component.GetHoverName() + " was already challenged!");
+                                    return;
+                                }
+
+                                if (Vector3.Distance(player.transform.position, component.transform.position) <= 70f)
+								{
+									if (player.GetStamina() >= VL_Utility.GetQuickShotCost)
+									{
+										int coinsSpoiled = Mathf.CeilToInt(Mathf.Sqrt(component.GetMaxHealth()));
+										if (player.GetInventory() != null && player.GetInventory().HaveItem(ValheimLegends.coinsItem.m_itemData.m_shared.m_name) && player.GetInventory().CountItems("$item_coins") >= coinsSpoiled)
+										{
+											ItemDrop.ItemData item = null;
+											ItemDrop.ItemData coinsItemData = null;
+											for (int j = 0; j < player.GetInventory().GetHeight(); j++)
+											{
+												if (coinsItemData != null)
 												{
-													Player.m_localPlayer?.GetInventory().RemoveOneItem(coinsItemData);
+													break;
 												}
-												player.UseStamina(VL_Utility.GetQuickShotCost);
-												if (coinsSpoiled < EpicMMOSystem.LevelSystem.Instance.getLevel())
+												for (int i = 0; i < player.GetInventory().GetWidth(); i++)
 												{
-													UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("sfx_coins_destroyed"), component.GetCenterPoint(), UnityEngine.Quaternion.identity);
-													UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("vfx_coin_stack_destroyed"), component.GetCenterPoint(), UnityEngine.Quaternion.identity);
-												}
-												else
-												{
-													UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("sfx_coins_pile_destroyed"), component.GetCenterPoint(), UnityEngine.Quaternion.identity);
-													UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("vfx_coin_pile_destroyed"), component.GetCenterPoint(), UnityEngine.Quaternion.identity);
-												}
-												player.StartEmote("point");
-												player.Message(MessageHud.MessageType.TopLeft, "Challenged " + component.GetHoverName() + " to a duel worth of " + coinsSpoiled.ToString("#") + " coins!");
-												if (component.IsOwner())
-                                                {
-													if (UnityEngine.Random.value < 0.33f)
-                                                    {
-														player.Message(MessageHud.MessageType.Center, "Duel of Mastery!", 1, ValheimLegends.RiposteIcon);
-														Class_Duelist.challengedMastery.Add(component.GetInstanceID());
+													item = player.GetInventory().GetItemAt(i, j);
+													if (item == null)
+													{
+														continue;
 													}
-													else
-                                                    {
-														player.Message(MessageHud.MessageType.Center, "Duel to the Death!", 1, ZNetScene.instance.GetPrefab("TrophySkeleton").GetComponent<ItemDrop>().m_itemData.GetIcon());
-														Class_Duelist.challengedDeath.Add(component.GetInstanceID());
+
+													if (item.m_shared.m_name == "$item_coins")
+													{
+														if (player.GetInventory().GetItemAt(i, j).m_stack >= coinsSpoiled)
+															coinsItemData = item;
 													}
+													if (coinsItemData != null) break;
 												}
-												else
+											}
+											for (int i = 0; i < coinsSpoiled; i++)
+											{
+												Player.m_localPlayer?.GetInventory().RemoveOneItem(coinsItemData);
+											}
+											player.UseStamina(VL_Utility.GetQuickShotCost);
+											if (coinsSpoiled < EpicMMOSystem.LevelSystem.Instance.getLevel())
+											{
+												UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("sfx_coins_destroyed"), component.GetCenterPoint(), UnityEngine.Quaternion.identity);
+												UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("vfx_coin_stack_destroyed"), component.GetCenterPoint(), UnityEngine.Quaternion.identity);
+											}
+											else
+											{
+												UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("sfx_coins_pile_destroyed"), component.GetCenterPoint(), UnityEngine.Quaternion.identity);
+												UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("vfx_coin_pile_destroyed"), component.GetCenterPoint(), UnityEngine.Quaternion.identity);
+											}
+											player.StartEmote("point");
+											player.Message(MessageHud.MessageType.TopLeft, "Challenged " + component.GetHoverName() + " to a duel worth of " + coinsSpoiled.ToString("#") + " coins!");
+											if (component.IsOwner())
+                                            {
+												if (UnityEngine.Random.value < 0.33f)
                                                 {
 													player.Message(MessageHud.MessageType.Center, "Duel of Mastery!", 1, ValheimLegends.RiposteIcon);
 													Class_Duelist.challengedMastery.Add(component.GetInstanceID());
 												}
-												player.RaiseSkill(ValheimLegends.DisciplineSkill, VL_Utility.GetQuickShotSkillGain);
-                                                StatusEffect statusEffect4 = (SE_Ability1_CD)ScriptableObject.CreateInstance(typeof(SE_Ability1_CD));
-                                                statusEffect4.m_ttl = VL_Utility.GetQuickShotCooldownTime * 3f;
-                                                player.GetSEMan().AddStatusEffect(statusEffect4);
-                                            }
-                                            else
-											{
-												player.Message(MessageHud.MessageType.TopLeft, "You need " + coinsSpoiled.ToString("#") + " coins to challenge " + component.GetHoverName() + ".");
+												else
+                                                {
+													player.Message(MessageHud.MessageType.Center, "Duel to the Death!", 1, ZNetScene.instance.GetPrefab("TrophySkeleton").GetComponent<ItemDrop>().m_itemData.GetIcon());
+													Class_Duelist.challengedDeath.Add(component.GetInstanceID());
+												}
 											}
-										}
-										else
+											else
+                                            {
+												player.Message(MessageHud.MessageType.Center, "Duel of Mastery!", 1, ValheimLegends.RiposteIcon);
+												Class_Duelist.challengedMastery.Add(component.GetInstanceID());
+											}
+											player.RaiseSkill(ValheimLegends.DisciplineSkill, VL_Utility.GetQuickShotSkillGain);
+                                            StatusEffect statusEffect4 = (SE_Ability1_CD)ScriptableObject.CreateInstance(typeof(SE_Ability1_CD));
+                                            statusEffect4.m_ttl = VL_Utility.GetQuickShotCooldownTime * 3f;
+                                            player.GetSEMan().AddStatusEffect(statusEffect4);
+                                        }
+                                        else
 										{
-											player.Message(MessageHud.MessageType.TopLeft, "Not enough stamina for Challenge: (" + player.GetStamina().ToString("#.#") + "/" + VL_Utility.GetBackstabCost + ")");
+											player.Message(MessageHud.MessageType.TopLeft, "You need " + coinsSpoiled.ToString("#") + " coins to challenge " + component.GetHoverName() + ".");
 										}
 									}
 									else
 									{
-										player.Message(MessageHud.MessageType.TopLeft, component.GetHoverName() + " is too far away to challenge!");
+										player.Message(MessageHud.MessageType.TopLeft, "Not enough stamina for Challenge: (" + player.GetStamina().ToString("#.#") + "/" + VL_Utility.GetBackstabCost + ")");
 									}
 								}
 								else
 								{
-									player.Message(MessageHud.MessageType.TopLeft, component.GetHoverName() + " was already challenged!");
+									player.Message(MessageHud.MessageType.TopLeft, component.GetHoverName() + " is too far away to challenge!");
 								}
 							}
 							else
