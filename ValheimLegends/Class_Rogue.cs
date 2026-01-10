@@ -330,6 +330,7 @@ public class Class_Rogue
 		else
 		{
 			ValheimLegends.isChanneling = false;
-		}
+            ValheimLegends.channelingBlocksMovement = true;
+        }
 	}
 }

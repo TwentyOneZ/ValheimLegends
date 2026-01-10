@@ -74,7 +74,16 @@ public class Class_Berserker
 			{
 				HitData hitData = new HitData();
 				hitData.m_damage = player.GetCurrentWeapon().GetDamage();
-				hitData.ApplyModifier(UnityEngine.Random.Range(0.8f, 1.2f) * num / num2);
+                bool playerIsWerewolf = player.GetSEMan().HaveStatusEffect("SE_VL_DruidFenringForm".GetStableHashCode());
+                if (playerIsWerewolf && Class_Monk.PlayerIsBareHanded && (hitData.m_damage.m_blunt > 0f))
+                {
+                    float level2 = player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.DisciplineSkillDef)
+                        .m_level * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddPhysicDamage() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddAttackSpeed() / 40f), 0f, 0.5f));
+                    float clawDamage = (EpicMMOSystem.LevelSystem.Instance.getLevel() * (1f + (level2 / 80f))) * 0.25f;
+                    hitData.m_damage.m_blunt += clawDamage;
+                    hitData.m_damage.m_slash += clawDamage;
+                }
+                hitData.ApplyModifier(UnityEngine.Random.Range(0.8f, 1.2f) * num / num2);
 				hitData.m_point = allCharacter.GetCenterPoint();
 				hitData.m_dir = allCharacter.transform.position - position;
 				hitData.m_skill = ValheimLegends.DisciplineSkill;

@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.ComponentModel.Design;
 using System.Linq;
 using System.Reflection;
 using HarmonyLib;
@@ -170,10 +171,82 @@ public class Class_Enchanter
 				}
 				else
 				{
-					player.Message(MessageHud.MessageType.TopLeft, "Need an active Zone Charge effect.");
-				}
+					if (player.GetInventory() != null && player.GetInventory().CountItems("$item_thunderstone") < 1)
+					{
+						player.Message(MessageHud.MessageType.TopLeft, "Need an active Zone Charge effect or a Thunderstone.");
+						return;
+					}
+					else
+					{
+						if (player.GetSEMan().HaveStatusEffect("SE_VL_Ability3_CD".GetStableHashCode())) { 
+							player.GetInventory().RemoveOneItem(player.GetInventory().GetItem("$item_thunderstone"));
+                            player.Message(MessageHud.MessageType.TopLeft, "Consumed one Thunderstone.");
+                            UnityEngine.Vector3 Vector3 = player.GetEyePoint();
+                            List<Character> list = new List<Character>();
+                            list.Clear();
+                            Character.GetCharactersInRange(Vector3, 60f, list);
+                            foreach (Character item in list)
+                            {
+                                if (item.IsPlayer())
+                                {
+                                    UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("fx_VL_ParticleLightburst"), item.GetEyePoint(), UnityEngine.Quaternion.LookRotation(item.GetLookDir()));
+                                    ValheimLegends.ReduceAllCooldowns(item, 0.01f);
+                                }
+                            }
+                            UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("fx_VL_Shock"), player.GetEyePoint() + player.GetLookDir() * 2.5f + player.transform.right * 0.25f, UnityEngine.Quaternion.LookRotation(player.GetLookDir()));
+                        }
+                        else
+						{
+							player.Message(MessageHud.MessageType.TopLeft, "Zone Charge not on cooldown.");
+							return;
+						}
+                    }
+
+                }
 			}
-			else if (!player.GetSEMan().HaveStatusEffect("SE_VL_Ability3_CD".GetStableHashCode()) && !zonechargeCharging)
+            else if (player.IsSitting())
+			{
+                ItemDrop.ItemData hasLeftItem = Traverse.Create(player).Field("m_leftItem").GetValue<ItemDrop.ItemData>();
+                if (hasLeftItem == null && player.GetCurrentWeapon() != null && (player.GetCurrentWeapon().m_shared.m_skillType == Skills.SkillType.ElementalMagic || player.GetCurrentWeapon().m_shared.m_skillType == Skills.SkillType.BloodMagic))
+                {
+                    float maxWeaponRecover = player.GetCurrentWeapon().GetMaxDurability() * (1f - player.GetCurrentWeapon().GetDurabilityPercentage());
+                    if (maxWeaponRecover > 0f)
+                    {
+                        if (!player.GetSEMan().HaveStatusEffect("SE_VL_Ability3_CD".GetStableHashCode())) { 
+                            float maxStaminaCost = maxWeaponRecover * 4f * (1f - (EpicMMOSystem.LevelSystem.Instance.getStaminaReduction() / 100f));
+							float recoveredWeapon = maxWeaponRecover;
+							if (player.GetStamina() < maxStaminaCost)
+							{
+								recoveredWeapon = player.GetStamina() / (4f * (1f - (EpicMMOSystem.LevelSystem.Instance.getStaminaReduction() / 100f)));
+							}
+							float level = player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.AlterationSkillDef)
+								.m_level * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddCriticalChance() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 80f), 0f, 0.5f));
+							StatusEffect statusEffect = (SE_Ability3_CD)ScriptableObject.CreateInstance(typeof(SE_Ability3_CD));
+							statusEffect.m_ttl = 60f + (recoveredWeapon * 2f) * (1f - (EpicMMOSystem.LevelSystem.Instance.getAddCriticalChance() / 40f));
+							player.GetSEMan().AddStatusEffect(statusEffect);
+							player.UseStamina(recoveredWeapon * 10f * (1f - (EpicMMOSystem.LevelSystem.Instance.getAddCriticalChance() / 40f)) * (1f - level / 300f));
+							player.GetCurrentWeapon().m_durability += recoveredWeapon;
+							ValheimLegends.shouldUseGuardianPower = false;
+							UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("fx_VL_ParticleLightburst"), player.GetEyePoint(), UnityEngine.Quaternion.LookRotation(player.GetLookDir()));
+							UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("fx_VL_Shock"), player.GetEyePoint() + player.GetLookDir() * 2.5f + player.transform.right * 0.25f, UnityEngine.Quaternion.LookRotation(player.GetLookDir()));
+							player.RaiseSkill(ValheimLegends.AlterationSkill, VL_Utility.GetBlinkStrikeSkillGain);
+                        }
+						else 
+						{
+                            player.Message(MessageHud.MessageType.TopLeft, "Ability not ready");
+                        }
+                    }
+                    else
+                    {
+                        player.Message(MessageHud.MessageType.TopLeft, "You don't need to Restore you weapon.");
+                    }
+                }
+                else
+                {
+                    player.Message(MessageHud.MessageType.TopLeft, "You can only restore an equipped Magic Staff, Wand, Totem or Scepter.");
+                }
+            }
+            else if (!player.GetSEMan().HaveStatusEffect("SE_VL_Ability3_CD".GetStableHashCode()) && !zonechargeCharging)
 			{
 				if (player.GetStamina() >= VL_Utility.GetZoneChargeCost)
 				{
@@ -458,7 +531,8 @@ public class Class_Enchanter
 			zonechargeCount = 0f;
 			zonechargeChargeAmount = 0;
 			ValheimLegends.isChanneling = false;
-			QueuedAttack = EnchanterAttackType.None;
+            ValheimLegends.channelingBlocksMovement = true;
+            QueuedAttack = EnchanterAttackType.None;
 			player.RaiseSkill(ValheimLegends.AbjurationSkill, zonechargeSkillGain);
 			zonechargeSkillGain = 0f;
 		}
@@ -575,7 +649,7 @@ public class Class_Enchanter
 				}
 				else
 				{
-					StatusEffect statusEffect3 = (SE_Ability2_CD)ScriptableObject.CreateInstance(typeof(SE_Ability2_CD));
+					StatusEffect statusEffect3 = (SE_Ability1_CD)ScriptableObject.CreateInstance(typeof(SE_Ability1_CD));
 					statusEffect3.m_ttl = 0.1f;
 					player.GetSEMan().AddStatusEffect(statusEffect3);
 					StatusEffect statusEffect2 = (SE_FlameArmor)ScriptableObject.CreateInstance(typeof(SE_FlameArmor));
@@ -637,6 +711,7 @@ public class Class_Enchanter
 		else
 		{
 			ValheimLegends.isChanneling = false;
-		}
+            ValheimLegends.channelingBlocksMovement = true;
+        }
 	}
 }

@@ -115,7 +115,8 @@ public class Class_Necromancer
 			else
 			{
 				ValheimLegends.isChanneling = false;
-			}
+                ValheimLegends.channelingBlocksMovement = true;
+            }
 		}
 	}
 }

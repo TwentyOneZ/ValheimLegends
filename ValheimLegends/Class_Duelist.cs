@@ -483,6 +483,7 @@ public class Class_Duelist
 		else
 		{
 			ValheimLegends.isChanneling = false;
-		}
+            ValheimLegends.channelingBlocksMovement = true;
+        }
 	}
 }

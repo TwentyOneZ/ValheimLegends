@@ -22,69 +22,86 @@ public class Class_Ranger
 		{
 			if (!player.GetSEMan().HaveStatusEffect("SE_VL_Ability3_CD".GetStableHashCode()))
 			{
-				if (player.IsBlocking())
+                if (player.IsBlocking())
                 {
-					if (player.GetInventory() != null)
-					{
-						ItemDrop.ItemData item = null;
-						ItemDrop.ItemData arrowMaterialItem = null;
-						ItemDrop arrowFinalItem = null;
+                    var inv = player.GetInventory();
+                    if (inv == null) return;
 
-						foreach (ItemDrop go in Resources.FindObjectsOfTypeAll(typeof(ItemDrop)) as ItemDrop[])
-						{
-							//Debug.Log("Item Scanning: " + go.m_itemData.m_shared.m_name.ToLower());
-							if (go.m_itemData.m_shared.m_name.ToLower().Contains("$item_arrow_wood"))
-							{
-								arrowFinalItem = go;
-								break;
-							}
-						}
-						//Debug.Log("Item Found: " + arrowFinalItem.m_itemData.m_shared.m_name);
-						// Go through all items.
-						for (int j = 0; j < player.GetInventory().GetHeight(); j++)
-						{
-							if (arrowMaterialItem != null)
-							{
-								break;
-							}
-							for (int i = 0; i < player.GetInventory().GetWidth(); i++)
-							{
-								item = player.GetInventory().GetItemAt(i, j);
-								if (item == null)
-								{
-									continue;
-								}
+                    int requiredItems = 8;
+                    string materialName = "Wood";
 
-								if (item.m_shared.m_name == "$item_wood")
-								{
-									//Debug.Log("Stack of Wood: " + player.GetInventory().GetItemAt(i, j).m_stack); 
-									if (player.GetInventory().GetItemAt(i, j).m_stack >= 8)
-										arrowMaterialItem = item;
-								}
-								if (arrowMaterialItem != null) break;
-							}
-						}
-						if (arrowMaterialItem == null)
-						{
-							player.Message(MessageHud.MessageType.TopLeft, "You need 8 Wood to create 20 Wooden Arrows.");
-						}
-						else
-						{
-							StatusEffect statusEffect = (SE_Ability3_CD)ScriptableObject.CreateInstance(typeof(SE_Ability3_CD));
-							statusEffect.m_ttl = 0.5f;
-							player.GetSEMan().AddStatusEffect(statusEffect);
-							for (int i = 0; i < 8; i++)
-							{
-								Player.m_localPlayer?.GetInventory().RemoveOneItem(arrowMaterialItem);
-							}
-							ItemDrop.DropItem(arrowFinalItem.m_itemData, 20, player.transform.position, UnityEngine.Quaternion.identity);
-							player.StartEmote("cheer");
-							player.Message(MessageHud.MessageType.TopLeft, "Consumed 8 " + arrowMaterialItem.m_shared.m_name + " to create 20 " + arrowFinalItem.m_itemData.m_shared.m_name + ".");
-							UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("vfx_Potion_stamina_medium"), player.transform.position, UnityEngine.Quaternion.identity);
-							UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("vfx_WishbonePing"), player.transform.position, UnityEngine.Quaternion.identity);
-						}
-					}
-				}	
+                    // 1) checar material
+                    ItemDrop.ItemData foundItem = VL_Utility.FindItemByPrefabName(inv, materialName, requiredItems);
+                    if (foundItem == null)
+                    {
+                        player.Message(MessageHud.MessageType.Center,
+                            "You need 8 Wood to create a Wood Arrows.");
+                        return;
+                    }
+
+                    // 2) checar stamina
+                    if (player.GetStamina() < VL_Utility.GetPowerShotCost(player))
+                    {
+                        player.Message(MessageHud.MessageType.TopLeft,
+                            "Not enough stamina to Wood Arrows: (" +
+                            player.GetStamina().ToString("#.#") + "/" +
+                            VL_Utility.GetPowerShotCost(player).ToString("#.#") + ")");
+                        return;
+                    }
+
+                    // 3) cooldown/skill etc (seu código)
+                    StatusEffect statusEffect = (SE_Ability3_CD)ScriptableObject.CreateInstance(typeof(SE_Ability3_CD));
+                    statusEffect.m_ttl = 0.5f;
+                    player.GetSEMan().AddStatusEffect(statusEffect);
+                    player.UseStamina(VL_Utility.GetPowerShotCost(player));
+
+                    // 4) consumir 1 Ancient Seed
+                    inv.RemoveItem(foundItem, requiredItems);
+
+                    // 5) criar o item do prefab e adicionar no inventário
+                    const string arrowPrefabName = "ArrowWood";
+
+                    if (ZNetScene.instance == null)
+                    {
+                        Debug.Log("ZNetScene not ready.");
+                        return;
+                    }
+
+                    GameObject arrowPrefab = ZNetScene.instance.GetPrefab(arrowPrefabName);
+                    if (arrowPrefab == null)
+                    {
+                        Debug.Log($"Prefab not found: {arrowPrefabName}");
+                        return;
+                    }
+
+                    ItemDrop arrowDrop = arrowPrefab.GetComponent<ItemDrop>();
+                    if (arrowDrop == null)
+                    {
+                        Debug.Log($"Prefab has no ItemDrop: {arrowPrefabName}");
+                        return;
+                    }
+
+                    ItemDrop.ItemData arrowItem = arrowDrop.m_itemData.Clone();
+                    arrowItem.m_stack = 20;
+
+                    // adiciona no inventário (retorna false se inventário cheio)
+                    bool added = inv.AddItem(arrowItem);
+                    if (!added)
+                    {
+                        // fallback: se inventário cheio, dropa no chão
+                        ItemDrop.DropItem(arrowItem, arrowItem.m_stack, player.transform.position + player.transform.forward, Quaternion.identity);
+                        player.Message(MessageHud.MessageType.TopLeft, "Inventory full. Dropped arrows on the ground.");
+                    }
+                    else
+                    {
+                        player.Message(MessageHud.MessageType.TopLeft,
+                            $"Consumed 8 {materialName} to create 20x {arrowItem.m_shared.m_name}.");
+                    }
+
+                    player.StartEmote("cheer");
+                    UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("vfx_Potion_stamina_medium"), player.transform.position, Quaternion.identity);
+                    UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("vfx_WishbonePing"), player.transform.position, Quaternion.identity);
+                }
 				else
                 {
 					if (player.GetStamina() >= VL_Utility.GetPowerShotCost(player))

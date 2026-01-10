@@ -117,7 +117,7 @@ public class Class_Mage
 							recoveredEitr = player.GetStamina() / (2f * (1f - (EpicMMOSystem.LevelSystem.Instance.getStaminaReduction() / 100f)));
 						}
 						StatusEffect statusEffect = (SE_Ability3_CD)ScriptableObject.CreateInstance(typeof(SE_Ability3_CD));
-						statusEffect.m_ttl = recoveredEitr * (1f - (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 100f));
+						statusEffect.m_ttl = recoveredEitr * (1f - (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 100f)) * 0.5f;
 						player.GetSEMan().AddStatusEffect(statusEffect);
 						player.UseStamina(recoveredEitr * 2f * (1f - (EpicMMOSystem.LevelSystem.Instance.getStaminaReduction() / 100f)));
 						player.AddEitr(recoveredEitr);
@@ -219,7 +219,8 @@ public class Class_Mage
 			player.RaiseSkill(ValheimLegends.EvocationSkill, meteorSkillGain);
 			meteorSkillGain = 0f;
 			ValheimLegends.isChanneling = false;
-		}
+            ValheimLegends.channelingBlocksMovement = true;
+        }
 		else if (VL_Utility.Ability2_Input_Down)
 		{
 			if (!player.GetSEMan().HaveStatusEffect("SE_VL_Ability2_CD".GetStableHashCode()))
@@ -361,6 +362,7 @@ public class Class_Mage
 		else
 		{
 			ValheimLegends.isChanneling = false;
-		}
+            ValheimLegends.channelingBlocksMovement = true;
+        }
 	}
 }

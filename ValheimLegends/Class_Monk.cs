@@ -53,7 +53,26 @@ public class Class_Monk
 		}
 	}
 
-	public static void Impact_Effect(Player player, float altitude)
+    public static bool PlayerIsBareHanded
+    {
+        get
+        {
+            Player localPlayer = Player.m_localPlayer;
+            if (localPlayer.GetCurrentWeapon() != null)
+            {
+                ItemDrop.ItemData value = Traverse.Create(localPlayer).Field("m_leftItem").GetValue<ItemDrop.ItemData>();
+                ItemDrop.ItemData.SharedData shared = localPlayer.GetCurrentWeapon().m_shared;
+                Debug.Log("Name:" + shared.m_name.ToLower().ToString());
+                if (shared != null && (shared.m_name.ToLower() == "unarmed" || (shared.m_attachOverride == ItemDrop.ItemData.ItemType.Hands) && value == null))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+    }
+
+    public static void Impact_Effect(Player player, float altitude)
 	{
 		List<Character> allCharacters = Character.GetAllCharacters();
 		ValheimLegends.shouldValkyrieImpact = false;
@@ -147,7 +166,8 @@ public class Class_Monk
 			sE_Monk.surging = true;
 			Object.Instantiate(ZNetScene.instance.GetPrefab("fx_Potion_frostresist"), player.transform.position, UnityEngine.Quaternion.identity);
 			ValheimLegends.isChanneling = false;
-		}
+            ValheimLegends.channelingBlocksMovement = true;
+        }
 		else if (QueuedAttack == MonkAttackType.Psibolt)
 		{
 			float level2 = player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.DisciplineSkillDef)
@@ -502,6 +522,7 @@ public class Class_Monk
 		else
 		{
 			ValheimLegends.isChanneling = false;
-		}
+            ValheimLegends.channelingBlocksMovement = true;
+        }
 	}
 }

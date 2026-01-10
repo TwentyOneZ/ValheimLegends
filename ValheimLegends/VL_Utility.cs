@@ -62,7 +62,7 @@ public static class VL_Utility
 
 	public static float GetPoisonBombSkillGain => 1.8f * VL_GlobalConfigs.g_SkillGainModifer * (1f + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 16f));
 
-	public static float GetBackstabCost => 60f * VL_GlobalConfigs.g_EnergyCostModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getStaminaReduction() / 100f));
+	public static float GetBackstabCost => 50f * VL_GlobalConfigs.g_EnergyCostModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getStaminaReduction() / 100f));
 
 	public static float GetBackstabCooldownTime => 20f * VL_GlobalConfigs.g_CooldownModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 100f));
 
@@ -74,7 +74,7 @@ public static class VL_Utility
 
 	public static float GetFadeSkillGain => 1.0f * VL_GlobalConfigs.g_SkillGainModifer * (1f + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 16f));
 
-	public static float GetSanctifyCost => 70f * VL_GlobalConfigs.g_EnergyCostModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getStaminaReduction() / 100f));
+	public static float GetSanctifyCost => 50f * VL_GlobalConfigs.g_EnergyCostModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getStaminaReduction() / 100f));
 
 	public static float GetSanctifyCooldownTime => 45f * VL_GlobalConfigs.g_CooldownModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 100f));
 
@@ -106,7 +106,7 @@ public static class VL_Utility
 
 	public static float GetRiposteSkillGain => 0.2f * VL_GlobalConfigs.g_SkillGainModifer * (1f + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 16f));
 
-	public static float GetBlinkStrikeCost => 60f * VL_GlobalConfigs.g_EnergyCostModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getStaminaReduction() / 100f));
+	public static float GetBlinkStrikeCost => 50f * VL_GlobalConfigs.g_EnergyCostModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getStaminaReduction() / 100f));
 
 	public static float GetBlinkStrikeCooldownTime => 30f * VL_GlobalConfigs.g_CooldownModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 100f));
 
@@ -126,7 +126,7 @@ public static class VL_Utility
 
 	public static float GetWarpSkillGain => 0.2f * VL_GlobalConfigs.g_SkillGainModifer * (1f + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 16f));
 
-	public static float GetReplicaCost => 70f * VL_GlobalConfigs.g_EnergyCostModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getStaminaReduction() / 100f));
+	public static float GetReplicaCost => 50f * VL_GlobalConfigs.g_EnergyCostModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getStaminaReduction() / 100f));
 
 	public static float GetReplicaCooldownTime => 30f * VL_GlobalConfigs.g_CooldownModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 100f));
 
@@ -144,7 +144,7 @@ public static class VL_Utility
 
 	public static float GetFireballSkillGain => 1.0f * VL_GlobalConfigs.g_SkillGainModifer * (1f + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 16f));
 
-	public static float GetMeteorCost => 60f * VL_GlobalConfigs.g_EnergyCostModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getStaminaReduction() / 100f));
+	public static float GetMeteorCost => 50f * VL_GlobalConfigs.g_EnergyCostModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getStaminaReduction() / 100f));
 
 	public static float GetMeteorCostPerUpdate => 0.5f * VL_GlobalConfigs.g_EnergyCostModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getStaminaReduction() / 100f));
 
@@ -158,7 +158,7 @@ public static class VL_Utility
 
 	public static float GetFrostNovaSkillGain => 1.0f * VL_GlobalConfigs.g_SkillGainModifer * (1f + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 16f));
 
-	public static float GetBulwarkCost => 60f * VL_GlobalConfigs.g_EnergyCostModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getStaminaReduction() / 100f));
+	public static float GetBulwarkCost => 50f * VL_GlobalConfigs.g_EnergyCostModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getStaminaReduction() / 100f));
 
 	public static float GetBulwarkCooldownTime => 60f * VL_GlobalConfigs.g_CooldownModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 100f));
 
@@ -186,7 +186,7 @@ public static class VL_Utility
 
 	public static float GetVineHookCost => 40f * VL_GlobalConfigs.g_EnergyCostModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getStaminaReduction() / 100f));
 
-	public static float GetRegenerationCost => 60f * VL_GlobalConfigs.g_EnergyCostModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getStaminaReduction() / 100f));
+	public static float GetRegenerationCost => 50f * VL_GlobalConfigs.g_EnergyCostModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getStaminaReduction() / 100f));
 
 	public static float GetRegenerationCooldownTime => 60f * VL_GlobalConfigs.g_CooldownModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 100f));
 
@@ -200,7 +200,7 @@ public static class VL_Utility
 
 	public static float GetRootSkillGain => 1.4f * VL_GlobalConfigs.g_SkillGainModifer * (1f + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 16f));
 
-	public static float GetDefenderCost => 80f * VL_GlobalConfigs.g_EnergyCostModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getStaminaReduction() / 100f));
+	public static float GetDefenderCost => 50f * VL_GlobalConfigs.g_EnergyCostModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getStaminaReduction() / 100f));
 
 	public static float GetDefenderCooldownTime => 120f * VL_GlobalConfigs.g_CooldownModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 100f));
 
@@ -308,7 +308,46 @@ public static class VL_Utility
 		}
 	}
 
-	public static string GetModDataPath(this PlayerProfile profile)
+    public static void RefreshAbilityIconLabels()
+    {
+        var list = ValheimLegends.abilitiesStatus;
+        if (list == null || list.Count < 3) return;
+
+        string[] names =
+        {
+                ValheimLegends.Ability1_Name,
+                ValheimLegends.Ability2_Name,
+                ValheimLegends.Ability3_Name
+            };
+
+        for (int i = 0; i < 3; i++)
+        {
+            var rt = list[i];
+            if (rt == null) continue;
+
+            // No template existe "TimeText" (hotkey/cooldown) e existe o text do nome.
+            // Então pegamos o TMP_Text que NÃO é o TimeText.
+            TMP_Text label = null;
+            var texts = rt.GetComponentsInChildren<TMP_Text>(true);
+            foreach (var t in texts)
+            {
+                if (t == null) continue;
+                if (t.gameObject.name == "TimeText") continue;
+                label = t;
+                break;
+            }
+
+            if (label == null) continue;
+
+            // Localize se possível, senão escreve raw
+            if (Localization.instance != null)
+                label.text = Localization.instance.Localize(names[i]);
+            else
+                label.text = names[i];
+        }
+    }
+
+    public static string GetModDataPath(this PlayerProfile profile)
 	{
 		return Path.Combine(Utils.GetSaveDataPath(FileHelpers.FileSource.Local), "ModData", ModID, "char_" + profile.GetFilename());
 	}
@@ -549,7 +588,7 @@ public static class VL_Utility
 
 	public static float GetEnrageCost(Player p)
 	{
-		return 60f * VL_GlobalConfigs.g_EnergyCostModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getStaminaReduction() / 100f));
+		return 50f * VL_GlobalConfigs.g_EnergyCostModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getStaminaReduction() / 100f));
 	}
 
 	public static float GetEnrageCooldown(Player p)
@@ -564,7 +603,7 @@ public static class VL_Utility
 
 	public static float GetSpiritBombCost(Player p)
 	{
-		return 80f * VL_GlobalConfigs.g_EnergyCostModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getStaminaReduction() / 100f));
+		return 50f * VL_GlobalConfigs.g_EnergyCostModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getStaminaReduction() / 100f));
 	}
 
 	public static float GetSpiritBombCooldown(Player p)
@@ -594,7 +633,7 @@ public static class VL_Utility
 
 	public static float GetDashCost(Player p)
 	{
-		return 70f * VL_GlobalConfigs.g_EnergyCostModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getStaminaReduction() / 100f));
+		return 50f * VL_GlobalConfigs.g_EnergyCostModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getStaminaReduction() / 100f));
 	}
 
 	public static float GetDashCooldown(Player p)
@@ -624,7 +663,7 @@ public static class VL_Utility
 
 	public static float GetExecuteCost(Player p)
 	{
-		return 60f * VL_GlobalConfigs.g_EnergyCostModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getStaminaReduction() / 100f));
+		return 50f * VL_GlobalConfigs.g_EnergyCostModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getStaminaReduction() / 100f));
 	}
 
 	public static float GetExecuteCooldown(Player p)
@@ -639,7 +678,7 @@ public static class VL_Utility
 
 	public static float GetPowerShotCost(Player p)
 	{
-		return 60f * VL_GlobalConfigs.g_EnergyCostModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getStaminaReduction() / 100f));
+		return 50f * VL_GlobalConfigs.g_EnergyCostModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getStaminaReduction() / 100f));
 	}
 
 	public static float GetPowerShotCooldown(Player p)
@@ -669,7 +708,7 @@ public static class VL_Utility
 
 	public static float GetSummonWolfCost(Player p)
 	{
-		return 75f * VL_GlobalConfigs.g_EnergyCostModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getStaminaReduction() / 100f));
+		return 50f * VL_GlobalConfigs.g_EnergyCostModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getStaminaReduction() / 100f));
 	}
 
 	public static float GetSummonWolfCooldown(Player p)
@@ -686,4 +725,46 @@ public static class VL_Utility
 	{
 		vl_timer = Time.time;
 	}
+
+    public static ItemDrop.ItemData FindItemByPrefabName(
+    Inventory inv,
+    string prefabName,
+    int requiredAmount = 1)
+    {
+        if (inv == null) return null;
+
+        foreach (ItemDrop.ItemData item in inv.GetAllItems())
+        {
+            if (item?.m_dropPrefab == null) continue;
+
+            if (item.m_dropPrefab.name == prefabName &&
+                item.m_stack >= requiredAmount)
+            {
+                return item;
+            }
+        }
+
+        return null;
+    }
+
+    public static ItemDrop.ItemData FindItemBySharedName(Inventory inv, string lowerName, int minStack)
+    {
+        for (int j = 0; j < inv.GetHeight(); j++)
+        {
+            for (int i = 0; i < inv.GetWidth(); i++)
+            {
+                var item = inv.GetItemAt(i, j);
+                if (item == null) continue;
+
+                if (item.m_shared?.m_name != null &&
+                    item.m_shared.m_name.ToLower() == lowerName &&
+                    item.m_stack >= minStack)
+                {
+                    return item;
+                }
+            }
+        }
+        return null;
+    }
+
 }

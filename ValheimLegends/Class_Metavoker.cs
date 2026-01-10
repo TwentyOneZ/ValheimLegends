@@ -257,7 +257,8 @@ public class Class_Metavoker
 				.m_level * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddCriticalChance() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 80f), 0f, 0.5f));
 			warpDistance = warpDistance * (1f + 0.01f * level) * VL_GlobalConfigs.c_metavokerWarpDistance;
 			ValheimLegends.isChanneling = false;
-			RaycastHit hitInfo2 = default(RaycastHit);
+            ValheimLegends.channelingBlocksMovement = true;
+            RaycastHit hitInfo2 = default(RaycastHit);
 			UnityEngine.Vector3 eyePoint = player.GetEyePoint();
 			UnityEngine.Vector3 target = ((!Physics.Raycast(player.GetEyePoint(), player.GetLookDir(), out hitInfo2, float.PositiveInfinity, Warp_Layermask) || !hitInfo2.collider) ? (eyePoint + player.GetLookDir() * 1000f) : hitInfo2.point);
 			UnityEngine.Vector3 vector2 = UnityEngine.Vector3.MoveTowards(eyePoint, target, 1f);
@@ -508,6 +509,7 @@ public class Class_Metavoker
 		else
 		{
 			ValheimLegends.isChanneling = false;
-		}
+            ValheimLegends.channelingBlocksMovement = true;
+        }
 	}
 }

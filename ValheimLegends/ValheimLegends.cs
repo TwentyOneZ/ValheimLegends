@@ -65,7 +65,7 @@ public class ValheimLegends : BaseUnityPlugin
 		}
 	}
 
-	[HarmonyPatch(typeof(ZNet), "Awake")]
+    [HarmonyPatch(typeof(ZNet), "Awake")]
 	[HarmonyPriority(int.MaxValue)]
 	public static class ZNet_VL_Register
 	{
@@ -287,7 +287,8 @@ public class ValheimLegends : BaseUnityPlugin
 			if (isChanneling)
 			{
 				isChanneling = false;
-			}
+                channelingBlocksMovement = true;
+            }
 		}
 	}
 
@@ -305,19 +306,20 @@ public class ValheimLegends : BaseUnityPlugin
 		}
 	}
 
-	[HarmonyPatch(typeof(Player), "CanMove", null)]
-	public class CanMove_Casting_Patch
-	{
-		public static void Postfix(Player __instance, ref bool __result)
-		{
-			if (isChanneling)
-			{
-				__result = false;
-			}
-		}
-	}
+    [HarmonyPatch(typeof(Player), "CanMove", null)]
+    public class CanMove_Casting_Patch
+    {
+        public static void Postfix(Player __instance, ref bool __result)
+        {
+            if (isChanneling && channelingBlocksMovement)
+            {
+                __result = false;
+            }
+        }
+    }
 
-	[HarmonyPatch(typeof(Menu), "OnQuit", null)]
+
+    [HarmonyPatch(typeof(Menu), "OnQuit", null)]
 	public class QuitYes_Patch
 	{
 		public static bool Prefix()
@@ -615,84 +617,82 @@ public class ValheimLegends : BaseUnityPlugin
 
 			if (attacker != null)
 			{
-				if (__instance.GetSEMan() != null && hit.HaveAttacker() && !hit.m_ranged && __instance.GetSEMan().HaveStatusEffect("SE_VL_IceArmor".GetStableHashCode()))
+                if (__instance.GetSEMan() != null && hit.HaveAttacker() && !hit.m_ranged && __instance.GetSEMan().HaveStatusEffect("SE_VL_FlameArmor".GetStableHashCode()))
+                {
+                    Player localplayer = Player.m_localPlayer;
+                    if (localplayer != null)
+                    {
+                        if (localplayer.GetSEMan().HaveStatusEffect("SE_VL_FlameWeapon".GetStableHashCode()))
+                        {
+                            long pid = localplayer.GetPlayerID();
+                            int stacks = AddEnchanterWeaponCharges(pid, EnchanterWeaponElement.Flame, 1);
+                            UpdateEnchanterWeaponSEName(localplayer, EnchanterWeaponElement.Flame, stacks, localplayer.GetEyePoint());
+                        }
+                    }
+                }
+                if (__instance.GetSEMan() != null && hit.HaveAttacker() && !hit.m_ranged && __instance.GetSEMan().HaveStatusEffect("SE_VL_IceArmor".GetStableHashCode()))
 				{
 					Player localplayer = Player.m_localPlayer;
 					if (localplayer != null)
 					{
-						float level3 = localplayer.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.AbjurationSkillDef)
-							.m_level * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddHp() / 400f) + (EpicMMOSystem.LevelSystem.Instance.getAddStamina() / 200f), 0f, 0.5f));
-						if (UnityEngine.Random.value < (0.025f + (level3 / 1200f)))
-						{
-							localplayer.RaiseSkill(ValheimLegends.AbjurationSkill, VL_Utility.GetFireballSkillGain * 0.015f);
-							UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("fx_guardstone_activate"), localplayer.transform.position, UnityEngine.Quaternion.identity);
-							if (localplayer.GetSEMan().HaveStatusEffect("Burning".GetStableHashCode()))
-							{
-								localplayer.GetSEMan().RemoveStatusEffect("Burning".GetStableHashCode());
-							}
-							List<Character> allCharacters = Character.GetAllCharacters();
-							foreach (Character item in allCharacters)
-							{
-								if (BaseAI.IsEnemy(localplayer, item) && (item.transform.position - localplayer.transform.position).magnitude <= 10f + 0.1f * level3 && VL_Utility.LOS_IsValid(item, localplayer.GetCenterPoint(), localplayer.transform.position + localplayer.transform.up * 0.15f))
-								{
-                                    UnityEngine.Vector3 dir = item.transform.position - localplayer.transform.position;
-									HitData hitData2 = new HitData();
-									hitData2.m_damage.m_frost = UnityEngine.Random.Range(2f + (EpicMMOSystem.LevelSystem.Instance.getLevel() / 6f) + 0.1f * level3, 3f + (EpicMMOSystem.LevelSystem.Instance.getLevel() / 4f) + 0.15f * level3) * VL_GlobalConfigs.g_DamageModifer * VL_GlobalConfigs.c_mageFrostNova;
-									hitData2.m_pushForce = 20f;
-									hitData2.m_point = item.GetEyePoint();
-									hitData2.m_dir = dir;
-									hitData2.m_skill = ValheimLegends.AbjurationSkill;
-									item.Damage(hitData2);
-									SE_Slow sE_Slow = (SE_Slow)ScriptableObject.CreateInstance(typeof(SE_Slow));
-									item.GetSEMan().AddStatusEffect(sE_Slow.name.GetStableHashCode(), resetTime: true);
-								}
-							}
-						}
-					}
-				}
-				if (__instance.GetSEMan() != null && hit.HaveAttacker() && !hit.m_ranged && __instance.GetSEMan().HaveStatusEffect("SE_VL_ThunderArmor".GetStableHashCode()))
+                        float abjurationLevel = localplayer.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.AbjurationSkillDef)
+                            .m_level * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddHp() / 400f) + (EpicMMOSystem.LevelSystem.Instance.getAddStamina() / 200f), 0f, 0.5f));
+                        SE_Slow sE_Slow = (SE_Slow)ScriptableObject.CreateInstance(typeof(SE_Slow));
+                        sE_Slow.m_ttl = 4f + 6f * abjurationLevel;
+                        sE_Slow.speedAmount = 0.7f - (abjurationLevel / 250f);
+                        attacker.GetSEMan().AddStatusEffect(sE_Slow.name.GetStableHashCode(), resetTime: true);
+                        UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("fx_DvergerMage_Ice_hit"), hit.GetAttacker().transform.position, UnityEngine.Quaternion.identity);
+
+                        if (localplayer.GetSEMan().HaveStatusEffect("SE_VL_IceWeapon".GetStableHashCode())) {
+                            long pid = localplayer.GetPlayerID();
+                            int stacks = AddEnchanterWeaponCharges(pid, EnchanterWeaponElement.Ice, 1);
+                            UpdateEnchanterWeaponSEName(localplayer, EnchanterWeaponElement.Ice, stacks, localplayer.GetEyePoint());
+
+                            if (localplayer.GetSEMan().HaveStatusEffect("Burning".GetStableHashCode()))
+                            {
+                                localplayer.GetSEMan().RemoveStatusEffect("Burning".GetStableHashCode());
+                            }
+                        }
+                    }
+                }
+				if (__instance.GetSEMan() != null && hit.HaveAttacker() && __instance.GetSEMan().HaveStatusEffect("SE_VL_ThunderArmor".GetStableHashCode()))
 				{
 					Player localplayer = Player.m_localPlayer;
 					if (localplayer != null)
 					{
-						float level = localplayer.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.AbjurationSkillDef)
-							.m_level * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddHp() / 400f) + (EpicMMOSystem.LevelSystem.Instance.getAddStamina() / 200f), 0f, 0.5f));
-						if (UnityEngine.Random.value < (0.1f + (level / 300f)))
+						if (localplayer.GetSEMan().HaveStatusEffect("SE_VL_ThunderWeapon".GetStableHashCode()))
 						{
-							HitData hitData = new()
-							{
-								m_attacker = __instance.GetZDOID(),
-								m_dir = hit.m_dir * -1,
-								m_point = attacker.transform.localPosition,
-								m_damage = hit.m_damage,
-							};
-							hitData.ApplyModifier(0f);
-							hitData.m_damage.m_lightning = 2f + (EpicMMOSystem.LevelSystem.Instance.getLevel() / 4f) * UnityEngine.Random.Range(0.1f, 1.9f) * (1f + (level / 150f)) * VL_GlobalConfigs.g_DamageModifer;
-							attacker.Damage(hitData);
-							localplayer.RaiseSkill(ValheimLegends.EvocationSkill, VL_Utility.GetFireballSkillGain * 0.015f);
-                            UnityEngine.Vector3 Vector3 = localplayer.GetEyePoint() + localplayer.GetLookDir() * 4f;
-							List<Character> list = new List<Character>();
-							list.Clear();
-							Character.GetCharactersInRange(Vector3, 4f, list);
-							foreach (Character item in list)
-							{
-								float chainDamage = 0.7f;
-								if (BaseAI.IsEnemy(localplayer, item) && VL_Utility.LOS_IsValid(item, Vector3, Vector3))
-								{
-                                    UnityEngine.Vector3 dir = item.transform.position - localplayer.transform.position;
-									HitData hitData2 = new HitData();
-									hitData2.m_damage.m_lightning = (2f + (EpicMMOSystem.LevelSystem.Instance.getLevel() / 4f) * UnityEngine.Random.Range(0.1f, 1.9f) * (1f + (level / 150f))) * chainDamage * VL_GlobalConfigs.g_DamageModifer;
-									hitData2.m_pushForce = 0f;
-									hitData2.m_point = item.GetEyePoint();
-									hitData2.m_dir = dir;
-									hitData2.m_skill = ValheimLegends.AbjurationSkill;
-									item.Damage(hitData2);
-									chainDamage = chainDamage * 0.7f;
-								}
-							}
+							long pid = localplayer.GetPlayerID();
+							int stacks = AddEnchanterWeaponCharges(pid, EnchanterWeaponElement.Thunder, 1);
+							UpdateEnchanterWeaponSEName(localplayer, EnchanterWeaponElement.Thunder, stacks, localplayer.GetEyePoint());
 						}
-					}
-				}
+
+                        float abjurationLevel = localplayer.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.AbjurationSkillDef)
+                            .m_level * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddHp() / 400f) + (EpicMMOSystem.LevelSystem.Instance.getAddStamina() / 200f), 0f, 0.5f));
+						float playerLevel = EpicMMOSystem.LevelSystem.Instance.getLevel();
+
+                        if (hit.m_ranged)
+						{
+                            if (UnityEngine.Random.Range(0f, 1f) <= Math.Clamp((EpicMMOSystem.LevelSystem.Instance.getLevel() / hit.m_damage.GetTotalDamage()), 0.2f, 0.6f))
+                            {
+                                hit.ApplyModifier(0f);
+                                UnityEngine.Vector3 dir = attacker.transform.position - localplayer.transform.position;
+                                UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("fx_chainlightning_spread"), localplayer.GetEyePoint(), UnityEngine.Quaternion.LookRotation(hit.GetAttacker().transform.position - localplayer.GetEyePoint()));
+                                localplayer.RaiseSkill(ValheimLegends.AbjurationSkill, VL_Utility.GetFireballSkillGain * 0.015f);
+                            }
+						}
+						else
+						{
+                            if (UnityEngine.Random.Range(0f, 1f) <= Math.Clamp((EpicMMOSystem.LevelSystem.Instance.getLevel() / hit.m_damage.GetTotalDamage()), 0.05f, 0.15f))
+                            {
+                                hit.GetAttacker().Stagger(-hit.m_dir);
+                                UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("fx_chainlightning_spread"), localplayer.GetEyePoint(), UnityEngine.Quaternion.LookRotation(hit.GetAttacker().transform.position - localplayer.GetEyePoint()));
+                                UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("fx_chainlightning_hit"), hit.GetAttacker().GetEyePoint(), UnityEngine.Quaternion.identity);
+                                localplayer.RaiseSkill(ValheimLegends.AbjurationSkill, VL_Utility.GetFireballSkillGain * 0.015f);
+                            }
+                        }
+                    }
+                }
 				if (hit != null && __instance.GetSEMan() != null && __instance.GetSEMan().HaveStatusEffect("SE_VL_Reactivearmor".GetStableHashCode()))
 				{
 					SE_Reactivearmor SE_Reactivearmor = (SE_Reactivearmor)__instance.GetSEMan().GetStatusEffect("SE_VL_Reactivearmor".GetStableHashCode());
@@ -839,8 +839,13 @@ public class ValheimLegends : BaseUnityPlugin
 					{
 						float level2 = player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.DisciplineSkillDef)
 							.m_level * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddPhysicDamage() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddAttackSpeed() / 40f), 0f, 0.5f));
-						hit.m_damage.m_blunt += (EpicMMOSystem.LevelSystem.Instance.getLevel() * (1f + (level2 / 80f))) * 0.5f;
-						hit.m_damage.m_spirit += (EpicMMOSystem.LevelSystem.Instance.getLevel() * (1f + (level2 / 80f))) * 0.5f;
+						float chiDamage = (EpicMMOSystem.LevelSystem.Instance.getLevel() * (1f + (level2 / 80f))) * 0.5f;
+                        if (!Class_Monk.PlayerIsBareHanded)
+						{
+							chiDamage *= attacker.GetStaminaPercentage();
+                        }
+						hit.m_damage.m_blunt += chiDamage;
+						hit.m_damage.m_spirit += chiDamage;
 						SE_Monk sE_Monk = (SE_Monk)attacker.GetSEMan().GetStatusEffect("SE_VL_Monk".GetStableHashCode());
 						sE_Monk.maxHitCount = 8 + Mathf.RoundToInt(Mathf.Sqrt(Player.m_localPlayer.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.DisciplineSkillDef)
 							.m_level * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddPhysicDamage() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddAttackSpeed() / 40f), 0f, 0.5f))));
@@ -850,7 +855,19 @@ public class ValheimLegends : BaseUnityPlugin
 						player.RaiseSkill(ValheimLegends.DisciplineSkill, 0.001f * VL_GlobalConfigs.g_SkillGainModifer * (1f + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 16f)));
 					}
 				}
-				if (attacker.GetSEMan().HaveStatusEffect("SE_VL_Shell".GetStableHashCode()))
+                if (attacker.GetSEMan().HaveStatusEffect("SE_VL_DruidFenringForm".GetStableHashCode()))
+                {
+                    if (Class_Monk.PlayerIsBareHanded && (hit.m_damage.m_blunt > 0f))
+                    {
+                        float level2 = player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.DisciplineSkillDef)
+                            .m_level * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddPhysicDamage() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddAttackSpeed() / 40f), 0f, 0.5f));
+                        float clawDamage = (EpicMMOSystem.LevelSystem.Instance.getLevel() * (1f + (level2 / 80f))) * 0.25f;
+                        hit.m_damage.m_blunt += clawDamage;
+                        hit.m_damage.m_slash += clawDamage;
+                        player.RaiseSkill(ValheimLegends.DisciplineSkill, 0.001f * VL_GlobalConfigs.g_SkillGainModifer * (1f + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 16f)));
+                    }
+                }
+                if (attacker.GetSEMan().HaveStatusEffect("SE_VL_Shell".GetStableHashCode()))
 				{
 					SE_Shell sE_Shell = attacker.GetSEMan().GetStatusEffect("SE_VL_Shell".GetStableHashCode()) as SE_Shell;
 					hit.m_damage.m_spirit += sE_Shell.spiritDamageOffset;
@@ -1161,58 +1178,108 @@ public class ValheimLegends : BaseUnityPlugin
 					{
 						hit.m_damage.Modify(Mathf.Clamp(1f + (1f - (float)Math.Sqrt(attacker.GetHealthPercentage())) * VL_GlobalConfigs.c_berserkerBonusDamage, 1f, 2.0f));
 					}
-					else if (vl_player.vl_class == PlayerClass.Enchanter)
-					{
-						StatusEffect statusEffect = Class_Enchanter.HasEnchantBuff(player);
-						if (statusEffect != null)
-						{
-							StatusEffect oldStatus = player.GetSEMan().GetStatusEffect(statusEffect.name.GetStableHashCode());
-							player.GetSEMan().RemoveStatusEffect(oldStatus, quiet: true);
-						}
-						float level = player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.EvocationSkillDef)
-							.m_level * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddCriticalChance() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 80f), 0f, 0.5f));
-						if (player.GetSEMan().HaveStatusEffect("SE_VL_FlameWeapon".GetStableHashCode()) && hit.GetTotalDamage() > 0f)
-						{
-							hit.m_damage.m_fire += (EpicMMOSystem.LevelSystem.Instance.getLevel() / 6f) * UnityEngine.Random.Range(0.5f, 1.3f) * (1f + (level / 150f));
-							player.RaiseSkill(ValheimLegends.EvocationSkill, VL_Utility.GetFireballSkillGain * 0.01f);
-						}
-						else if (player.GetSEMan().HaveStatusEffect("SE_VL_IceWeapon".GetStableHashCode()) && hit.GetTotalDamage() > 0f)
-						{
-							if (UnityEngine.Random.value < (0.025f + (level / 1200f))) { 
-								hit.m_damage.m_frost += (EpicMMOSystem.LevelSystem.Instance.getLevel()) * UnityEngine.Random.Range(0.9f, 1.1f) * (1f + (level / 150f));
-								player.RaiseSkill(ValheimLegends.EvocationSkill, VL_Utility.GetFireballSkillGain * 0.07f);
-							}
-						}
-						else if (player.GetSEMan().HaveStatusEffect("SE_VL_ThunderWeapon".GetStableHashCode()) && hit.GetTotalDamage() > 0f)
-						{
-							if (UnityEngine.Random.value < (0.1f + (level / 300f)))
-							{
-								hit.m_damage.m_lightning += (EpicMMOSystem.LevelSystem.Instance.getLevel() / 4f) * UnityEngine.Random.Range(0.1f, 1.9f) * (1f + (level / 150f));
-								player.RaiseSkill(ValheimLegends.EvocationSkill, VL_Utility.GetFireballSkillGain * 0.015f);
-								UnityEngine.Vector3 Vector3 = player.GetEyePoint() + player.GetLookDir() * 4f;
-								List<Character> list = new List<Character>();
-								list.Clear();
-								Character.GetCharactersInRange(Vector3, 4f, list);
-								foreach (Character item in list)
-								{
-									float chainDamage = 0.7f;
-									if (BaseAI.IsEnemy(player, item) && VL_Utility.LOS_IsValid(item, Vector3, Vector3))
-									{
-										UnityEngine.Vector3 dir = item.transform.position - player.transform.position;
-										HitData hitData2 = new HitData();
-										hitData2.m_damage.m_lightning = (EpicMMOSystem.LevelSystem.Instance.getLevel() / 4f) * UnityEngine.Random.Range(0.1f, 1.9f) * (1f + (level / 150f)) * chainDamage;
-										hitData2.m_pushForce = 0f;
-										hitData2.m_point = item.GetEyePoint();
-										hitData2.m_dir = dir;
-										hitData2.m_skill = ValheimLegends.EvocationSkill;
-										item.Damage(hitData2);
-										chainDamage = chainDamage * 0.7f;
-										player.RaiseSkill(ValheimLegends.EvocationSkill, VL_Utility.GetFireballSkillGain * 0.005f);
-									}
-								}
-							}
-						}
-					} else
+                    else if (vl_player.vl_class == PlayerClass.Enchanter)
+                    {
+                        // Remove any "Enchant ..." temporary debuff/buff (separate from Weapon/Armor imbues)
+                        StatusEffect statusEffect = Class_Enchanter.HasEnchantBuff(player);
+                        if (statusEffect != null)
+                        {
+                            StatusEffect oldStatus = player.GetSEMan().GetStatusEffect(statusEffect.name.GetStableHashCode());
+                            player.GetSEMan().RemoveStatusEffect(oldStatus, quiet: true);
+                        }
+
+                        float evocationLevel = player.GetSkills().GetSkillList()
+                            .FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.EvocationSkillDef)
+                            .m_level * (1f + Mathf.Clamp(
+                                (EpicMMOSystem.LevelSystem.Instance.getAddCriticalChance() / 40f) +
+                                (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 80f),
+                                0f, 0.5f));
+
+                        long pid = player.GetPlayerID();
+
+                        if (player.GetSEMan().HaveStatusEffect("SE_VL_FlameWeapon".GetStableHashCode()) && hit.GetTotalDamage() > 0f)
+                        {
+                            // reset outras cargas para evitar "mix"
+                            SetEnchanterWeaponCharges(pid, EnchanterWeaponElement.Ice, 0);
+                            SetEnchanterWeaponCharges(pid, EnchanterWeaponElement.Thunder, 0);
+
+                            int stacks = AddEnchanterWeaponCharges(pid, EnchanterWeaponElement.Flame, 1);
+                            UpdateEnchanterWeaponSEName(player, EnchanterWeaponElement.Flame, stacks, __instance.GetEyePoint());
+
+                            // bônus de dano original
+                            hit.m_damage.m_fire += (EpicMMOSystem.LevelSystem.Instance.getLevel() / 6f) *
+                                UnityEngine.Random.Range(1.0f, 2.0f) *
+                                (1f + (evocationLevel / 150f));
+                            player.RaiseSkill(ValheimLegends.EvocationSkill, VL_Utility.GetFireballSkillGain * 0.03f);
+
+                        }
+                        // ============================================================
+                        // ICE WEAPON: stacks aumentam chance de proc até 100% com 10 cargas.
+                        // (Ao procar, zera as cargas)
+                        // ============================================================
+                        else if (player.GetSEMan().HaveStatusEffect("SE_VL_IceWeapon".GetStableHashCode()) && hit.GetTotalDamage() > 0f)
+                        {
+                            SetEnchanterWeaponCharges(pid, EnchanterWeaponElement.Flame, 0);
+                            SetEnchanterWeaponCharges(pid, EnchanterWeaponElement.Thunder, 0);
+
+                            int stacks = AddEnchanterWeaponCharges(pid, EnchanterWeaponElement.Ice, 1);
+                            UpdateEnchanterWeaponSEName(player, EnchanterWeaponElement.Ice, stacks, __instance.GetEyePoint());
+
+                            SE_Slow sE_Slow = (SE_Slow)ScriptableObject.CreateInstance(typeof(SE_Slow));
+                            sE_Slow.m_ttl = 4f + 6f * evocationLevel;
+                            sE_Slow.speedAmount = 0.7f - (evocationLevel / 250f);
+
+                            // bônus de dano original
+                            hit.m_damage.m_frost += (EpicMMOSystem.LevelSystem.Instance.getLevel() / 6f) *
+                                UnityEngine.Random.Range(0.5f, 1.5f) *
+                                (1f + (evocationLevel / 150f));
+                            player.RaiseSkill(ValheimLegends.EvocationSkill, VL_Utility.GetFireballSkillGain * 0.03f);
+                        }
+                        // ============================================================
+                        // THUNDER WEAPON: cada hit acumula 1 carga. 
+                        // (O proc original de chain lightning continua existindo)
+                        // ============================================================
+                        else if (player.GetSEMan().HaveStatusEffect("SE_VL_ThunderWeapon".GetStableHashCode()) && hit.GetTotalDamage() > 0f)
+                        {
+                            SetEnchanterWeaponCharges(pid, EnchanterWeaponElement.Flame, 0);
+                            SetEnchanterWeaponCharges(pid, EnchanterWeaponElement.Ice, 0);
+
+                            int stacks = AddEnchanterWeaponCharges(pid, EnchanterWeaponElement.Thunder, 1);
+                            UpdateEnchanterWeaponSEName(player, EnchanterWeaponElement.Thunder, stacks, __instance.GetEyePoint());
+
+                            // bônus de dano original
+                            hit.m_damage.m_lightning += (EpicMMOSystem.LevelSystem.Instance.getLevel() / 8f) *
+                                UnityEngine.Random.Range(0.5f, 1.5f) *
+                                (1f + (evocationLevel / 150f));
+                            player.RaiseSkill(ValheimLegends.EvocationSkill, VL_Utility.GetFireballSkillGain * 0.03f);
+
+                            UnityEngine.Vector3 Vector3 = player.GetEyePoint() + player.GetLookDir() * 4f;
+                            List<Character> list = new List<Character>();
+                            list.Clear();
+                            Character.GetCharactersInRange(Vector3, 4f, list);
+                            foreach (Character item in list)
+                            {
+                                float chainDamage = 0.7f;
+                                if (BaseAI.IsEnemy(player, item) && VL_Utility.LOS_IsValid(item, Vector3, Vector3))
+                                {
+                                    UnityEngine.Vector3 dir = item.transform.position - player.transform.position;
+                                    HitData hitData2 = new HitData();
+                                    hitData2.m_damage.m_lightning = (EpicMMOSystem.LevelSystem.Instance.getLevel() / 4f) *
+                                        UnityEngine.Random.Range(0.1f, 1.9f) *
+                                        (1f + (evocationLevel / 150f)) *
+                                        chainDamage;
+                                    hitData2.m_pushForce = 0f;
+                                    hitData2.m_point = item.GetEyePoint();
+                                    hitData2.m_dir = dir;
+                                    hitData2.m_skill = ValheimLegends.EvocationSkill;
+                                    item.Damage(hitData2);
+                                    chainDamage *= 0.7f;
+                                    player.RaiseSkill(ValheimLegends.EvocationSkill, VL_Utility.GetFireballSkillGain * 0.015f);
+                                }
+                            }
+                        }
+                    }
+                    else
                     {
 						if (player.GetSEMan().HaveStatusEffect("SE_VL_Fireaffinity".GetStableHashCode()))
 						{
@@ -1266,7 +1333,252 @@ public class ValheimLegends : BaseUnityPlugin
 		}
 	}
 
-	[HarmonyPatch(typeof(Player), "TeleportTo", null)]
+    // ============================================================
+    // Enchanter weapon charge tracking (non-persistent)
+    // ============================================================
+    private static readonly Dictionary<long, int> _enchFlameCharges = new();
+    private static readonly Dictionary<long, int> _enchIceCharges = new();
+    private static readonly Dictionary<long, int> _enchThunderCharges = new();
+
+    public enum EnchanterWeaponElement
+    {
+        Flame,
+        Ice,
+        Thunder
+    }
+
+    public static int GetEnchanterWeaponCharges(Player player, EnchanterWeaponElement element)
+    {
+        if (player == null) return 0;
+        long pid = player.GetPlayerID();
+        return element switch
+        {
+            EnchanterWeaponElement.Flame => _enchFlameCharges.TryGetValue(pid, out var a) ? a : 0,
+            EnchanterWeaponElement.Ice => _enchIceCharges.TryGetValue(pid, out var b) ? b : 0,
+            EnchanterWeaponElement.Thunder => _enchThunderCharges.TryGetValue(pid, out var c) ? c : 0,
+            _ => 0
+        };
+    }
+
+    private static void SetEnchanterWeaponCharges(long pid, EnchanterWeaponElement element, int value)
+    {
+        value = Mathf.Clamp(value, 0, 100);
+        switch (element)
+        {
+            case EnchanterWeaponElement.Flame: _enchFlameCharges[pid] = value; break;
+            case EnchanterWeaponElement.Ice: _enchIceCharges[pid] = value; break;
+            case EnchanterWeaponElement.Thunder: _enchThunderCharges[pid] = value; break;
+        }
+    }
+
+    private static int AddEnchanterWeaponCharges(long pid, EnchanterWeaponElement element, int add = 1)
+    {
+        int cur = element switch
+        {
+            EnchanterWeaponElement.Flame => _enchFlameCharges.TryGetValue(pid, out var a) ? a : 0,
+            EnchanterWeaponElement.Ice => _enchIceCharges.TryGetValue(pid, out var b) ? b : 0,
+            EnchanterWeaponElement.Thunder => _enchThunderCharges.TryGetValue(pid, out var c) ? c : 0,
+            _ => 0
+        };
+        int v = Mathf.Clamp(cur + add, 0, 100);
+        SetEnchanterWeaponCharges(pid, element, v);
+        return v;
+    }
+
+    private static void ClearEnchanterWeaponCharges(long pid)
+    {
+        _enchFlameCharges.Remove(pid);
+        _enchIceCharges.Remove(pid);
+        _enchThunderCharges.Remove(pid);
+    }
+
+	private static void UpdateEnchanterWeaponSEName(Player player, EnchanterWeaponElement element, int stacks, UnityEngine.Vector3 location)
+	{
+		if (player == null) return;
+
+		player.RaiseSkill(ValheimLegends.EvocationSkill, VL_Utility.GetFireballSkillGain * 0.03f);
+
+		int hash = element switch
+		{
+			EnchanterWeaponElement.Flame => "SE_VL_FlameWeapon".GetStableHashCode(),
+			EnchanterWeaponElement.Ice => "SE_VL_IceWeapon".GetStableHashCode(),
+			EnchanterWeaponElement.Thunder => "SE_VL_ThunderWeapon".GetStableHashCode(),
+			_ => 0
+		};
+		if (hash == 0) return;
+
+		StatusEffect se = player.GetSEMan()?.GetStatusEffect(hash);
+		if (se == null) return;
+
+		string baseName = element switch
+		{
+			EnchanterWeaponElement.Flame => "Flame Weapon",
+			EnchanterWeaponElement.Ice => "Ice Weapon",
+			EnchanterWeaponElement.Thunder => "Thunder Weapon",
+			_ => se.m_name
+		};
+		float evocationLevel = player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.EvocationSkillDef)
+			.m_level * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddCriticalChance() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 80f), 0f, 0.5f));
+		float abjurationLevel = player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.AbjurationSkillDef)
+			.m_level * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddHp() / 400f) + (EpicMMOSystem.LevelSystem.Instance.getAddStamina() / 200f), 0f, 0.5f));
+		float procChance = Mathf.Clamp(stacks, 0, 100) + (1f + (evocationLevel / 100f));
+
+		se.m_name = $"{baseName}: {procChance} %";
+
+		if (UnityEngine.Random.RandomRangeInt(0, 100) <= procChance)
+		{
+			if (element == EnchanterWeaponElement.Flame)
+			{
+				UnityEngine.Vector3 Vector3 = player.transform.position;
+				List<Character> list = new List<Character>();
+				list.Clear();
+				Character.GetCharactersInRange(Vector3, 30f, list);
+				foreach (Character item in list)
+				{
+					if (!BaseAI.IsEnemy(player, item) || item.IsPlayer())
+					{
+						float heal = 5f + (EpicMMOSystem.LevelSystem.Instance.getLevel() * 0.25f * (1f + (abjurationLevel / 150f)));
+                        item.Heal(heal, showText: true);
+						UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("vfx_Potion_health_medium"), item.GetCenterPoint(), UnityEngine.Quaternion.identity);
+                        ReduceAllCooldowns(item, 0.9f);
+                    }
+				}
+                Vector3 = location;
+                list.Clear();
+                Character.GetCharactersInRange(Vector3, 15f, list);
+                foreach (Character item in list)
+                {
+                    if (BaseAI.IsEnemy(player, item) && VL_Utility.LOS_IsValid(item, Vector3))
+                    {
+                        UnityEngine.Vector3 dir = item.transform.position - location;
+                        HitData hitData = new HitData();
+                        hitData.m_damage.m_fire = (10f + (EpicMMOSystem.LevelSystem.Instance.getLevel()) * UnityEngine.Random.Range(1.0f, 2.0f) * (1f + (evocationLevel / 150f))) * VL_GlobalConfigs.g_DamageModifer;
+                        hitData.m_pushForce = 0f;
+                        hitData.m_point = item.GetEyePoint();
+                        hitData.m_dir = dir;
+                        hitData.m_skill = ValheimLegends.EvocationSkill;
+                        item.Damage(hitData);
+                        UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("fx_CinderFire_Burn"), item.transform.position, UnityEngine.Quaternion.identity);
+                    }
+                }
+                UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("fx_fireball_staff_explosion"), location, UnityEngine.Quaternion.identity);
+                SetEnchanterWeaponCharges(player.GetPlayerID(), EnchanterWeaponElement.Flame, 0);
+				UpdateEnchanterWeaponSEName(player, EnchanterWeaponElement.Flame, 0, location);
+			}
+			else if (element == EnchanterWeaponElement.Ice)
+			{
+				UnityEngine.Vector3 Vector3 = player.transform.position;
+				List<Character> list = new List<Character>();
+				list.Clear();
+				Character.GetCharactersInRange(Vector3, 30f, list);
+				foreach (Character item in list)
+				{
+					if (!BaseAI.IsEnemy(player, item) || item.IsPlayer())
+					{
+						float eitr = 10f + (EpicMMOSystem.LevelSystem.Instance.getLevel() * 0.5f * (1f + (abjurationLevel / 75f)));
+						item.AddEitr(eitr);
+						UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("fx_Potion_frostresist"), item.GetCenterPoint(), UnityEngine.Quaternion.identity);
+                        ReduceAllCooldowns(item, 0.9f);
+                        if (item.GetSEMan().HaveStatusEffect("Burning".GetStableHashCode()))
+                        {
+                            item.GetSEMan().RemoveStatusEffect("Burning".GetStableHashCode());
+                        }
+                    }
+                }
+                Vector3 = location;
+                list.Clear();
+                Character.GetCharactersInRange(Vector3, 15f, list);
+                foreach (Character item in list)
+                {
+                    if (BaseAI.IsEnemy(player, item) && VL_Utility.LOS_IsValid(item, Vector3))
+                    {
+                        UnityEngine.Vector3 dir = item.transform.position - location;
+                        HitData hitData = new HitData();
+                        hitData.m_damage.m_frost = (10f + (EpicMMOSystem.LevelSystem.Instance.getLevel()) * UnityEngine.Random.Range(0.5f, 1.5f) * (1f + (evocationLevel / 150f))) * VL_GlobalConfigs.g_DamageModifer;
+                        hitData.m_pushForce = 0f;
+                        hitData.m_point = item.GetEyePoint();
+                        hitData.m_dir = dir;
+                        hitData.m_skill = ValheimLegends.EvocationSkill;
+                        item.Damage(hitData);
+                        SE_Slow sE_Slow = (SE_Slow)ScriptableObject.CreateInstance(typeof(SE_Slow));
+                        sE_Slow.m_ttl = 4f + 6f * (evocationLevel);
+                        sE_Slow.speedAmount = 0.01f;
+                        item.GetSEMan().AddStatusEffect(sE_Slow.name.GetStableHashCode(), resetTime: true);
+                        UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("fx_DvergerMage_Ice_hit"), item.transform.position, UnityEngine.Quaternion.identity);
+                    }
+                }
+                UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("fx_guardstone_activate"), location, UnityEngine.Quaternion.identity);
+                SetEnchanterWeaponCharges(player.GetPlayerID(), EnchanterWeaponElement.Ice, 0);
+				UpdateEnchanterWeaponSEName(player, EnchanterWeaponElement.Ice, 0, location);
+			}
+			else if (element == EnchanterWeaponElement.Thunder)
+			{
+				UnityEngine.Vector3 Vector3 = player.transform.position;
+				List<Character> list = new List<Character>();
+				list.Clear();
+				Character.GetCharactersInRange(Vector3, 30f, list);
+                foreach (Character item in list)
+				{
+					if ((!BaseAI.IsEnemy(player, item) || item.IsPlayer()))
+
+                    {
+						float stamina = 10f + (EpicMMOSystem.LevelSystem.Instance.getLevel() * 0.5f * (1f + (abjurationLevel / 75f)));
+                        item.AddStamina(stamina);
+						UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("vfx_Potion_stamina_medium"), item.GetCenterPoint(), UnityEngine.Quaternion.identity);
+						ReduceAllCooldowns(item, 0.9f);
+                    }
+				}
+                Vector3 = location;
+                list.Clear();
+                Character.GetCharactersInRange(Vector3, 30f, list);
+                float chainDamage = 0.7f;
+                foreach (Character item in list)
+                {
+					if (BaseAI.IsEnemy(player, item) && VL_Utility.LOS_IsValid(item, Vector3))
+                    {
+                        UnityEngine.Vector3 dir = location - player.transform.position;
+                        HitData hitData2 = new HitData();
+                        hitData2.m_damage.m_lightning = (10f + (EpicMMOSystem.LevelSystem.Instance.getLevel()) * UnityEngine.Random.Range(0.8f, 1.8f) * (1f + (evocationLevel / 150f))) * chainDamage * VL_GlobalConfigs.g_DamageModifer;
+                        hitData2.m_pushForce = 0f;
+                        hitData2.m_point = item.GetEyePoint();
+                        hitData2.m_dir = dir;
+                        hitData2.m_skill = ValheimLegends.EvocationSkill;
+                        item.Damage(hitData2);
+                        chainDamage = chainDamage * 0.7f;
+                        player.RaiseSkill(ValheimLegends.EvocationSkill, VL_Utility.GetFireballSkillGain * 0.015f);
+                        UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("fx_chainlightning_hit"), item.transform.position, UnityEngine.Quaternion.identity);
+                    }
+                }
+                UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("fx_eikthyr_stomp"), location, UnityEngine.Quaternion.identity);
+                //GameCamera.instance.AddShake(location, 15f, 2f, continous: false);
+                SetEnchanterWeaponCharges(player.GetPlayerID(), EnchanterWeaponElement.Thunder, 0);
+				UpdateEnchanterWeaponSEName(player, EnchanterWeaponElement.Thunder, 0, location);
+			}
+		}
+	}		
+
+    public static void ReduceAllCooldowns(Character player, float multiplier)
+    {
+        // multiplier 0.9f = reduz 10% do restante
+        if (player == null) return;
+        if (!player.IsPlayer()) return;
+
+        int cd1 = "SE_VL_Ability1_CD".GetStableHashCode();
+        int cd2 = "SE_VL_Ability2_CD".GetStableHashCode();
+        int cd3 = "SE_VL_Ability3_CD".GetStableHashCode();
+
+        StatusEffect se1 = player.GetSEMan().GetStatusEffect(cd1);
+        if (se1 != null) se1.m_ttl *= multiplier;
+
+        StatusEffect se2 = player.GetSEMan().GetStatusEffect(cd2);
+        if (se2 != null) se2.m_ttl *= multiplier;
+
+        StatusEffect se3 = player.GetSEMan().GetStatusEffect(cd3);
+        if (se3 != null) se3.m_ttl *= multiplier;
+    }
+
+
+    [HarmonyPatch(typeof(Player), "TeleportTo", null)]
 	public static class DestroySummonedWhenTeleporting_Patch
 	{
 		[HarmonyPriority(800)]
@@ -1325,7 +1637,65 @@ public class ValheimLegends : BaseUnityPlugin
 	{
 		public static void Postfix(Projectile __instance, Collider collider, UnityEngine.Vector3 hitPoint, bool water, float ___m_aoe, int ___s_rayMaskSolids, Character ___m_owner, UnityEngine.Vector3 ___m_vel)
 		{
-			if (__instance.name == "VL_Charm")
+
+            // ===== DRUID ROOT HIT =====
+            if (__instance != null && (__instance.name == "VL_DruidRoot" || __instance.name == "Root"))
+            {
+                // pega o alvo acertado
+                GameObject hitObj = Projectile.FindHitObject(collider);
+                if (hitObj != null)
+                {
+                    Character target =
+                        hitObj.GetComponent<Character>() ??
+                        hitObj.GetComponentInParent<Character>();
+
+                    // aplica apenas em criaturas (não players) e apenas se tiver SEMan
+                    if (target != null && !target.IsPlayer() && target.GetSEMan() != null)
+                    {
+                        // (opcional) se quiser evitar bosses serem travados:
+                        if (!target.m_boss)
+                        {
+                            var rooted = (SE_Rooted)ScriptableObject.CreateInstance(typeof(SE_Rooted));
+                            rooted.m_ttl = 1f;
+                            target.GetSEMan().AddStatusEffect(rooted, resetTime: true);
+                        }
+                    }
+                }
+
+                // reduzir CD da Ability 1 do Druida em 1% por hit
+                if (___m_owner is Player ownerPlayer && ownerPlayer.GetSEMan() != null)
+                {
+                    int cdHash = "SE_VL_Ability1_CD".GetStableHashCode();
+                    StatusEffect cd = ownerPlayer.GetSEMan().GetStatusEffect(cdHash);
+
+                    if (cd != null)
+                    {
+                        cd.m_ttl *= 0.99f; // -1%
+
+                        // opcional: se ficar muito pequeno, remove o CD
+                        if (cd.m_ttl <= 0.05f)
+                        {
+                            ownerPlayer.GetSEMan().RemoveStatusEffect(cdHash);
+                        }
+                    }
+                    cdHash = "SE_VL_Ability2_CD".GetStableHashCode();
+                    cd = ownerPlayer.GetSEMan().GetStatusEffect(cdHash);
+
+                    if (cd != null)
+                    {
+                        cd.m_ttl *= 0.99f; // -1%
+
+                        // opcional: se ficar muito pequeno, remove o CD
+                        if (cd.m_ttl <= 0.05f)
+                        {
+                            ownerPlayer.GetSEMan().RemoveStatusEffect(cdHash);
+                        }
+                    }
+                }
+
+                return; // não deixa cair no resto do patch
+            }
+            if (__instance.name == "VL_Charm")
 			{
 				bool hitCharacter = false;
 				if (!(__instance.m_aoe > 0f))
@@ -2263,7 +2633,7 @@ public class ValheimLegends : BaseUnityPlugin
 					}
 					else if (vl_player.vl_class == PlayerClass.Druid)
 					{
-						Class_Druid.Process_Input(localPlayer, ___m_maxAirAltitude);
+						Class_Druid.Process_Input(localPlayer, ___m_maxAirAltitude,ref ___m_body);
 					}
 					else if (vl_player.vl_class == PlayerClass.Shaman)
 					{
@@ -2339,7 +2709,22 @@ public class ValheimLegends : BaseUnityPlugin
 						isChargingDash = false;
 						Class_Berserker.Execute_Dash(localPlayer, ref ___m_maxAirAltitude, ref ___m_body);
 					}
-					else if (vl_player.vl_class == PlayerClass.Valkyrie && dashCounter >= (int)Class_Valkyrie.QueuedAttack)
+					if (vl_player.vl_class == PlayerClass.Druid && dashCounter >= 12)
+					{
+						isChargingDash = false;
+						var seMan = localPlayer.GetSEMan();
+						if (seMan == null) return;
+
+						if (seMan.HaveStatusEffect("SE_VL_DruidFenringForm".GetStableHashCode()))
+						{
+                            Class_Berserker.Execute_Dash(localPlayer, ref ___m_maxAirAltitude, ref ___m_body);
+						}
+						else if (seMan.HaveStatusEffect("SE_VL_DruidCultistForm".GetStableHashCode()))
+                        {
+                            Class_Mage.Execute_Attack(localPlayer);
+                        }
+                    }
+                    else if (vl_player.vl_class == PlayerClass.Valkyrie && dashCounter >= (int)Class_Valkyrie.QueuedAttack)
 					{
 						isChargingDash = false;
 						Class_Valkyrie.Execute_Attack(localPlayer, ref ___m_body, ref ___m_maxAirAltitude);
@@ -2348,7 +2733,8 @@ public class ValheimLegends : BaseUnityPlugin
 					{
 						isChargingDash = false;
 						isChanneling = false;
-						Class_Duelist.Execute_Slash(localPlayer);
+                        channelingBlocksMovement = true;
+                        Class_Duelist.Execute_Slash(localPlayer);
 					}
 					else if (vl_player.vl_class == PlayerClass.Rogue && dashCounter >= 16)
 					{
@@ -2357,7 +2743,7 @@ public class ValheimLegends : BaseUnityPlugin
 					}
 					else if (vl_player.vl_class == PlayerClass.Mage && dashCounter >= (int)Class_Mage.QueuedAttack)
 					{
-						isChargingDash = false;
+                        isChargingDash = false;
 						Class_Mage.Execute_Attack(localPlayer);
 					}
 					else if (vl_player.vl_class == PlayerClass.Monk && dashCounter >= (int)Class_Monk.QueuedAttack)
@@ -2577,15 +2963,39 @@ public class ValheimLegends : BaseUnityPlugin
 				"\nEnergy: 80" +
 				"\n*Defender's health and attack power increase with Conjuration" +
 				"\n**Each Root defender restores stamina to the caster as long as the caster remains near the point Nature's Defense was activated" +
-				"\n\nVines: create vines that grow at an alarming speed." +
+                "\n***Casting Nature's Defense while blocking shapeshifts the Druid in a Fenring. See more below." +
+                "\n\nVines: create vines that grow at an alarming speed." +
 				"\nDamage:" +
 				"\n Piercing - 10 + 0.6*Conjuration -> 15 + 1.2*Conjuration per vine" +
 				"\nCooldown: 20s" +
 				"\nEnergy: 30 initial + 9 every .5s" +
 				"\n*Vines are a channeled ability, press and hold the ability button to continuously project vines" +
-				"\n\nBonus skills:" +
+                "\n\nFenring Form:" +
+                "\nA Druid can shapeshift in a Fenring temporarily. Unarmed damage is increased and double jump is possible. Health and Stamina regen increased (the more damaged/tired the druid is, the more it recovers)." +
+                "\nAfter transforming there is a grave period before Eitr is drained from the druid. Drain is reduced by Alteration skill. Shapeshifting imposes a cooldown before the druid can shapeshift again, reduced by Intelect and Alteration Skill." +
+                "\nRunning out of Eitr will forcibly return the druid to human form. This forceful transformation causes a greater cooldown before the druid can shapeshift again, also reduced by Intelect and Alteration Skill." +
+                "\nWhile in Fenring Form, the Druid's skillset changes to:" +
+                "\n\nDash: dash forward in the blink of an eye, cutting through enemies in your way." +
+                "\nDamage:" +
+                "\n 80% + 0.5%*Discipline of weapon damage" +
+                "\nCooldown: 10s" +
+                "\nEnergy: 50" +
+                "\n*10m dash distance" +
+				"\n\nStagger: send forth a shock wave that staggers all nearby enemies." +
+				"\nAoE: 6m" +
+				"\nCooldown: 10s" +
+				"\nEnergy: 40" +
+                "\n\nShadow Stalk: fade into the shadows gaining a burst of speed and augmenting stealth." +
+                "\nAugment:" +
+                "\n All movement speed increased by 50% + 1%*Discipline for 3s + 0.03s*Discipline" +
+                "\n Stealth movement speed increased by 50% + 1%*Discipline" +
+                "\nDuration: 20s + 0.9s*Discipline" +
+                "\nCooldown: 45s" +
+                "\nEnergy: 40" +
+                "\n*Shadow stalk causes enemies to lose track of the druid" +
+                "\n\nBonus skills:" +
 				"\n - Prepare Spirit Binding Vial: cast Regeneration while blocking to turn 1 Ancient Seed into a Spirit Binding Vial, that can be used to resurrect a fallen ally" +
-				"\n - Natures Restoration - consume ancient seeds, pine cones, fir cones, beech seeds or birch seeds to quickly restore stamina; seeds may be consumed similar to any food item",
+				"\n - Natures Restoration - consume ancient seeds, pine cones, fir cones, beech seeds or birch seeds to quickly restore stamina and eitr; seeds may be consumed similar to any food item",
 				m_topic = "Legend Druid"
 			};
 			if (!Tutorial.instance.m_texts.Contains(item5))
@@ -2812,16 +3222,18 @@ public class ValheimLegends : BaseUnityPlugin
 				"\n\n Ashland - Fire damage on attack; fire resistance increased; emits a small amout of light around you" +
 				"\n\nBonus skills:" +
 				"\n - Elemental Absorption - blocked elemental damage is absorbed by the enchanter as stamina" +
-				"\n - Enchant Weapon - adds elemental damage to the Enchanter's attacks according to their element. Activate affinity using Block + Charm." +
-				"\n -> Flame Weapon - adds minor fire damage to every attacks (scales with character level and Evocation skill)." +
-				"\n -> Ice Weapon - low chance to add heavy frost damage on attack (damage scale with character level and Evocation skill, chance scales with Evocation skill)." +
-				"\n -> Thunder Weapon - reasonable chance to add lightning damage on attack that jumps to nearby targets (damage scale with character level and Evocation skill, chance scales with Evocation skill)." +
-				"\n - Enchant Armor - adds elemental protection to the Enchanter according to their element. Activate affinity using Block + Weaken." +
+                "\n - Enchant Weapon - adds elemental damage to the Enchanter's attacks according to their element. Activate affinity using Block + Charm. Each hit increase chance of triggering charges." +
+				"\n -> Flame Weapon - adds minor fire damage to every attacks (scales with character level and Evocation skill). Triggering charges heals friendly targets nearby and burns nearby foes." +
+                "\n -> Ice Weapon - adds minor frost damage and slowness to every attacks (damage, duration and slowness scale with character level and Evocation skill). Triggering charges  restores Eitr to friendly targets nearby and freezs nearby foes." +
+                "\n -> Thunder Weapon - adds minor lightning damage to every attacks that jumps to nearby targets (scales with character level and Evocation skill). Triggering charges restores Stamina to friendly targets nearby and shocks targets in a large area." +
+                "\n Triggering charges  of any weapon will lower nearby targets skills cooldown by 10%." +
+                "\n - Enchant Armor - adds elemental protection to the Enchanter according to their element. Activate affinity using Block + Weaken." +
 				"\n -> Flame Armor - Regenerate Health over time, immune to cold, magic resist increased." +
-				"\n -> Frost Armor - Chance to cast a frost nova when hit, slowing all nearby enemies. Physical resist increased." +
-				"\n -> Thunder Armor - Chance to cast a chain lightnin in all nearby enemies when hit. Movement speed increased." +
-				"\n * One Enchant Weapon and one Enchant Armor can be activate at a time.",
-				m_topic = "Legend Enchanter"
+				"\n -> Frost Armor - Chance to cast a frost nova when hit, Slows down melee attackers. Physical resist increased." +
+				"\n -> Thunder Armor - Chance to cast a chain lightning in all nearby enemies when hit. Chance to avoid projectiles and stun melee attackers. Movement speed increased." +
+				"\n * One Enchant Weapon and one Enchant Armor can be activate at a time. Getting hit while using the same armor element as the weapon will increase weapon charges." +
+                "\n Magic weapons specialist: sit down and active Zone Charge to repair your wielded Elemental Magic or Blood Magic Weapon.",
+                m_topic = "Legend Enchanter"
 			};
 			if (!Tutorial.instance.m_texts.Contains(item10))
 			{
@@ -3485,7 +3897,9 @@ public class ValheimLegends : BaseUnityPlugin
 
 	public static bool isChanneling = false;
 
-	public static int channelingCancelDelay = 0;
+    public static bool channelingBlocksMovement = true;
+
+    public static int channelingCancelDelay = 0;
 
 	public static bool isChargingDash = false;
 
@@ -4131,10 +4545,21 @@ public class ValheimLegends : BaseUnityPlugin
 		else if (vl_player.vl_class == PlayerClass.Druid)
 		{
 			ZLog.Log("Valheim Legend: Druid");
-			Ability1_Name = "Regen";
-			Ability2_Name = "Living Def.";
-			Ability3_Name = "Vines";
-			Player.m_localPlayer.ShowTutorial("VL_Druid");
+            var seMan = Player.m_localPlayer.GetSEMan();
+            if (seMan == null) return;
+
+            if (seMan.HaveStatusEffect("SE_VL_DruidFenringForm".GetStableHashCode()))
+            {
+                Ability1_Name = "Shadow";
+                Ability2_Name = "Stagger";
+                Ability3_Name = "Dash";
+            } else
+			{
+                Ability1_Name = "Regen";
+                Ability2_Name = "Living Def.";
+                Ability3_Name = "Vines";
+            }
+            Player.m_localPlayer.ShowTutorial("VL_Druid");
 		}
 		else if (vl_player.vl_class == PlayerClass.Shaman)
 		{

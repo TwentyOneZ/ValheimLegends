@@ -40,7 +40,8 @@ public class Class_Shaman
 	public static void Process_Input(Player player, ref Rigidbody playerBody, ref float altitude, ref float lastGroundTouch, float waterLevel)
 	{
 		ValheimLegends.isChanneling = false;
-		if (ZInput.GetButton("Jump"))
+        ValheimLegends.channelingBlocksMovement = true;
+        if (ZInput.GetButton("Jump"))
 		{
 			glideDelay++;
 			if (!player.IsDead() && !player.InAttack() && !player.IsEncumbered() && !player.InDodge() && !player.IsKnockedBack() && glideDelay > 20 && player.transform.position.y <= waterLevel + 0.4f)
@@ -165,77 +166,90 @@ public class Class_Shaman
 		{
 			if (!player.GetSEMan().HaveStatusEffect("SE_VL_Ability2_CD".GetStableHashCode()))
 			{
-				if (player.IsBlocking())
-				{
-					if (player.GetInventory() != null)
-					{
-						ItemDrop.ItemData item = null;
-						ItemDrop.ItemData resurrectMaterialItem = null;
-						ItemDrop resurrectFinalItem = null;
+                if (player.IsBlocking())
+                {
+                    var inv = player.GetInventory();
+                    if (inv == null) return;
 
-						foreach (ItemDrop go in Resources.FindObjectsOfTypeAll(typeof(ItemDrop)) as ItemDrop[])
-						{
-							//Debug.Log("Item Scanning: " + go.m_itemData.m_shared.m_name.ToLower());
-							if (go.m_itemData.m_shared.m_name.ToLower().Contains("spirit binding vial"))
-							{
-								resurrectFinalItem = go;
-								break;
-							}
-						}
-						//Debug.Log("Item Found: " + resurrectFinalItem.m_itemData.m_shared.m_name);
-						// Go through all items.
-						for (int j = 0; j < player.GetInventory().GetHeight(); j++)
-						{
-							if (resurrectMaterialItem != null)
-							{
-								break;
-							}
-							for (int i = 0; i < player.GetInventory().GetWidth(); i++)
-							{
-								item = player.GetInventory().GetItemAt(i, j);
-								if (item == null)
-								{
-									continue;
-								}
+                    int requiredItems = 1;
+                    string materialName = "Thunderstone";
 
-								if (item.m_shared.m_name == "$item_thunderstone")
-								{
-									resurrectMaterialItem = item;
-								}
-								if (resurrectMaterialItem != null) break;
-							}
-						}
-						if (resurrectMaterialItem == null)
-						{
-							player.Message(MessageHud.MessageType.TopLeft, "You need a Thunderstone to create a Spirit Binding Vial.");
-						}
-						else
-						{
-							if (player.GetStamina() >= VL_Utility.GetShellCost(player))
-							{
-								player.RaiseSkill(ValheimLegends.AlterationSkill, VL_Utility.GetShellSkillGain(player));
-								StatusEffect statusEffect = (SE_Ability2_CD)ScriptableObject.CreateInstance(typeof(SE_Ability2_CD));
-								float level = player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.AlterationSkillDef)
-									.m_level * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddCriticalChance() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 80f), 0f, 0.5f));
-								statusEffect.m_ttl = VL_Utility.GetHealCooldownTime * 20f / (1f + level / 150f);
-								player.GetSEMan().AddStatusEffect(statusEffect);
-								player.UseStamina(VL_Utility.GetShellCost(player));
-								Player.m_localPlayer?.GetInventory().RemoveOneItem(resurrectMaterialItem);
-								ItemDrop.DropItem(resurrectFinalItem.m_itemData, 1, player.transform.position, UnityEngine.Quaternion.identity);
-								player.StartEmote("cheer");
-								player.Message(MessageHud.MessageType.TopLeft, "Consumed 1 " + resurrectMaterialItem.m_shared.m_name + " to create a " + resurrectFinalItem.m_itemData.m_shared.m_name + ".");
-								UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("vfx_Potion_stamina_medium"), player.transform.position, UnityEngine.Quaternion.identity);
-								UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("vfx_WishbonePing"), player.transform.position, UnityEngine.Quaternion.identity);
-							}
-							else
-							{
-								player.Message(MessageHud.MessageType.TopLeft, "Not enough stamina to Create Spirit Binding Vial: (" + player.GetStamina().ToString("#.#") + "/" + (VL_Utility.GetHealCost).ToString("#.#") + ")");
-							}
-						}
-					}
-				}
-				else
-				{
+                    // 1) checar material
+                    ItemDrop.ItemData foundItem = VL_Utility.FindItemByPrefabName(inv, materialName, requiredItems);
+                    if (foundItem == null)
+                    {
+                        player.Message(MessageHud.MessageType.Center,
+                            "You need a Thunderstone to create a Spirit Binding Vial.");
+                        return;
+                    }
+
+                    // 2) checar stamina
+                    if (player.GetStamina() < VL_Utility.GetShellCost(player))
+                    {
+                        player.Message(MessageHud.MessageType.TopLeft,
+                            "Not enough stamina to Create Spirit Binding Vial: (" +
+                            player.GetStamina().ToString("#.#") + "/" +
+                            VL_Utility.GetShellCost(player).ToString("#.#") + ")");
+                        return;
+                    }
+
+                    // 3) cooldown/skill etc (seu código)
+                    player.RaiseSkill(ValheimLegends.AlterationSkill, VL_Utility.GetHealSkillGain);
+                    StatusEffect statusEffect = (SE_Ability3_CD)ScriptableObject.CreateInstance(typeof(SE_Ability3_CD));
+                    float level = player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.AlterationSkillDef)
+                        .m_level * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddCriticalChance() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 80f), 0f, 0.5f));
+                    statusEffect.m_ttl = VL_Utility.GetHealCooldownTime * 20f / (1f + level / 150f);
+                    player.GetSEMan().AddStatusEffect(statusEffect);
+                    player.UseStamina(VL_Utility.GetShellCost(player));
+
+                    // 4) consumir 1 Ancient Seed
+                    inv.RemoveOneItem(foundItem);
+
+                    // 5) criar o item do prefab e adicionar no inventário
+                    const string vialPrefabName = "questitem_wraiths_breath";
+
+                    if (ZNetScene.instance == null)
+                    {
+                        Debug.Log("ZNetScene not ready.");
+                        return;
+                    }
+
+                    GameObject vialPrefab = ZNetScene.instance.GetPrefab(vialPrefabName);
+                    if (vialPrefab == null)
+                    {
+                        Debug.Log($"Prefab not found: {vialPrefabName}");
+                        return;
+                    }
+
+                    ItemDrop vialDrop = vialPrefab.GetComponent<ItemDrop>();
+                    if (vialDrop == null)
+                    {
+                        Debug.Log($"Prefab has no ItemDrop: {vialPrefabName}");
+                        return;
+                    }
+
+                    ItemDrop.ItemData vialItem = vialDrop.m_itemData.Clone();
+
+                    // adiciona no inventário (retorna false se inventário cheio)
+                    bool added = inv.AddItem(vialItem);
+                    if (!added)
+                    {
+                        // fallback: se inventário cheio, dropa no chão
+                        ItemDrop.DropItem(vialItem, 1, player.transform.position + player.transform.forward, UnityEngine.Quaternion.identity);
+                        player.Message(MessageHud.MessageType.TopLeft, "Inventory full. Dropped Spirit Binding Vial on the ground.");
+                    }
+                    else
+                    {
+                        player.Message(MessageHud.MessageType.TopLeft,
+                            $"Consumed 1 {materialName} to create a {vialItem.m_shared.m_name}.");
+                    }
+
+                    player.StartEmote("cheer");
+                    UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("vfx_Potion_stamina_medium"), player.transform.position, UnityEngine.Quaternion.identity);
+                    UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("vfx_WishbonePing"), player.transform.position, UnityEngine.Quaternion.identity);
+                }
+                else
+                {
 					if (player.GetStamina() > VL_Utility.GetShellCost(player))
 					{
 						StatusEffect statusEffect2 = (SE_Ability2_CD)ScriptableObject.CreateInstance(typeof(SE_Ability2_CD));
