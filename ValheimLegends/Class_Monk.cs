@@ -450,7 +450,7 @@ public class Class_Monk
 							Object.Instantiate(ZNetScene.instance.GetPrefab("fx_VL_ChiPulse"), player.GetCenterPoint(), UnityEngine.Quaternion.identity);
 							Object.Instantiate(ZNetScene.instance.GetPrefab("fx_Potion_frostresist"), player.transform.position, UnityEngine.Quaternion.identity);
 							player.UseStamina(Mathf.Max(50f, player.GetMaxStamina() * 0.8f));
-							sE_Monk.maxHitCount = 8 + Mathf.RoundToInt(Mathf.Sqrt(Player.m_localPlayer.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.DisciplineSkillDef)
+							sE_Monk.maxHitCount = 1 + Mathf.RoundToInt(0.2f + Mathf.Sqrt(Player.m_localPlayer.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.DisciplineSkillDef)
 								.m_level * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddPhysicDamage() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddAttackSpeed() / 40f), 0f, 0.5f))));
 							sE_Monk.hitCount++;
 							sE_Monk.hitCount = Mathf.Clamp(sE_Monk.hitCount, 0, sE_Monk.maxHitCount);

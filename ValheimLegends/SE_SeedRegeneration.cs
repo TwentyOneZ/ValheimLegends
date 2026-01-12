@@ -37,8 +37,9 @@ public class SE_SeedRegeneration : StatusEffect
 		{
 			m_timer = m_damageInterval;
 			m_character.AddStamina(m_HealAmount);
-		}
-		base.UpdateStatusEffect(dt);
+            m_character.AddEitr(m_HealAmount);
+        }
+        base.UpdateStatusEffect(dt);
 	}
 
 	public override bool CanAdd(Character character)

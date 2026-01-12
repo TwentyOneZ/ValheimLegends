@@ -842,12 +842,15 @@ public class ValheimLegends : BaseUnityPlugin
 						float chiDamage = (EpicMMOSystem.LevelSystem.Instance.getLevel() * (1f + (level2 / 80f))) * 0.5f;
                         if (!Class_Monk.PlayerIsBareHanded)
 						{
-							chiDamage *= attacker.GetStaminaPercentage();
+                            chiDamage *= attacker.GetStaminaPercentage();
+                        } 
+						else
+						{
+                            hit.m_damage.m_blunt += chiDamage;
                         }
-						hit.m_damage.m_blunt += chiDamage;
-						hit.m_damage.m_spirit += chiDamage;
+                        hit.m_damage.m_spirit += chiDamage;
 						SE_Monk sE_Monk = (SE_Monk)attacker.GetSEMan().GetStatusEffect("SE_VL_Monk".GetStableHashCode());
-						sE_Monk.maxHitCount = 8 + Mathf.RoundToInt(Mathf.Sqrt(Player.m_localPlayer.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.DisciplineSkillDef)
+						sE_Monk.maxHitCount = 5 + Mathf.RoundToInt(0.4f * Mathf.Sqrt(Player.m_localPlayer.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.DisciplineSkillDef)
 							.m_level * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddPhysicDamage() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddAttackSpeed() / 40f), 0f, 0.5f))));
 						sE_Monk.hitCount++;
 						sE_Monk.hitCount = Mathf.Clamp(sE_Monk.hitCount, 0, sE_Monk.maxHitCount);
@@ -2200,7 +2203,7 @@ public class ValheimLegends : BaseUnityPlugin
 					if (__instance.GetTotalBlockableDamage() >= damage)
 					{
 						SE_Monk sE_Monk = (SE_Monk)Player.m_localPlayer.GetSEMan().GetStatusEffect("SE_VL_Monk".GetStableHashCode());
-						sE_Monk.maxHitCount = 8 + Mathf.RoundToInt(Mathf.Sqrt(Player.m_localPlayer.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.DisciplineSkillDef)
+						sE_Monk.maxHitCount = 5 + Mathf.RoundToInt(0.4f * Mathf.Sqrt(Player.m_localPlayer.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.DisciplineSkillDef)
 							.m_level * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddPhysicDamage() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddAttackSpeed() / 40f), 0f, 0.5f))));
 						sE_Monk.hitCount++;
 						sE_Monk.hitCount = Mathf.Clamp(sE_Monk.hitCount, 0, sE_Monk.maxHitCount);
@@ -2805,7 +2808,7 @@ public class ValheimLegends : BaseUnityPlugin
 					if (vl_player.vl_class == PlayerClass.Monk && Class_Monk.PlayerIsUnarmed && Player.m_localPlayer.GetSEMan().HaveStatusEffect("SE_VL_Monk".GetStableHashCode()))
 					{
 						SE_Monk sE_Monk = (SE_Monk)Player.m_localPlayer.GetSEMan().GetStatusEffect("SE_VL_Monk".GetStableHashCode());
-						sE_Monk.maxHitCount = 8 + Mathf.RoundToInt(Mathf.Sqrt(Player.m_localPlayer.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.DisciplineSkillDef)
+						sE_Monk.maxHitCount = 5 + Mathf.RoundToInt(0.4f * Mathf.Sqrt(Player.m_localPlayer.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.DisciplineSkillDef)
 							.m_level * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddPhysicDamage() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddAttackSpeed() / 40f), 0f, 0.5f))));
 						sE_Monk.hitCount++;
 						sE_Monk.hitCount = Mathf.Clamp(sE_Monk.hitCount, 0, sE_Monk.maxHitCount);
@@ -3252,9 +3255,9 @@ public class ValheimLegends : BaseUnityPlugin
 				"\n Blunt - 12 + 0.5*Discipline -> 24 + Discipline" +
 				"\nCooldown: 1s" +
 				"\nEnergy: 3 chi" +
-				"\n*Uses chi instead of stamina; build chi through unarmed combat" +
+                "\n*Uses chi instead of stamina; build chi through unarmed combat (max stackable Chi charge = 5 to 10, depending on Discipline)" +
 				"\n**Activate while on the ground to create a powerful frontal attack; use from sufficient height to propel the monk to the ground, creating a powerful AoE attack" +
-				"\n**Active while blocking to Power-Up a Chi charge by spending Stamina (max stackable Chi charge = square root of Discipline)." +
+				"\n**Active while blocking to Power-Up a Chi charge by spending Stamina (max stackable Chi charge = 1 to 3, depending on Discipline)." +
 				"\n\nFlying Kick: launches into a flying whirlwind kick." +
 				"\nDamage:" +
 				"\n Blunt - 80% + 0.5% of unarmed damage per hit" +

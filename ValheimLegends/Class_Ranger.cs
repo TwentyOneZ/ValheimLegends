@@ -162,8 +162,9 @@ public class Class_Ranger
 						component.m_faction = Character.Faction.Players;
 						component.SetTamed(tamed: true);
 						component.SetMaxHealth(80f + 9f * level);
-						component.transform.localScale = (0.5f + 0.015f * level) * UnityEngine.Vector3.one;
-						component.m_swimSpeed *= 2f;
+                        float scale = (0.5f + 0.015f * level);
+                        component.transform.localScale = scale * Vector3.one;
+                        component.m_swimSpeed *= 2f;
 						CharacterTimedDestruction component2 = GO_Wolf.GetComponent<CharacterTimedDestruction>();
 						if (component2 != null)
 						{
@@ -180,8 +181,17 @@ public class Class_Ranger
 						MonsterAI monsterAI = component.GetBaseAI() as MonsterAI;
 						monsterAI.SetFollowTarget(player.gameObject);
 						component.GetSEMan().AddStatusEffect(sE_Companion);
-					}
-					player.RaiseSkill(ValheimLegends.ConjurationSkill, VL_Utility.GetSummonWolfSkillGain(player));
+                        var wolfView = component.GetComponent<ZNetView>();
+                        if (wolfView != null && wolfView.IsValid() && wolfView.IsOwner())
+                        {
+                            // Salva o ZDOID do player que invocou
+                            wolfView.GetZDO().Set("VL_Companion_Summoner", player.GetZDOID());
+                            wolfView.GetZDO().Set("VL_Companion_Scale", scale);
+                            wolfView.GetZDO().Set("VL_Companion_Summoner", player.GetZDOID());
+                        }
+
+                    }
+                    player.RaiseSkill(ValheimLegends.ConjurationSkill, VL_Utility.GetSummonWolfSkillGain(player));
 				}
 				else
 				{
