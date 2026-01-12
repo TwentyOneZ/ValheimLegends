@@ -4537,15 +4537,35 @@ public class ValheimLegends : BaseUnityPlugin
 
 	public static void NameCooldowns()
 	{
-		if (vl_player.vl_class == PlayerClass.Mage)
-		{
-			ZLog.Log("Valheim Legend: Mage");
-			Ability1_Name = "Fireball";
-			Ability2_Name = "F. Nova";
-			Ability3_Name = "Meteor";
-			Player.m_localPlayer.ShowTutorial("VL_Mage");
-		}
-		else if (vl_player.vl_class == PlayerClass.Druid)
+        if (vl_player.vl_class == PlayerClass.Mage)
+        {
+            ZLog.Log("Valheim Legend: Mage");
+
+            // Verifica qual afinidade está focada
+            var focus = Class_Mage.GetCurrentFocus(Player.m_localPlayer);
+
+            if (focus == Class_Mage.MageAffinity.Frost)
+            {
+                Ability1_Name = "Ice Shard"; // Ability 1
+                Ability2_Name = "Frost Nova";   // Ability 2
+                Ability3_Name = "Blizzard";     // Ability 3
+            }
+            else if (focus == Class_Mage.MageAffinity.Arcane)
+            {
+                Ability1_Name = "Elemental Mastery"; // Ability 1
+                Ability2_Name = "Arcane Intellect";// Ability 2
+                Ability3_Name = "Mana Shield";  // Ability 3
+            }
+            else // Default: Fire
+            {
+                Ability1_Name = "Fireball";     // Ability 1
+                Ability2_Name = "Inferno";   // Ability 2
+                Ability3_Name = "Meteor";       // Ability 3
+            }
+
+            Player.m_localPlayer.ShowTutorial("VL_Mage");
+        }
+        else if (vl_player.vl_class == PlayerClass.Druid)
 		{
 			ZLog.Log("Valheim Legend: Druid");
             var seMan = Player.m_localPlayer.GetSEMan();
@@ -4559,7 +4579,7 @@ public class ValheimLegends : BaseUnityPlugin
             } else
 			{
                 Ability1_Name = "Regen";
-                Ability2_Name = "Living Def.";
+                Ability2_Name = "Living Defender";
                 Ability3_Name = "Vines";
             }
             Player.m_localPlayer.ShowTutorial("VL_Druid");
@@ -4569,7 +4589,7 @@ public class ValheimLegends : BaseUnityPlugin
 			ZLog.Log("Valheim Legend: Shaman");
 			Ability1_Name = "Enrage";
 			Ability2_Name = "Shell";
-			Ability3_Name = "S. Shock";
+			Ability3_Name = "Spirit Shock";
 			Player.m_localPlayer.ShowTutorial("VL_Shaman");
 		}
 		else if (vl_player.vl_class == PlayerClass.Ranger)
@@ -4577,7 +4597,7 @@ public class ValheimLegends : BaseUnityPlugin
 			ZLog.Log("Valheim Legend: Ranger");
 			Ability1_Name = "Shadow";
 			Ability2_Name = "Wolf";
-			Ability3_Name = "P. Shot";
+			Ability3_Name = "Power Shot";
 			Player.m_localPlayer.ShowTutorial("VL_Ranger");
 		}
 		else if (vl_player.vl_class == PlayerClass.Berserker)
@@ -4609,7 +4629,7 @@ public class ValheimLegends : BaseUnityPlugin
 			ZLog.Log("Valheim Legend: Duelist");
 			Ability1_Name = "Coin Shot";
 			Ability2_Name = "Riposte";
-			Ability3_Name = "S. Slash";
+			Ability3_Name = "Seismic Slash";
 			Player.m_localPlayer.ShowTutorial("VL_Duelist");
 		}
 		else if (vl_player.vl_class == PlayerClass.Priest)
@@ -4623,7 +4643,7 @@ public class ValheimLegends : BaseUnityPlugin
 		else if (vl_player.vl_class == PlayerClass.Rogue)
 		{
 			ZLog.Log("Valheim Legend: Rogue");
-			Ability1_Name = "P. Bomb";
+			Ability1_Name = "Poison Bomb";
 			Ability2_Name = "Fade";
 			Ability3_Name = "Backstab";
 			Player.m_localPlayer.ShowTutorial("VL_Rogue");
@@ -4631,9 +4651,9 @@ public class ValheimLegends : BaseUnityPlugin
 		else if (vl_player.vl_class == PlayerClass.Monk)
 		{
 			ZLog.Log("Valheim Legend: Monk");
-			Ability1_Name = "Ch'i Strike";
-			Ability2_Name = "F. Kick";
-			Ability3_Name = "Ch'i Blast";
+			Ability1_Name = "Chi Strike";
+			Ability2_Name = "Flying Kick";
+			Ability3_Name = "Chi Blast";
 			Player.m_localPlayer.ShowTutorial("VL_Monk");
 		}
 		else if (vl_player.vl_class == PlayerClass.Enchanter)
@@ -4641,7 +4661,7 @@ public class ValheimLegends : BaseUnityPlugin
 			ZLog.Log("Valheim Legend: Enchanter");
 			Ability1_Name = "Weaken";
 			Ability2_Name = "Charm";
-			Ability3_Name = "Z. Charge";
+			Ability3_Name = "Zone Charge";
 			Player.m_localPlayer.ShowTutorial("VL_Enchanter");
 		}
 		else

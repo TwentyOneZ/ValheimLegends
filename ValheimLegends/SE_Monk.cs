@@ -71,7 +71,7 @@ public class SE_Monk : SE_Stats
 			m_SurgeTimer = m_SurgeInterval;
 			float level = m_character.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.DisciplineSkillDef)
 				.m_level * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddPhysicDamage() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddAttackSpeed() / 40f), 0f, 0.5f));
-			m_character.Heal(5f + (UnityEngine.Random.Range(0.7f, 1.1f) * level * VL_GlobalConfigs.c_monkSurge));
+			m_character.Heal(5f + m_character.GetMaxHealth() * level * VL_GlobalConfigs.c_monkSurge / 2000f);
 			//m_character.AddStamina(0.2f * level * VL_GlobalConfigs.c_monkSurge);
 			if (hitCount <= 0)
 			{

@@ -1,3 +1,4 @@
+using System.Numerics;
 using UnityEngine;
 
 namespace ValheimLegends;
@@ -42,7 +43,12 @@ public class SE_Regeneration : StatusEffect
 		if (doOnce)
 		{
 			doOnce = false;
-			m_HealAmount = (2f + 0.25f * (EpicMMOSystem.LevelSystem.Instance.getLevel() * 10f / 6f)) * VL_GlobalConfigs.g_DamageModifer * VL_GlobalConfigs.c_druidRegen;
+			if (m_character.IsPlayer()) {
+                m_HealAmount = (5f + 0.25f * (EpicMMOSystem.LevelSystem.Instance.getLevel() * 10f / 6f)) * VL_GlobalConfigs.c_druidRegen;
+            } else
+			{
+                m_HealAmount = (5f + 0.05f * m_character.GetMaxHealth()) * VL_GlobalConfigs.c_druidRegen;
+            }
 		}
 		m_timer -= dt;
 		if (m_timer <= 0f)
