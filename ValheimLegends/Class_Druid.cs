@@ -217,7 +217,7 @@ public class Class_Druid
 				UnityEngine.Vector3 position = player.transform.position;
 				UnityEngine.Vector3 target = ((!Physics.Raycast(player.GetEyePoint(), player.GetLookDir(), out hitInfo, float.PositiveInfinity, Script_Layermask) || !hitInfo.collider) ? (position + player.GetLookDir() * 1000f) : hitInfo.point);
 				HitData hitData = new HitData();
-				hitData.m_damage.m_pierce = UnityEngine.Random.Range(10f + 0.6f * level2, 15f + 1.2f * level2) * VL_GlobalConfigs.g_DamageModifer * VL_GlobalConfigs.c_druidVines;
+				hitData.m_damage.m_pierce = UnityEngine.Random.Range(6f + 0.6f * level2, 10f + 1.2f * level2) * VL_GlobalConfigs.g_DamageModifer * VL_GlobalConfigs.c_druidVines;
 				hitData.m_pushForce = 2f;
 				rootTotal++;
 				UnityEngine.Vector3 vector3 = UnityEngine.Vector3.MoveTowards(GO_Root.transform.position, target, 1f);

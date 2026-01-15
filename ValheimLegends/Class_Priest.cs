@@ -257,8 +257,8 @@ public class Class_Priest
 						{
 							UnityEngine.Vector3 vector = item.transform.position - player.transform.position;
 							HitData hitData = new HitData();
-							hitData.m_damage.m_spirit = UnityEngine.Random.Range(4f + 0.4f * level3, 8f + 0.8f * level3) * VL_GlobalConfigs.g_DamageModifer * VL_GlobalConfigs.c_priestPurgeDamage;
-							hitData.m_damage.m_fire = UnityEngine.Random.Range(4f + 0.4f * level3, 8f + 0.8f * level3) * VL_GlobalConfigs.g_DamageModifer * VL_GlobalConfigs.c_priestPurgeDamage;
+							hitData.m_damage.m_spirit = UnityEngine.Random.Range(4f + 0.4f * level3, 8f + 2.0f * level3) * VL_GlobalConfigs.g_DamageModifer * VL_GlobalConfigs.c_priestPurgeDamage;
+							hitData.m_damage.m_fire = UnityEngine.Random.Range(4f + 0.4f * level3, 8f + 2.0f * level3) * VL_GlobalConfigs.g_DamageModifer * VL_GlobalConfigs.c_priestPurgeDamage;
 							hitData.m_pushForce = 0f;
 							hitData.m_point = item.GetEyePoint();
 							hitData.m_dir = player.transform.position - item.transform.position;
@@ -308,9 +308,9 @@ public class Class_Priest
 					P_Sanctify.m_aoe = 8f + 0.04f * level5;
 					GO_Sanctify.transform.localScale = UnityEngine.Vector3.one;
 					HitData hitData2 = new HitData();
-					hitData2.m_damage.m_fire = UnityEngine.Random.Range(10f + 0.5f * level5, 20f + 0.75f * level5) * VL_GlobalConfigs.g_DamageModifer * VL_GlobalConfigs.c_priestSanctify;
-					hitData2.m_damage.m_blunt = UnityEngine.Random.Range(10f + 0.5f * level5, 20f + 0.75f * level5) * VL_GlobalConfigs.g_DamageModifer * VL_GlobalConfigs.c_priestSanctify;
-					hitData2.m_damage.m_spirit = UnityEngine.Random.Range(10f + 0.5f * level5, 20f + 0.75f * level5) * VL_GlobalConfigs.g_DamageModifer * VL_GlobalConfigs.c_priestSanctify;
+					hitData2.m_damage.m_fire = UnityEngine.Random.Range(10f + 0.5f * level5, 20f + 1.75f * level5) * VL_GlobalConfigs.g_DamageModifer * VL_GlobalConfigs.c_priestSanctify;
+					hitData2.m_damage.m_blunt = UnityEngine.Random.Range(10f + 0.5f * level5, 20f + 1.75f * level5) * VL_GlobalConfigs.g_DamageModifer * VL_GlobalConfigs.c_priestSanctify;
+					hitData2.m_damage.m_spirit = UnityEngine.Random.Range(10f + 0.5f * level5, 20f + 1.75f * level5) * VL_GlobalConfigs.g_DamageModifer * VL_GlobalConfigs.c_priestSanctify;
 					hitData2.SetAttacker(player);
 					hitData2.m_pushForce = 50f;
 					hitData2.m_skill = ValheimLegends.EvocationSkill;

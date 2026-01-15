@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using System.Numerics;
+using UnityEngine;
 using ValheimLegends;
 
 namespace ValheimLegends
@@ -22,7 +23,7 @@ namespace ValheimLegends
             // Verificação de segurança para o ZNetScene
             if (ZNetScene.instance)
             {
-                GameObject prefab = ZNetScene.instance.GetPrefab("TrophyEikthyr");
+                GameObject prefab = ZNetScene.instance.GetPrefab("Eitr");
                 if (prefab)
                 {
                     m_icon = prefab.GetComponent<ItemDrop>().m_itemData.GetIcon();
@@ -37,7 +38,7 @@ namespace ValheimLegends
             m_timer += dt;
             if (m_timer >= m_consumptionInterval)
             {
-                m_timer = 0f; // Reinicia o timer para os próximos 15s
+                m_timer = 0f; // Reinicia o timer para os próximos 20s
 
                 if (m_character.IsPlayer())
                 {
@@ -54,6 +55,8 @@ namespace ValheimLegends
                     else
                     {
                         // Remove o buff se não conseguir pagar o custo
+                        GameObject vfx = ZNetScene.instance.GetPrefab("fx_VL_ParticleLightburst");
+                        if (vfx) UnityEngine.Object.Instantiate(vfx, m_character.GetCenterPoint(), UnityEngine.Quaternion.LookRotation(UnityEngine.Vector3.up));
                         m_character.Message(MessageHud.MessageType.TopLeft, "Elemental Mastery fades (No Charges)");
                         seman.RemoveStatusEffect(this.name.GetStableHashCode());
                     }

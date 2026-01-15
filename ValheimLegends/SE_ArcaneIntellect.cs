@@ -8,19 +8,20 @@ namespace ValheimLegends
 {
     // =========================
     //  SE: Arcane Intellect
-    //  Funcionalidade: Eitr custa Stamina primeiro (1:1)
+    //  Funcionalidade: Eitr custa Stamina primeiro
+    //  Custo: 5x (lvl 0) a 2x (lvl 150)
     // =========================
     public class SE_ArcaneIntellect : StatusEffect
     {
         private float m_timer = 0f;
-        private const float m_consumptionInterval = 15f;
+        private const float m_consumptionInterval = 20f;
         private int Hash_ArcaneAffinity = "SE_VL_MageArcaneAffinity".GetStableHashCode();
 
         public SE_ArcaneIntellect()
         {
             base.name = "SE_VL_ArcaneIntellect";
             m_name = "Arcane Intellect";
-            m_tooltip = "Eitr costs Stamina first.\nConsumes 1 Arcane Charge every 15s.";
+            m_tooltip = "Eitr costs Stamina first.\nEfficiency improves with Evocation level (500% to 200% cost).\nConsumes 1 Arcane Charge every 15s.";
             if (ZNetScene.instance)
             {
                 var prefab = ZNetScene.instance.GetPrefab("HelmetPointyHat");
@@ -45,6 +46,8 @@ namespace ValheimLegends
                     }
                     else
                     {
+                        GameObject vfx = ZNetScene.instance.GetPrefab("fx_VL_ParticleLightburst");
+                        if (vfx) UnityEngine.Object.Instantiate(vfx, m_character.GetCenterPoint(), UnityEngine.Quaternion.LookRotation(UnityEngine.Vector3.up));
                         m_character.Message(MessageHud.MessageType.TopLeft, "Arcane Intellect fades (No Charges)");
                         seman.RemoveStatusEffect(this.name.GetStableHashCode());
                     }
@@ -74,10 +77,37 @@ namespace ValheimLegends
             }
             catch { return true; }
         }
+
+        /// <summary>
+        /// Retorna o multiplicador de custo de Stamina.
+        /// Level 0   = 5x (500%)
+        /// Level 150 = 2x (200%)
+        /// </summary>
+        internal static float GetStaminaCostRatio(Player p)
+        {
+            float level = 0f;
+            try
+            {
+                // Chama o método estático solicitado Class_Mage.GetEvocationLevel
+                level = Class_Mage.GetEvocationLevel(p);
+            }
+            catch
+            {
+                level = 0f;
+            }
+
+            // Matemática Linear:
+            // (0, 5) -> (150, 2)
+            // m = (2 - 5) / 150 = -0.02
+            // y = 5 - 0.02 * x
+
+            float ratio = 3.0f - (level * 0.02f);
+            return Mathf.Clamp(ratio, 1.0f, 3.0f);
+        }
     }
 
     // =========================================================
-    //  Patch: Gastar Eitr => gasta Stamina primeiro
+    //  Patch: Gastar Eitr => gasta Stamina primeiro (com custo extra)
     // =========================================================
     [HarmonyPatch]
     public static class ArcaneIntellect_EitrCostRedirect_Patch
@@ -98,26 +128,42 @@ namespace ValheimLegends
             if (!ArcaneIntellectUtil.HasArcane(__instance)) return true;
             if (ArcaneIntellectUtil.RedirectingEitrCost) return true;
 
-            float stamina = __instance.GetStamina();
-            if (stamina <= 0.01f) return true;
+            float currentStamina = __instance.GetStamina();
+            if (currentStamina <= 1.0f) return true; // Sem stamina mínima para converter
 
-            float payWithStamina = Mathf.Min(v, stamina);
-            if (payWithStamina > 0f)
+            // 1. Obter o custo (Ratio) baseado no Level
+            float costRatio = ArcaneIntellectUtil.GetStaminaCostRatio(__instance);
+
+            // 2. Calcular quanto de Eitr conseguimos pagar com a Stamina atual
+            // Ex: Tenho 100 Stamina, Ratio é 5.0. Consigo pagar por 20 Eitr.
+            float maxEitrAffordable = currentStamina / costRatio;
+
+            // 3. O quanto vamos realmente pagar (limitado pelo custo original 'v')
+            float eitrToOffset = Mathf.Min(v, maxEitrAffordable);
+
+            if (eitrToOffset > 0f)
             {
+                float staminaToConsume = eitrToOffset * costRatio;
+
                 try
                 {
                     ArcaneIntellectUtil.RedirectingEitrCost = true;
-                    __instance.UseStamina(payWithStamina);
+                    __instance.UseStamina(staminaToConsume);
                 }
                 finally
                 {
                     ArcaneIntellectUtil.RedirectingEitrCost = false;
                 }
 
-                v -= payWithStamina;
-                if (v <= 0f) return false; // Tudo pago com stamina
+                // Deduzimos do custo original de Eitr o que foi pago com Stamina
+                v -= eitrToOffset;
+
+                // Se pagamos tudo (v <= 0), impedimos o método original de rodar (retornando false)
+                // Se sobrou v > 0, o método original roda e desconta o restante do Eitr real.
+                if (v <= 0f) return false;
             }
-            return true; // Restante pago com Eitr
+
+            return true;
         }
     }
 }

@@ -140,7 +140,7 @@ public static class VL_Utility
 
 	public static float GetFireballCost => 50f * VL_GlobalConfigs.g_EnergyCostModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getStaminaReduction() / 100f));
 
-	public static float GetFireballCooldownTime => 12f * VL_GlobalConfigs.g_CooldownModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 100f));
+	public static float GetFireballCooldownTime => 6f * VL_GlobalConfigs.g_CooldownModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 100f));
 
 	public static float GetFireballSkillGain => 1.0f * VL_GlobalConfigs.g_SkillGainModifer * (1f + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 16f));
 
@@ -228,7 +228,47 @@ public static class VL_Utility
 		}
 	}
 
-	public static bool Ability2_Input_Down
+    public static bool Ability1_Input_Pressed
+    {
+        get
+        {
+            if (ValheimLegends.Ability1_Hotkey.Value == "")
+            {
+                return false;
+            }
+            if (ValheimLegends.Ability1_Hotkey_Combo.Value == "")
+            {
+                return Input.GetKey(ValheimLegends.Ability1_Hotkey.Value.ToLower()) || Input.GetButton(ValheimLegends.Ability1_Hotkey.Value.ToLower());
+            }
+            if ((Input.GetKey(ValheimLegends.Ability1_Hotkey.Value.ToLower()) && Input.GetKey(ValheimLegends.Ability1_Hotkey_Combo.Value.ToLower())) || (Input.GetButton(ValheimLegends.Ability1_Hotkey.Value.ToLower()) && Input.GetButton(ValheimLegends.Ability1_Hotkey_Combo.Value.ToLower())))
+            {
+                return true;
+            }
+            return false;
+        }
+    }
+
+    public static bool Ability1_Input_Up
+    {
+        get
+        {
+            if (ValheimLegends.Ability1_Hotkey.Value == "")
+            {
+                return false;
+            }
+            if (ValheimLegends.Ability1_Hotkey_Combo.Value == "")
+            {
+                return Input.GetKeyUp(ValheimLegends.Ability1_Hotkey.Value.ToLower()) || Input.GetButtonUp(ValheimLegends.Ability1_Hotkey.Value.ToLower());
+            }
+            if (Input.GetKeyUp(ValheimLegends.Ability1_Hotkey.Value.ToLower()) || Input.GetKeyUp(ValheimLegends.Ability1_Hotkey_Combo.Value.ToLower()) || Input.GetButtonUp(ValheimLegends.Ability1_Hotkey.Value.ToLower()) || Input.GetButtonUp(ValheimLegends.Ability1_Hotkey_Combo.Value.ToLower()))
+            {
+                return true;
+            }
+            return false;
+        }
+    }
+
+    public static bool Ability2_Input_Down
 	{
 		get
 		{
@@ -248,7 +288,47 @@ public static class VL_Utility
 		}
 	}
 
-	public static bool Ability3_Input_Down
+    public static bool Ability2_Input_Pressed
+    {
+        get
+        {
+            if (ValheimLegends.Ability2_Hotkey.Value == "")
+            {
+                return false;
+            }
+            if (ValheimLegends.Ability2_Hotkey_Combo.Value == "")
+            {
+                return Input.GetKey(ValheimLegends.Ability2_Hotkey.Value.ToLower()) || Input.GetButton(ValheimLegends.Ability2_Hotkey.Value.ToLower());
+            }
+            if ((Input.GetKey(ValheimLegends.Ability2_Hotkey.Value.ToLower()) && Input.GetKey(ValheimLegends.Ability2_Hotkey_Combo.Value.ToLower())) || (Input.GetButton(ValheimLegends.Ability2_Hotkey.Value.ToLower()) && Input.GetButton(ValheimLegends.Ability2_Hotkey_Combo.Value.ToLower())))
+            {
+                return true;
+            }
+            return false;
+        }
+    }
+
+    public static bool Ability2_Input_Up
+    {
+        get
+        {
+            if (ValheimLegends.Ability2_Hotkey.Value == "")
+            {
+                return false;
+            }
+            if (ValheimLegends.Ability2_Hotkey_Combo.Value == "")
+            {
+                return Input.GetKeyUp(ValheimLegends.Ability2_Hotkey.Value.ToLower()) || Input.GetButtonUp(ValheimLegends.Ability2_Hotkey.Value.ToLower());
+            }
+            if (Input.GetKeyUp(ValheimLegends.Ability2_Hotkey.Value.ToLower()) || Input.GetKeyUp(ValheimLegends.Ability2_Hotkey_Combo.Value.ToLower()) || Input.GetButtonUp(ValheimLegends.Ability2_Hotkey.Value.ToLower()) || Input.GetButtonUp(ValheimLegends.Ability2_Hotkey_Combo.Value.ToLower()))
+            {
+                return true;
+            }
+            return false;
+        }
+    }
+
+    public static bool Ability3_Input_Down
 	{
 		get
 		{

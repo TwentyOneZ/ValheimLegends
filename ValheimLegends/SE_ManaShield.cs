@@ -8,8 +8,9 @@ using UnityEngine;
 namespace ValheimLegends
 {
     // =========================
-    //  SE: Mana Shield
-    //  Funcionalidade: Absorve dano usando Eitr
+    //  SE: Eitr Shield
+    //  Funcionalidade: Absorve até 100% do dano usando Eitr
+    //  Custo: 500% (lvl 0) a 300% (lvl 150) do dano em Eitr
     // =========================
     public class SE_ManaShield : StatusEffect
     {
@@ -20,11 +21,11 @@ namespace ValheimLegends
         public SE_ManaShield()
         {
             base.name = "SE_VL_ManaShield";
-            m_name = "Mana Shield";
-            m_tooltip = "Absorbs damage using Eitr.\nConsumes 1 Arcane Charge every 15s.";
+            m_name = "Eitr Shield";
+            m_tooltip = "Absorbs damage using Eitr.\nEfficiency increases with Abjuration level.\nConsumes 1 Arcane Charge every 15s.";
             if (ZNetScene.instance)
             {
-                var prefab = ZNetScene.instance.GetPrefab("ShieldBanded");
+                var prefab = ZNetScene.instance.GetPrefab("StaminaUpgrade_Greydwarf");
                 if (prefab) m_icon = prefab.GetComponent<ItemDrop>().m_itemData.GetIcon();
             }
         }
@@ -46,13 +47,16 @@ namespace ValheimLegends
                     }
                     else
                     {
-                        m_character.Message(MessageHud.MessageType.TopLeft, "Mana Shield fades (No Charges)");
+                        GameObject vfx = ZNetScene.instance.GetPrefab("fx_VL_ParticleLightburst");
+                        if (vfx) UnityEngine.Object.Instantiate(vfx, m_character.GetCenterPoint(), UnityEngine.Quaternion.LookRotation(UnityEngine.Vector3.up));
+                        m_character.Message(MessageHud.MessageType.TopLeft, "Eitr Shield fades (No Charges)");
                         seman.RemoveStatusEffect(this.name.GetStableHashCode());
                     }
                 }
             }
         }
     }
+
     internal static class ManaShieldUtil
     {
         internal static readonly int SE_HASH = "SE_VL_ManaShield".GetStableHashCode();
@@ -74,21 +78,21 @@ namespace ValheimLegends
             catch { return true; }
         }
 
-        internal static float GetAbjurationLevel(Player p)
+        /// <summary>
+        /// Retorna o multiplicador de custo de Eitr baseado no level calculado.
+        /// Level 0 = 5.0 (500%)
+        /// Level 150 = 3.0 (300%)
+        /// </summary>
+        internal static float GetEitrCostRatio(float level)
         {
-            try
-            {
-                // Certifique-se que ValheimLegends.AbjurationSkillDef está acessível
-                var skill = p.GetSkills().GetSkillList().FirstOrDefault(s => s.m_info == ValheimLegends.AbjurationSkillDef);
-                return skill != null ? skill.m_level : 0f;
-            }
-            catch { return 0f; }
-        }
+            // Interpolação Linear: y = mx + c
+            // (0, 5) e (150, 3)
+            // m = (3 - 5) / 150 = -0.013333...
 
-        internal static float GetManaShieldPercent(Player p)
-        {
-            float lvl = Mathf.Clamp(GetAbjurationLevel(p), 0f, 100f);
-            return 0.25f + 0.50f * (lvl / 100f); // 25% a 75%
+            float ratio = 3.0f - (level * (2.0f / 150.0f));
+
+            // Opcional: Clampar para nunca ficar abaixo de 100% (1.0f) se o level for absurdo
+            return Mathf.Max(1.0f, ratio);
         }
 
         internal static float SumDamage(HitData hit)
@@ -113,8 +117,8 @@ namespace ValheimLegends
         // --- FX Logic ---
         private const float FX_COOLDOWN = 0.15f;
         private static readonly Dictionary<int, float> _lastFxTimeByInstance = new();
-        private static readonly string[] FX_NAMES = { "fx_blocked", "vfx_blocked", "fx_guardstone_permitted_removed" };
-        private static readonly string[] SFX_NAMES = { "sfx_blocked", "sfx_shield_blocked" };
+        private static readonly string[] FX_NAMES = { "fx_ShieldCharge_5", "fx_ShieldCharge_4", "fx_ShieldCharge_3" };
+        private static readonly string[] SFX_NAMES = { "sfx_perfectblock", "sfx_ice_hit" };
 
         internal static void TryPlayManaShieldFX(Player p)
         {
@@ -143,7 +147,8 @@ namespace ValheimLegends
     }
 
     // =========================================================
-    //  Patch 1: Normal Damage (Absorve % baseada em Abjuration)
+    //  Patch 1: Normal Damage
+    //  Absorve até 100% do dano dependendo do Eitr disponível.
     // =========================================================
     [HarmonyPatch]
     public static class ManaShield_NormalDamage_Patch
@@ -162,29 +167,51 @@ namespace ValheimLegends
             if (!ManaShieldUtil.ShouldRunOnThisInstance(p)) return;
             if (!ManaShieldUtil.HasManaShield(p)) return;
 
-            float total = ManaShieldUtil.SumDamage(hit);
-            if (total <= 0.01f) return;
+            float totalDamage = ManaShieldUtil.SumDamage(hit);
+            if (totalDamage <= 0.1f) return;
 
-            float pct = ManaShieldUtil.GetManaShieldPercent(p);
-            float desiredAbsorb = total * pct;
-            float curEitr = p.GetEitr();
+            float currentEitr = p.GetEitr();
+            if (currentEitr <= 1f) return; // Sem Eitr suficiente para processar
 
-            if (curEitr <= 0.01f) return;
+            // 1. Calcular Level e Custo
+            float calcLevel = Class_Mage.GetEvocationLevel(p);
+            float costRatio = ManaShieldUtil.GetEitrCostRatio(calcLevel);
 
-            float absorb = Mathf.Min(desiredAbsorb, curEitr);
-            if (absorb <= 0.01f) return;
+            // 2. Calcular quanto de dano podemos "comprar" com o Eitr atual
+            // Ex: Tenho 100 Eitr, Ratio é 5.0. Posso absorver 20 de dano.
+            float maxAbsorbableDamage = currentEitr / costRatio;
 
-            float effectivePct = Mathf.Clamp01(absorb / total);
+            // 3. Determinar absorção real (O menor entre o dano total e o que podemos pagar)
+            float damageToAbsorb = Mathf.Min(totalDamage, maxAbsorbableDamage);
 
-            // Aplica redução
-            ManaShieldUtil.ScaleDamage(hit, 1f - effectivePct);
-            p.AddEitr(-absorb); // Consome Eitr
+            // Se a absorção for irrisória, ignora
+            if (damageToAbsorb <= 0.1f) return;
+
+            // 4. Calcular custo final e consumir
+            float eitrToConsume = damageToAbsorb * costRatio;
+            p.AddEitr(-eitrToConsume);
+
+            // 5. Aplicar redução no dano
+            // Se absorvemos tudo (damageToAbsorb == totalDamage), damagePctRemaining = 0.
+            float damagePctRemaining = 1f - (damageToAbsorb / totalDamage);
+            ManaShieldUtil.ScaleDamage(hit, damagePctRemaining);
+
+            // 6. Tocar efeitos
             ManaShieldUtil.TryPlayManaShieldFX(p);
+
+            // 7. Aumentar Skill (Leveling)
+            // Fórmula fornecida: raise skill based on shell utility calculation * 0.1f
+            try
+            {
+                p.RaiseSkill(ValheimLegends.AbjurationSkill, VL_Utility.GetShellSkillGain(p) * 0.1f);
+            }
+            catch { /* Evitar erro se VL_Utility não for acessível */ }
         }
     }
 
     // =========================================================
-    //  Patch 2: Parry (Absorve até 100%)
+    //  Patch 2: Parry (Opcional - Mantido para consistência)
+    //  Também usa a nova lógica se ocorrer um Perfect Block
     // =========================================================
     [HarmonyPatch]
     public static class ManaShield_Parry_Patch
@@ -204,7 +231,7 @@ namespace ValheimLegends
             if (!ManaShieldUtil.ShouldRunOnThisInstance(p)) return;
             if (!ManaShieldUtil.HasManaShield(p)) return;
 
-            // Check Perfect Block (Reflection)
+            // Verifica Perfect Block (Reflection)
             bool perfect = false;
             try
             {
@@ -213,22 +240,34 @@ namespace ValheimLegends
             }
             catch { }
 
-            if (!perfect) return; // Só aplica no Parry
+            if (!perfect) return;
 
-            float total = ManaShieldUtil.SumDamage(hit);
-            if (total <= 0.01f) return;
+            float totalDamage = ManaShieldUtil.SumDamage(hit);
+            if (totalDamage <= 0.1f) return;
 
-            float curEitr = p.GetEitr();
-            if (curEitr <= 0.01f) return;
+            float currentEitr = p.GetEitr();
+            if (currentEitr <= 1f) return;
 
-            float absorb = Mathf.Min(total, curEitr);
-            if (absorb <= 0.01f) return;
+            // Mesma lógica do Prefix acima para consistência
+            float calcLevel = Class_Mage.GetEvocationLevel(p);
+            float costRatio = ManaShieldUtil.GetEitrCostRatio(calcLevel);
+            float maxAbsorbableDamage = currentEitr / costRatio;
+            float damageToAbsorb = Mathf.Min(totalDamage, maxAbsorbableDamage);
 
-            float effectivePct = Mathf.Clamp01(absorb / total);
+            if (damageToAbsorb <= 0.1f) return;
 
-            ManaShieldUtil.ScaleDamage(hit, 1f - effectivePct);
-            p.AddEitr(-absorb);
+            float eitrToConsume = damageToAbsorb * costRatio;
+            p.AddEitr(-eitrToConsume);
+
+            float damagePctRemaining = 1f - (damageToAbsorb / totalDamage);
+            ManaShieldUtil.ScaleDamage(hit, damagePctRemaining);
             ManaShieldUtil.TryPlayManaShieldFX(p);
+
+            try
+            {
+                p.RaiseSkill(ValheimLegends.AbjurationSkill, VL_Utility.GetShellSkillGain(p) * 0.1f);
+            }
+            catch { }
         }
     }
 }

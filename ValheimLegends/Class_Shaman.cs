@@ -133,8 +133,8 @@ public class Class_Shaman
 							{
 								UnityEngine.Vector3 dir = item.transform.position - player.transform.position;
 								HitData hitData = new HitData();
-								hitData.m_damage.m_spirit = Random.Range(6f + 0.4f * level, 12f + 0.6f * level) * VL_GlobalConfigs.g_DamageModifer * VL_GlobalConfigs.c_shamanSpiritShock;
-								hitData.m_damage.m_lightning = Random.Range(6f + 0.4f * level, 12f + 0.6f * level) * VL_GlobalConfigs.g_DamageModifer * VL_GlobalConfigs.c_shamanSpiritShock;
+								hitData.m_damage.m_spirit = Random.Range(15f + 0.8f * level, 30f + 1.5f * level) * VL_GlobalConfigs.g_DamageModifer * VL_GlobalConfigs.c_shamanSpiritShock;
+								hitData.m_damage.m_lightning = Random.Range(15f + 0.8f * level, 30f + 1.5f * level) * VL_GlobalConfigs.g_DamageModifer * VL_GlobalConfigs.c_shamanSpiritShock;
 								hitData.m_pushForce = 25f + 0.1f * level;
 								hitData.m_point = item.GetEyePoint();
 								hitData.m_dir = dir;

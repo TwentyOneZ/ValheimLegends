@@ -1,7 +1,10 @@
-﻿using UnityEngine;
-using System.Linq;
-using HarmonyLib;
+﻿using HarmonyLib;
+using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Numerics;
+using UnityEngine;
+using static ValheimLegends.Class_Mage;
 
 namespace ValheimLegends
 {
@@ -22,6 +25,9 @@ namespace ValheimLegends
             m_currentCharges = 5;
             isFocused = false;
             m_ttl = 0;
+            var arcane = ScriptableObject.CreateInstance<SE_MageArcaneAffinity>();
+            character.GetSEMan().AddStatusEffect(arcane);
+            if (GetCurrentFocus((Player)character) == MageAffinity.None) arcane.SetFocus(true);
         }
 
         public override void UpdateStatusEffect(float dt)
@@ -82,11 +88,9 @@ namespace ValheimLegends
             if (!m_character.IsPlayer()) return;
             Player player = m_character as Player;
 
-            float evocationLevel = 0f;
-            Skills.Skill skill = player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.EvocationSkillDef);
-            if (skill != null) evocationLevel = skill.m_level;
+            float evocationLevel = Class_Mage.GetEvocationLevel(player);
 
-            int maxCharges = 10 + Mathf.FloorToInt(evocationLevel * 0.2f);
+            int maxCharges = 10 + Mathf.FloorToInt(evocationLevel / 7.5f);
             if (maxCharges > 30) maxCharges = 30;
 
             m_currentCharges += amount;

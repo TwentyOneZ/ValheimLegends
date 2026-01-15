@@ -11,7 +11,7 @@ public class SE_Slow : SE_Stats
 	[Header("SE_VL_Slow")]
 	public static float m_baseTTL = 4f;
 
-	public float speedDuration = 3f;
+	public float speedDuration = 6f;
 
 	public float speedAmount = 0.4f;
 

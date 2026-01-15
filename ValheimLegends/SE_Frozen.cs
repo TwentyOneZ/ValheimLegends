@@ -12,7 +12,7 @@ namespace ValheimLegends
             m_tooltip = "Frozen solid. Unable to move.";
             m_startMessage = "Frozen";
             m_stopMessage = "Thawed";
-            m_ttl = 4f; // Duração base do congelamento
+            m_ttl = 10f; // Duração base do congelamento
 
             // Tenta pegar o icone do Freezing vanilla ou um cubo de gelo
             if (ZNetScene.instance)

@@ -28,14 +28,14 @@ public class Class_Duelist
 		UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("fx_VL_BlinkStrike"), player.GetCenterPoint() + player.GetLookDir() * 3f, UnityEngine.Quaternion.LookRotation(player.GetLookDir()));
 		float level = player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.DisciplineSkillDef)
 			.m_level * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddPhysicDamage() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddAttackSpeed() / 40f), 0f, 0.5f));
-		float num = (1.25f + (level / 300f)) * VL_GlobalConfigs.g_DamageModifer * VL_GlobalConfigs.c_duelistSeismicSlash;
+		float num = (2.5f + (level / 150f)) * VL_GlobalConfigs.g_DamageModifer * VL_GlobalConfigs.c_duelistSeismicSlash;
         // Direção horizontal do jogador
         Vector3 forward = player.transform.forward;
         forward.y = 0f;
         forward.Normalize();
 
         float coneRange = 7f;
-        float coneAngle = 90f;
+        float coneAngle = 135f;
         float halfConeDot = Mathf.Cos(coneAngle * 0.5f * Mathf.Deg2Rad);
 
         List<Character> targets = new List<Character>();

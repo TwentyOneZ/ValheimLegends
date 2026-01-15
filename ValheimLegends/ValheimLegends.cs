@@ -10,6 +10,9 @@ using System.Reflection;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
+using static Attack;
+using static UnityEngine.GraphicsBuffer;
+using static ValheimLegends.Class_Mage;
 
 namespace ValheimLegends;
 
@@ -89,7 +92,131 @@ public class ValheimLegends : BaseUnityPlugin
 		}
 	}
 
-	[HarmonyPatch(typeof(PlayerProfile), "SavePlayerToDisk", null)]
+    [HarmonyPatch(typeof(Character), "Damage")]
+    public static class Frozen_Damage_Recorder_Patch
+    {
+        private static void Prefix(Character __instance, HitData hit)
+        {
+            if (__instance == null || hit == null) return;
+            if (__instance.GetSEMan().HaveStatusEffect(Class_Mage.Hash_Frozen))
+            {
+                float dmg = hit.GetTotalDamage();
+                if (dmg > 0.1f) Class_Mage.AddFrozenDamage(__instance, dmg);
+            }
+        }
+    }
+
+    [HarmonyPatch(typeof(SEMan), "RemoveStatusEffect", new Type[] { typeof(int), typeof(bool) })]
+    public static class Frozen_Cleanup_Patch
+    {
+        private static void Postfix(SEMan __instance, int nameHash, bool __result)
+        {
+            if (__result && nameHash == Class_Mage.Hash_Frozen)
+            {
+                Character character = Traverse.Create(__instance).Field("m_character").GetValue<Character>();
+                if (character != null) Class_Mage.ClearFrozenDamage(character);
+            }
+        }
+    }
+
+    [HarmonyPatch(typeof(Projectile), "OnHit")]
+    public static class Mage_IceShard_Shatter_Patch
+    {
+        private static void Prefix(Projectile __instance, Collider collider, UnityEngine.Vector3 hitPoint, bool water)
+        {
+            if (__instance == null || !__instance.name.Contains("Shard")) return;
+
+            string name = __instance.name;
+            Character attacker = Traverse.Create(__instance).Field("m_owner").GetValue<Character>();
+            if (attacker == null || !attacker.IsPlayer()) return;
+
+            float level = Class_Mage.GetEvocationLevel((Player)attacker);
+
+            // 1. BLIZZARD SHARD LOGIC
+            if (name == "BlizzardShard")
+            {
+                GameObject vfx = ZNetScene.instance.GetPrefab("vfx_ice_hit");
+                if (vfx != null) UnityEngine.Object.Instantiate(vfx, hitPoint, UnityEngine.Quaternion.identity);
+
+                List<Character> allCharacters = new List<Character>();
+                Character.GetCharactersInRange(hitPoint, 6f, allCharacters);
+
+                foreach (Character item in allCharacters)
+                {
+                    if (!BaseAI.IsEnemy(attacker, item)) continue;
+
+                    // --- NOVO: CHECAGEM DE IMUNIDADE (0.5s) ---
+                    // Se o alvo já foi atingido por um BlizzardShard recentemente, ignora este hit.
+                    if (item.GetSEMan().HaveStatusEffect(Class_Mage.Hash_BlizzardImmunity)) continue;
+
+                    HitData hit = new HitData();
+                    hit.m_damage = __instance.m_damage.Clone();
+                    hit.m_point = item.GetCenterPoint();
+                    hit.m_dir = (item.transform.position - hitPoint).normalized;
+                    hit.m_skill = __instance.m_skill;
+                    hit.SetAttacker(attacker);
+
+                    // Flag para ignorar no Patch de Dano geral (sua solicitação anterior)
+                    hit.m_toolTier = 137;
+
+                    // Aplica efeitos de gelo (Sem Shatter)
+                    Class_Mage.ApplyFrostProgression(attacker, item, hit, level, false, false, true);
+
+                    item.Damage(hit);
+
+                    // --- NOVO: APLICA IMUNIDADE ---
+                    // Cria um status invisível que dura 0.5s
+                    StatusEffect immune = ScriptableObject.CreateInstance<StatusEffect>();
+                    immune.name = "SE_VL_BlizzardImmunity";
+                    immune.m_ttl = 0.5f;
+                    immune.m_icon = null; // Sem ícone para não poluir a tela
+                    //immune.m_startMessageType = MessageHud.MessageType.None; // Sem mensagem na tela
+                    //immune.m_stopMessageType = MessageHud.MessageType.None;
+
+                    item.GetSEMan().AddStatusEffect(immune);
+                }
+                __instance.m_damage = new HitData.DamageTypes(); // Anula dano original
+                return;
+            }
+
+            // 2. ICESHARD LOGIC (Single Target)
+            if (name == "IceShard")
+            {
+                Character victim = null;
+                if (collider != null) victim = collider.GetComponentInParent<Character>();
+
+                if (victim != null && BaseAI.IsEnemy(attacker, victim))
+                {
+                    HitData hit = new HitData();
+                    hit.m_damage = __instance.m_damage.Clone();
+                    hit.m_point = hitPoint;
+                    hit.m_dir = __instance.transform.forward;
+                    hit.m_skill = __instance.m_skill;
+                    hit.SetAttacker(attacker);
+
+                    // ALTERAÇÃO:
+                    // Verifica apenas se o alvo está congelado para aplicar o multiplicador de dano.
+                    // Não aplica Slow/Freeze/Shatter logicamente aqui; deixa isso para o VL_Damage_Patch/FrostAffinity.
+                    if (victim.GetSEMan().HaveStatusEffect(Class_Mage.Hash_Frozen))
+                    {
+                        hit.ApplyModifier(3.0f); // Triplica o dano
+
+                        // Feedback visual de acerto crítico no gelo
+                        victim.m_critHitEffects.Create(hit.m_point, UnityEngine.Quaternion.identity, victim.transform); 
+						UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("fx_DvergerMage_Ice_hit"), hit.m_point, UnityEngine.Quaternion.identity);
+                        attacker.Message(MessageHud.MessageType.TopLeft, "Ice Shard Critical! (3.0x damage!)");
+                    }
+
+                    victim.Damage(hit);
+
+                    // Anula dano original do projétil para não aplicar duas vezes
+                    __instance.m_damage = new HitData.DamageTypes();
+                }
+            }
+        }
+    }
+
+    [HarmonyPatch(typeof(PlayerProfile), "SavePlayerToDisk", null)]
 	public static class SaveVLPlayer_Patch
 	{
 		public static void Postfix(PlayerProfile __instance, string ___m_filename, string ___m_playerName)
@@ -517,7 +644,19 @@ public class ValheimLegends : BaseUnityPlugin
 				___m_zanim.SetTrigger("eat");
 				return false;
 			}
-			return true;
+            if (player != null && vl_player != null && player.GetPlayerName() == vl_player.vl_name && vl_player.vl_class == PlayerClass.Mage && (name.Contains("$item_thunderstone")))
+            {
+                inventory.RemoveOneItem(item);
+                // Efeitos visuais do item
+                ValheimLegends.shouldUseGuardianPower = false;
+                UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("fx_VL_ParticleLightburst"), player.GetEyePoint(), UnityEngine.Quaternion.LookRotation(player.GetLookDir()));
+                UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("fx_VL_Shock"), player.GetEyePoint() + player.GetLookDir() * 2.5f + player.transform.right * 0.25f, UnityEngine.Quaternion.LookRotation(player.GetLookDir()));
+                ((ZSyncAnimation)typeof(Player).GetField("m_zanim", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(player)).SetTrigger("gpower");
+
+                // Chama o reset da classe Mage
+                Class_Mage.ResetCooldowns(player);
+            }
+            return true;
 		}
 	}
 
@@ -638,9 +777,9 @@ public class ValheimLegends : BaseUnityPlugin
                         float abjurationLevel = localplayer.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.AbjurationSkillDef)
                             .m_level * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddHp() / 400f) + (EpicMMOSystem.LevelSystem.Instance.getAddStamina() / 200f), 0f, 0.5f));
                         SE_Slow sE_Slow = (SE_Slow)ScriptableObject.CreateInstance(typeof(SE_Slow));
-                        sE_Slow.m_ttl = 4f + 6f * abjurationLevel;
+                        sE_Slow.m_ttl = 4f + 6f * (abjurationLevel / 150f);
                         sE_Slow.speedAmount = 0.7f - (abjurationLevel / 250f);
-                        attacker.GetSEMan().AddStatusEffect(sE_Slow.name.GetStableHashCode(), resetTime: true);
+                        attacker.GetSEMan().AddStatusEffect(sE_Slow, resetTime: true);
                         UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("fx_DvergerMage_Ice_hit"), hit.GetAttacker().transform.position, UnityEngine.Quaternion.identity);
 
                         if (localplayer.GetSEMan().HaveStatusEffect("SE_VL_IceWeapon".GetStableHashCode())) {
@@ -1005,11 +1144,59 @@ public class ValheimLegends : BaseUnityPlugin
 							{
 								hit.ApplyModifier(hit.m_backstabBonus * 0.5f);
 								attacker.m_critHitEffects.Create(hit.m_point, UnityEngine.Quaternion.identity, attacker.transform);
-								player.Message(MessageHud.MessageType.TopLeft, $"Melee critical! ({((int)(hit.m_backstabBonus * 10) * 0.05f)}x damage)", 0, null);
+								player.Message(MessageHud.MessageType.TopLeft, $"Melee critical! ({((hit.m_backstabBonus * 10) * 0.05f):F1}x damage)", 0, null);
 							}
 						}
 					}
-					if (vl_player.vl_class == ValheimLegends.PlayerClass.Priest)
+                    if (vl_player.vl_class == ValheimLegends.PlayerClass.Mage)
+                    {
+                        // Verifica se o atacante (player) possui a Afinidade de Mago, independente da classe selecionada no menu global
+                        SE_MageFrostAffinity frostAffinity = attacker.GetSEMan().GetStatusEffect("SE_VL_MageFrostAffinity".GetStableHashCode()) as SE_MageFrostAffinity;
+                        SE_MageArcaneAffinity arcaneAffinity = attacker.GetSEMan().GetStatusEffect("SE_VL_MageArcaneAffinity".GetStableHashCode()) as SE_MageArcaneAffinity;
+
+                        // 1. ARCANE AFFINITY CRITICAL HIT LOGIC
+                        if (arcaneAffinity != null && arcaneAffinity.isFocused)
+                        {
+                            // Verifica se tem dano elemental
+                            if (hit.m_damage.GetTotalElementalDamage() > 0f)
+                            {
+                                float critChance = (5f + EpicMMOSystem.LevelSystem.Instance.getAddCriticalChance()) / 100f;
+                                if (UnityEngine.Random.value < critChance)
+                                {
+                                    float modifier = 1f + (Class_Mage.GetEvocationLevel(player) / 300f);
+                                    hit.ApplyModifier(modifier);
+                                    attacker.m_critHitEffects.Create(hit.m_point, UnityEngine.Quaternion.identity, attacker.transform);
+                                    attacker.Message(MessageHud.MessageType.TopLeft, $"Spell critical! ({modifier:F1}x damage)", 0, null);
+                                }
+                            }
+                        }
+
+                        if (frostAffinity != null && frostAffinity.isFocused && frostAffinity.m_currentCharges > 0)
+                        {
+							// Verifica se o dano vem de uma Skill que deve aplicar proc (evita loop infinito se necessário)
+							// Mas assumindo que qualquer ataque conta:
+
+							if (hit.m_toolTier == 137)
+                            {
+                                // Opcional: Restaurar o toolTier para 0 se achar necessário, 
+                                // mas geralmente não afeta combate contra mobs.
+                                hit.m_toolTier = 0;
+                                return true; // Deixa o jogo processar o dano normalmente, mas sai da lógica do Patch
+                            }
+                            
+							float level = Class_Mage.GetEvocationLevel(player);
+
+                            // REGRAS DE AFINIDADE:
+                            // canShatter = true
+                            // forceShatter = false (Usa RNG - Regra #3)
+                            // forceFreeze = false (Usa RNG - Regra #3)
+
+                            // Nota: Passamos a referência de 'hit' original, pois estamos no Prefix do Damage
+                            Class_Mage.ApplyFrostProgression(attacker, __instance, hit, level, true, false, false);
+
+                        }
+                    }
+                    if (vl_player.vl_class == ValheimLegends.PlayerClass.Priest)
 					{
 						ItemDrop.ItemData hasLeftItem = Traverse.Create(player).Field("m_leftItem").GetValue<ItemDrop.ItemData>();
 						if (player.GetCurrentWeapon() != null && player.GetCurrentWeapon().m_shared.m_skillType == Skills.SkillType.Clubs && (player.GetCurrentWeapon().m_shared.m_skillType == hit.m_skill))
@@ -1173,7 +1360,7 @@ public class ValheimLegends : BaseUnityPlugin
 							{
 								hit.ApplyModifier(hit.m_backstabBonus);
 								attacker.m_critHitEffects.Create(hit.m_point, UnityEngine.Quaternion.identity, attacker.transform);
-								player.Message(MessageHud.MessageType.TopLeft, $"Ranged critical! ({(int)hit.m_backstabBonus}x damage)", 0, null);
+								player.Message(MessageHud.MessageType.TopLeft, $"Ranged critical! ({hit.m_backstabBonus:F1}x damage)", 0, null);
 							}
 						}
 					}
@@ -1506,7 +1693,7 @@ public class ValheimLegends : BaseUnityPlugin
                         SE_Slow sE_Slow = (SE_Slow)ScriptableObject.CreateInstance(typeof(SE_Slow));
                         sE_Slow.m_ttl = 4f + 6f * (evocationLevel);
                         sE_Slow.speedAmount = 0.01f;
-                        item.GetSEMan().AddStatusEffect(sE_Slow.name.GetStableHashCode(), resetTime: true);
+                        item.GetSEMan().AddStatusEffect(sE_Slow, resetTime: true);
                         UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("fx_DvergerMage_Ice_hit"), item.transform.position, UnityEngine.Quaternion.identity);
                     }
                 }
@@ -1841,7 +2028,8 @@ public class ValheimLegends : BaseUnityPlugin
 		{
 			if (Player.m_localPlayer == null)
 				return true;
-			if (Player.m_localPlayer.GetSEMan().HaveStatusEffect("SE_VL_BiomeMountain".GetStableHashCode()) || Player.m_localPlayer.GetSEMan().HaveStatusEffect("SE_VL_FlameArmor".GetStableHashCode()))
+            SE_MageAffinityBase targetAffinity = Player.m_localPlayer.GetSEMan().GetStatusEffect("SE_VL_MageFireAffinity".GetStableHashCode()) as SE_MageFireAffinity;
+            if (Player.m_localPlayer.GetSEMan().HaveStatusEffect("SE_VL_BiomeMountain".GetStableHashCode()) || Player.m_localPlayer.GetSEMan().HaveStatusEffect("SE_VL_FlameArmor".GetStableHashCode()) || (targetAffinity != null && targetAffinity.isFocused))
 			{
 				__result = false;
 				return false;
@@ -1858,7 +2046,7 @@ public class ValheimLegends : BaseUnityPlugin
 		{
 			if (Player.m_localPlayer == null)
 				return true;
-			if (Player.m_localPlayer.GetSEMan().HaveStatusEffect("SE_VL_BiomeSwamp".GetStableHashCode()))
+            if (Player.m_localPlayer.GetSEMan().HaveStatusEffect("SE_VL_BiomeSwamp".GetStableHashCode()))
 			{
 				__result = false;
 				return false;
@@ -2072,10 +2260,15 @@ public class ValheimLegends : BaseUnityPlugin
 			}
 			if (vl_player.vl_class == PlayerClass.Monk && __instance.m_shared != null && __instance.m_shared.m_name == "Unarmed")
 			{
-				__result += Player.m_localPlayer.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == DisciplineSkillDef)
-					.m_level * VL_GlobalConfigs.c_monkBonusBlock;
+				__result += (Player.m_localPlayer.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.DisciplineSkillDef)
+                            .m_level * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddPhysicDamage() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddAttackSpeed() / 40f), 0f, 0.5f))) * VL_GlobalConfigs.c_monkBonusBlock * 0.5f;
 			}
-			if (Player.m_localPlayer.GetSEMan().HaveStatusEffect("SE_VL_BiomeOcean".GetStableHashCode()))
+            if (vl_player.vl_class == PlayerClass.Druid && Player.m_localPlayer.GetSEMan().HaveStatusEffect("SE_VL_DruidFenringForm".GetStableHashCode()) && __instance.m_shared != null && __instance.m_shared.m_name == "Unarmed")
+            {
+                __result += (Player.m_localPlayer.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.DisciplineSkillDef)
+                            .m_level * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddPhysicDamage() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddAttackSpeed() / 40f), 0f, 0.5f))) * VL_GlobalConfigs.c_monkBonusBlock * 0.25f;
+            }
+            if (Player.m_localPlayer.GetSEMan().HaveStatusEffect("SE_VL_BiomeOcean".GetStableHashCode()))
 			{
 				SE_BiomeOcean sE_BiomeOcean = Player.m_localPlayer.GetSEMan().GetStatusEffect("SE_VL_BiomeOcean".GetStableHashCode()) as SE_BiomeOcean;
 				__result *= sE_BiomeOcean.blockModifier;
@@ -2860,47 +3053,57 @@ public class ValheimLegends : BaseUnityPlugin
 			{
 				Tutorial.instance.m_texts.Add(item2);
 			}
-			Tutorial.TutorialText item3 = new Tutorial.TutorialText
-			{
-				m_label = "Legend: Mage",
-				m_name = "VL_Mage",
-				m_text = "The story of a mage centers around one key element - raw power. A mage focuses on harnessing raw, destructive energy." +
-				"\n\nSkills: Evocation" +
-				"\n\nSuggested Stats: Intellect or Specialization" +
-				"\nSacrifice: Ruby Gemstone (red)" +
-				"\n\nFireball: creates a ball of fire above the caster that arcs towards the casters target." +
-				"\nDamage:" +
-				"\n Fire - 10->40 + 2*Evocation" +
-				"\n Blunt - 1/2 Fire" +
-				"\n AoE - 3m + 1%*Evocation" +
-				"\nCooldown: 12s" +
-				"\nEnergy: 50 + 0.5*Evocation" +
-				"\n*Afflicts targets with burning" +
-				"\n\nFrost Nova: point blank area of effect frost damage that slows victims for a short period." +
-				"\nDamage:" +
-				"\n Ice - 10 + 0.5*Evocation -> 20 + Evocation" +
-				"\n AoE - 10m + 1%*Evocation" +
-				"\nCooldown: 20s" +
-				"\nEnergy: 40" +
-				"\n*Slows movement of affected targets by 60% for 4s" +
-				"\n**Removes burning effect from caster" +
-				"\n\nMeteor: channels energy to call down a meteor storm on the targeted area." +
-				"\nDamage (per meteor):" +
-				"\n Fire - 30 + 0.5*Evocation -> 50 + Evocation" +
-				"\n Blunt - 1/2 Fire" +
-				"\n AoE - 8m + 0.5%*Evocation" +
-				"\nCooldown: 180s" +
-				"\nEnergy: 60 initial + 30 per second channeled" +
-				"\n*Afflicts targets with burning" +
-				"\n**Press and hold the ability button to channel the spell to create multiple meteors" +
-				"\n**Cast Meteor while blocking to cast Meditate. Meditate will burn your stamina and recover your Eitr instantly. Cooldown and cost is proportional to the amount of Eitr recovered." +
-				"\n***Jump or dodge to cancel ability" +
-				"\n\nBonus skills:" +
-				"\n - Inferno - alternate attack to Frost Nova; press the button assigned to Frost Nova while holding block to create a high powered fire blast around the caster" +
-				"\n - Ice Daggers - alternate attack to Fireball; press the button assigned to Fireball while holding block to throw a short range dagger made of razor sharp ice",
-				m_topic = "Legend Mage"
-			};
-			if (!Tutorial.instance.m_texts.Contains(item3))
+            Tutorial.TutorialText item3 = new Tutorial.TutorialText
+            {
+                m_label = "Legend: Mage",
+                m_name = "VL_Mage",
+                m_text = "The Mage harnesses raw, destructive energy through three distinct Affinities: Fire, Frost, and Arcane. Managing your Elemental Charges is key to maintaining your assault." +
+                            "\n\nSkills: Evocation" +
+                            "\nSuggested Stats: Intellect (Cooldowns) and Specialization (Crits)" +
+                            "\nSacrifice: Ruby Gemstone (red)" +
+                            "\n\nMechanic: Affinities & Charges" +
+                            "\nPassively generate Fire, Frost, and Arcane charges over time. Focusing on an affinity (Block + Ability Key) triples that element's charge regeneration and grants a passive bonus." +
+                            "\n*Evocation: reactivating a focused element will consume Stamina in exchange of a charge in that element. Charges are recovered quickly while resting." +
+                            "\n*Meditation: sit down in a safe place and hold the corresponding Affinity Ability button to meditate and quickly restore your charges." +
+                            "\n*Surge: the mage can sacrifice a thunderstone (consume it) to reset all ability cooldowns and restore some affinity charges." +
+							"\n\n--- FIRE AFFINITY ---" +
+                            "\nActivate Focus: Hold Block + Press Ability 3 (Meteor)" +
+                            "\nFocus Bonus: You are immune to the Cold environment effect." +
+                            "\n\nFireball (Ability 1):" +
+                            "\nCost: 1 Fire Charge + Stamina" +
+                            "\nCreates a ball of fire that arcs towards the target." +
+                            "\n*Afflicts targets with burning." +
+                            "\n\nFlame Nova (Ability 2):" +
+                            "\nCost: 3 Fire Charges + Stamina" +
+                            "\nUnleashes a massive blast of fire around the caster." +
+                            "\n\nMeteor (Ability 3):" +
+                            "\nCost: 1 Fire Charge (start) + 1 Charge per cycle + Stamina" +
+                            "\nChannels energy to call down a meteor storm. Hold to channel multiple meteors." +
+                            "\n\n--- FROST AFFINITY ---" +
+                            "\nActivate Focus: Hold Block + Press Ability 2 (Frost Nova)" +
+                            "\nFocus Bonus: 'Shatter'. Hitting a Frozen target with Frost damage accumulates damage and have a chance to apply Shatter. Shatter deals all accumulated damage once again and removes the freeze. Has a chance to consume 1 Frost Charge." +
+                            "\n\nIce Shard (Ability 1):" +
+                            "\nCost: 1 Frost Charge + Stamina" +
+                            "\nFires a quick and sharp icicle with high velocity and range. Deals 3x damage in Frozen targets." +
+                            "\n\nFrost Nova (Ability 2):" +
+                            "\nCost: 3 Frost Charges + Stamina" +
+                            "\nFreezes nearby enemies and pushes them back instantly." +
+                            "\n\nBlizzard (Ability 3):" +
+                            "\nCost: 1 Frost Charge (start) + 1 Charge per second + Stamina" +
+                            "\nChannels a storm of ice shards that rain down on the targeted area, slowing and freezing enemies." +
+                            "\n\n--- ARCANE AFFINITY ---" +
+                            "\nActivate Focus: Hold Block + Press Ability 1 (Elemental Mastery)" +
+                            "\nFocus Bonus: Elemental attacks have a chance to Critically Hit (scaling with Specialization) for bonus damage (scaling with Evocation)." +
+                            "\n*Arcane abilities are TOGGLES. While active, they consume 1 Arcane Charge every 15s. If you run out of charges, the buff fades.*" +
+                            "\n\nElemental Mastery (Ability 1):" +
+                            "\nYour spells are empowered by your weapon's elemental damage. Adds 50% to 200% (based on Evocation) of your weapon's elemental damage to your spells." +
+                            "\n\nArcane Intellect (Ability 2):" +
+                            "\nRedirects Eitr costs to Stamina first. Efficiency improves with Evocation level (1 Eitr costs 3 Stamina with no Evocation skill, down to 1 Stamina at max level and attributes)." +
+                            "\n\nEitr Shield (Ability 3):" +
+                            "\nAbsorbs 100% of incoming damage using Eitr. Efficiency improves with Evocation level (1 Damage costs 3 Eitr with no Evocation, down to 1 Eitr at max level and attributs). Excess damage is taken as health.",
+                m_topic = "Legend Mage"
+            };
+            if (!Tutorial.instance.m_texts.Contains(item3))
 			{
 				Tutorial.instance.m_texts.Add(item3);
 			}
@@ -4539,7 +4742,7 @@ public class ValheimLegends : BaseUnityPlugin
 	{
         if (vl_player.vl_class == PlayerClass.Mage)
         {
-            ZLog.Log("Valheim Legend: Mage");
+            //ZLog.Log("Valheim Legend: Mage");
 
             // Verifica qual afinidade está focada
             var focus = Class_Mage.GetCurrentFocus(Player.m_localPlayer);
@@ -4554,7 +4757,7 @@ public class ValheimLegends : BaseUnityPlugin
             {
                 Ability1_Name = "Elemental Mastery"; // Ability 1
                 Ability2_Name = "Arcane Intellect";// Ability 2
-                Ability3_Name = "Mana Shield";  // Ability 3
+                Ability3_Name = "Eitr Shield";  // Ability 3
             }
             else // Default: Fire
             {

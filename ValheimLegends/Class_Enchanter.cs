@@ -133,7 +133,7 @@ public class Class_Enchanter
 				{
 					UnityEngine.Vector3 dir = item.transform.position - player.transform.position;
 					HitData hitData2 = new HitData();
-					hitData2.m_damage.m_lightning = 15f + level2 + statusEffect.m_ttl * Random.Range(0.03f, 0.06f) * (1f + 0.1f * level2) * VL_GlobalConfigs.c_enchanterBiomeShock;
+					hitData2.m_damage.m_lightning = 15f + level2 + statusEffect.m_ttl * Random.Range(0.03f, 0.06f) * (1f + 0.25f * level2) * VL_GlobalConfigs.c_enchanterBiomeShock;
 					hitData2.m_pushForce = 0f;
 					hitData2.m_point = item.GetEyePoint();
 					hitData2.m_dir = dir;
@@ -207,13 +207,19 @@ public class Class_Enchanter
             else if (player.IsSitting())
 			{
                 ItemDrop.ItemData hasLeftItem = Traverse.Create(player).Field("m_leftItem").GetValue<ItemDrop.ItemData>();
-                if (hasLeftItem == null && player.GetCurrentWeapon() != null && (player.GetCurrentWeapon().m_shared.m_skillType == Skills.SkillType.ElementalMagic || player.GetCurrentWeapon().m_shared.m_skillType == Skills.SkillType.BloodMagic))
+                if (hasLeftItem == null && (player.GetCurrentWeapon() != null && (player.GetCurrentWeapon().m_shared.m_skillType == Skills.SkillType.ElementalMagic || player.GetCurrentWeapon().m_shared.m_skillType == Skills.SkillType.BloodMagic)) || (player.LeftItem != null && (player.LeftItem.m_shared.m_skillType == Skills.SkillType.ElementalMagic || player.LeftItem.m_shared.m_skillType == Skills.SkillType.BloodMagic)))
                 {
-                    float maxWeaponRecover = player.GetCurrentWeapon().GetMaxDurability() * (1f - player.GetCurrentWeapon().GetDurabilityPercentage());
-                    if (maxWeaponRecover > 0f)
-                    {
-                        if (!player.GetSEMan().HaveStatusEffect("SE_VL_Ability3_CD".GetStableHashCode())) { 
-                            float maxStaminaCost = maxWeaponRecover * 4f * (1f - (EpicMMOSystem.LevelSystem.Instance.getStaminaReduction() / 100f));
+					ItemDrop.ItemData weapon = player.GetCurrentWeapon();
+					if (weapon == null)
+					{
+                        weapon = player.LeftItem;
+                    }
+                    float maxWeaponRecover = weapon.GetMaxDurability() * (1f - weapon.GetDurabilityPercentage());
+					if (maxWeaponRecover > 0f)
+					{
+						if (!player.GetSEMan().HaveStatusEffect("SE_VL_Ability3_CD".GetStableHashCode()))
+						{
+							float maxStaminaCost = maxWeaponRecover * 4f * (1f - (EpicMMOSystem.LevelSystem.Instance.getStaminaReduction() / 100f));
 							float recoveredWeapon = maxWeaponRecover;
 							if (player.GetStamina() < maxStaminaCost)
 							{
@@ -225,21 +231,21 @@ public class Class_Enchanter
 							statusEffect.m_ttl = 60f + (recoveredWeapon * 2f) * (1f - (EpicMMOSystem.LevelSystem.Instance.getAddCriticalChance() / 40f));
 							player.GetSEMan().AddStatusEffect(statusEffect);
 							player.UseStamina(recoveredWeapon * 10f * (1f - (EpicMMOSystem.LevelSystem.Instance.getAddCriticalChance() / 40f)) * (1f - level / 300f));
-							player.GetCurrentWeapon().m_durability += recoveredWeapon;
+							weapon.m_durability += recoveredWeapon;
 							ValheimLegends.shouldUseGuardianPower = false;
 							UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("fx_VL_ParticleLightburst"), player.GetEyePoint(), UnityEngine.Quaternion.LookRotation(player.GetLookDir()));
 							UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("fx_VL_Shock"), player.GetEyePoint() + player.GetLookDir() * 2.5f + player.transform.right * 0.25f, UnityEngine.Quaternion.LookRotation(player.GetLookDir()));
 							player.RaiseSkill(ValheimLegends.AlterationSkill, VL_Utility.GetBlinkStrikeSkillGain);
-                        }
-						else 
+						}
+						else
 						{
-                            player.Message(MessageHud.MessageType.TopLeft, "Ability not ready");
-                        }
-                    }
-                    else
-                    {
-                        player.Message(MessageHud.MessageType.TopLeft, "You don't need to Restore you weapon.");
-                    }
+							player.Message(MessageHud.MessageType.TopLeft, "Ability not ready");
+						}
+					}
+					else
+					{
+						player.Message(MessageHud.MessageType.TopLeft, "You don't need to Restore you weapon.");
+					}
                 }
                 else
                 {

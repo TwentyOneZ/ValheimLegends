@@ -104,7 +104,7 @@ public class Class_Necromancer
 					}
 					else
 					{
-						player.Message(MessageHud.MessageType.TopLeft, "Not enough stamina to for Fireball: (" + player.GetStamina().ToString("#.#") + "/" + VL_Utility.GetFireballCost + ")");
+						player.Message(MessageHud.MessageType.TopLeft, "Not enough stamina for Fireball: (" + player.GetStamina().ToString("#.#") + "/" + VL_Utility.GetFireballCost + ")");
 					}
 				}
 				else
