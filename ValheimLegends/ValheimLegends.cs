@@ -7,6 +7,7 @@ using System.IO;
 using System.Linq;
 using System.Numerics;
 using System.Reflection;
+using System.Xml.Linq;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -1152,10 +1153,11 @@ public class ValheimLegends : BaseUnityPlugin
                     {
                         // Verifica se o atacante (player) possui a Afinidade de Mago, independente da classe selecionada no menu global
                         SE_MageFrostAffinity frostAffinity = attacker.GetSEMan().GetStatusEffect("SE_VL_MageFrostAffinity".GetStableHashCode()) as SE_MageFrostAffinity;
+                        SE_MageFireAffinity fireAffinity = attacker.GetSEMan().GetStatusEffect("SE_VL_MageFireAffinity".GetStableHashCode()) as SE_MageFireAffinity;
                         SE_MageArcaneAffinity arcaneAffinity = attacker.GetSEMan().GetStatusEffect("SE_VL_MageArcaneAffinity".GetStableHashCode()) as SE_MageArcaneAffinity;
 
-                        // 1. ARCANE AFFINITY CRITICAL HIT LOGIC
-                        if (arcaneAffinity != null && arcaneAffinity.isFocused)
+                        // 1. FIRE AFFINITY CRITICAL HIT LOGIC
+                        if (fireAffinity != null && fireAffinity.isFocused)
                         {
                             // Verifica se tem dano elemental
                             if (hit.m_damage.GetTotalElementalDamage() > 0f)
@@ -1167,6 +1169,92 @@ public class ValheimLegends : BaseUnityPlugin
                                     hit.ApplyModifier(modifier);
                                     attacker.m_critHitEffects.Create(hit.m_point, UnityEngine.Quaternion.identity, attacker.transform);
                                     attacker.Message(MessageHud.MessageType.TopLeft, $"Spell critical! ({modifier:F1}x damage)", 0, null);
+                                }
+                            }
+                        }
+                        // 2. ARCANE AFFINITY ELEMENTAL RECOVERY LOGIC
+                        if (arcaneAffinity != null && arcaneAffinity.isFocused)
+                        {
+                            // Verifica se tem dano
+                            if (hit.m_damage.GetTotalDamage() > 0f)
+                            {
+                                float critChance = (5f + EpicMMOSystem.LevelSystem.Instance.getAddCriticalChance()) / 100f;
+                                if (UnityEngine.Random.value < critChance)
+                                {
+                                    // Prepara variáveis de verificação
+                                    float evoLevel = Class_Mage.GetEvocationLevel(player);
+                                    int maxCharges = 10 + Mathf.FloorToInt(evoLevel * 0.2f);
+                                    if (maxCharges > 30) maxCharges = 30;
+
+                                    // Busca as afinidades
+                                    int hashFire = "SE_VL_MageFireAffinity".GetStableHashCode();
+                                    int hashFrost = "SE_VL_MageFrostAffinity".GetStableHashCode();
+
+                                    // Lista de candidatos elegíveis (Abaixo do máximo e timer < 25s)
+                                    List<SE_MageAffinityBase> candidates = new List<SE_MageAffinityBase>();
+
+                                    if (fireAffinity != null && fireAffinity.m_currentCharges < maxCharges && fireAffinity.m_chargeTimer >= 5f)
+                                        candidates.Add(fireAffinity);
+
+                                    if (frostAffinity != null && frostAffinity.m_currentCharges < maxCharges && frostAffinity.m_chargeTimer >= 5f)
+                                        candidates.Add(frostAffinity);
+
+                                    // LÓGICA DE DECISÃO
+                                    if (candidates.Count > 0)
+                                    {
+                                        // 1. Prioridade: Recuperar Fire ou Frost aleatoriamente
+                                        SE_MageAffinityBase winner = candidates[UnityEngine.Random.Range(0, candidates.Count)];
+                                        winner.m_chargeTimer = 30f; // Força a recarga imediata no próximo Update
+
+                                        string elemName = winner.m_name.Split(':')[0]; // Pega só o nome do elemento
+                                        attacker.Message(MessageHud.MessageType.TopLeft, $"Arcane Flux: {elemName} Recharged!", 0, null);
+                                        attacker.m_critHitEffects.Create(hit.m_point, UnityEngine.Quaternion.identity, attacker.transform);
+										if (elemName == "Fire")
+										{
+                                            GameObject vfx = ZNetScene.instance.GetPrefab("vfx_FireAddFuel");
+                                            if (vfx) UnityEngine.Object.Instantiate(vfx, attacker.GetCenterPoint(), UnityEngine.Quaternion.identity);
+
+                                            GameObject sfx = ZNetScene.instance.GetPrefab("sfx_FireAddFuel");
+                                            if (sfx) UnityEngine.Object.Instantiate(sfx, attacker.GetCenterPoint(), UnityEngine.Quaternion.identity);
+                                        }
+										else
+										{
+                                            GameObject vfx = ZNetScene.instance.GetPrefab("fx_iceshard_launch");
+                                            if (vfx) UnityEngine.Object.Instantiate(vfx, attacker.GetEyePoint(), UnityEngine.Quaternion.identity);
+                                        }
+                                    }
+                                    else if (arcaneAffinity.m_currentCharges < maxCharges && arcaneAffinity.m_chargeTimer >= 5f)
+                                    {
+                                        // 2. Fallback: Recuperar Arcane
+                                        arcaneAffinity.m_chargeTimer = 30f;
+                                        attacker.Message(MessageHud.MessageType.TopLeft, $"Arcane Flux: Arcane Recharged!", 0, null);
+                                        attacker.m_critHitEffects.Create(hit.m_point, UnityEngine.Quaternion.identity, attacker.transform);
+                                        GameObject burstFx = ZNetScene.instance.GetPrefab("fx_VL_ReplicaCreate");
+                                        if (burstFx) UnityEngine.Object.Instantiate(burstFx, hit.m_point, UnityEngine.Quaternion.identity);
+                                        burstFx = ZNetScene.instance.GetPrefab("sfx_staff_lightning_charge");
+                                        if (burstFx) UnityEngine.Object.Instantiate(burstFx, hit.m_point, UnityEngine.Quaternion.identity);
+                                        
+                                    }
+                                    else
+                                    {
+                                        // 3. Último Recurso: Gastar Carga para Dano Massivo
+                                        if (arcaneAffinity.m_currentCharges >= 1)
+                                        {
+                                            arcaneAffinity.ConsumeCharges(1);
+
+                                            // Multiplicador: 1 + (Level / 75). Ex: Lvl 50 = 1.66x. Lvl 100 = 2.33x
+                                            float modifier = 1f + (evoLevel / 75f);
+                                            hit.ApplyModifier(modifier);
+
+                                            attacker.m_critHitEffects.Create(hit.m_point, UnityEngine.Quaternion.identity, attacker.transform);
+
+                                            // Efeito extra para enfatizar o "Surto" de poder
+                                            GameObject burstFx = ZNetScene.instance.GetPrefab("fx_VL_AbsorbSpirit");
+                                            if (burstFx) UnityEngine.Object.Instantiate(burstFx, hit.m_point, UnityEngine.Quaternion.identity);
+
+                                            attacker.Message(MessageHud.MessageType.TopLeft, $"Arcane Surge! ({modifier:F1}x damage)", 0, null);
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -2289,13 +2377,29 @@ public class ValheimLegends : BaseUnityPlugin
 					if (!__instance.GetSEMan().HaveStatusEffect("SE_VL_DyingLight_CD".GetStableHashCode()))
 					{
 						StatusEffect statusEffect = (SE_DyingLight_CD)ScriptableObject.CreateInstance(typeof(SE_DyingLight_CD));
-						statusEffect.m_ttl = 600f * VL_GlobalConfigs.c_priestBonusDyingLightCooldown;
+						statusEffect.m_ttl = 600f * VL_GlobalConfigs.c_priestBonusDyingLightCooldown * Class_Mage.GetCooldownReduction(player);
 						__instance.GetSEMan().AddStatusEffect(statusEffect);
 						__instance.SetHealth(1f);
 						return false;
 					}
 				}
-				else if (vl_player.vl_class == PlayerClass.Shaman)
+                else if (player != null && vl_player.vl_class == PlayerClass.Mage && player.GetPlayerName() == vl_player.vl_name)
+                {
+                    if (__instance.GetSEMan().HaveStatusEffect("SE_VL_ManaShield".GetStableHashCode()))
+                    {
+                        Class_Mage.AddCooldown("ManaShield", 600f * VL_GlobalConfigs.c_priestBonusDyingLightCooldown * Class_Mage.GetCooldownReduction(player));
+						__instance.GetSEMan().RemoveStatusEffect(__instance.GetSEMan().GetStatusEffect("SE_VL_ManaShield".GetStableHashCode()));
+                        __instance.SetHealth(1f);
+                        __instance.Message(MessageHud.MessageType.Center, "<color=red>Eitr Shield shattered!</color>");
+                        GameObject vfx = ZNetScene.instance.GetPrefab("sfx_staff_lightning_fire");
+                        if (vfx) UnityEngine.Object.Instantiate(vfx, __instance.GetCenterPoint(), UnityEngine.Quaternion.identity);
+                        vfx = ZNetScene.instance.GetPrefab("fx_VL_Replica");
+                        if (vfx) UnityEngine.Object.Instantiate(vfx, __instance.GetCenterPoint(), UnityEngine.Quaternion.identity);
+                        __instance.SetHealth(1f);
+                        return false;
+                    }
+                }
+                else if (vl_player.vl_class == PlayerClass.Shaman)
 				{
 					Player localPlayer = Player.m_localPlayer;
 					if (localPlayer != null && vl_player.vl_name == localPlayer.GetPlayerName() && UnityEngine.Vector3.Distance(localPlayer.transform.position, __instance.transform.position) <= 10f)
@@ -3068,7 +3172,7 @@ public class ValheimLegends : BaseUnityPlugin
                             "\n*Surge: the mage can sacrifice a thunderstone (consume it) to reset all ability cooldowns and restore some affinity charges." +
 							"\n\n--- FIRE AFFINITY ---" +
                             "\nActivate Focus: Hold Block + Press Ability 3 (Meteor)" +
-                            "\nFocus Bonus: You are immune to the Cold environment effect." +
+                            "\nFocus Bonus: You are immune to the Cold environment effect. Elemental attacks have a chance to Critically Hit (scaling with Specialization) for bonus damage (scaling with Evocation)." +
                             "\n\nFireball (Ability 1):" +
                             "\nCost: 1 Fire Charge + Stamina" +
                             "\nCreates a ball of fire that arcs towards the target." +
@@ -3093,14 +3197,15 @@ public class ValheimLegends : BaseUnityPlugin
                             "\nChannels a storm of ice shards that rain down on the targeted area, slowing and freezing enemies." +
                             "\n\n--- ARCANE AFFINITY ---" +
                             "\nActivate Focus: Hold Block + Press Ability 1 (Elemental Mastery)" +
-                            "\nFocus Bonus: Elemental attacks have a chance to Critically Hit (scaling with Specialization) for bonus damage (scaling with Evocation)." +
-                            "\n*Arcane abilities are TOGGLES. While active, they consume 1 Arcane Charge every 15s. If you run out of charges, the buff fades.*" +
+                            "\nFocus Bonus: Attacks have a chance to recover fire and frost charges. At full fire and frost, it can trigger Arcane charges recovery. If all charges are full, this trigger an increase to up to 3x damage, depending on Evocation." +
+                            "\n*Elemental Mastery and Arcane Intellect are TOGGLES. While active, they consume 1 Arcane Charge every 15s. If you run out of charges, the buff fades.*" +
                             "\n\nElemental Mastery (Ability 1):" +
                             "\nYour spells are empowered by your weapon's elemental damage. Adds 50% to 200% (based on Evocation) of your weapon's elemental damage to your spells." +
                             "\n\nArcane Intellect (Ability 2):" +
                             "\nRedirects Eitr costs to Stamina first. Efficiency improves with Evocation level (1 Eitr costs 3 Stamina with no Evocation skill, down to 1 Stamina at max level and attributes)." +
                             "\n\nEitr Shield (Ability 3):" +
-                            "\nAbsorbs 100% of incoming damage using Eitr. Efficiency improves with Evocation level (1 Damage costs 3 Eitr with no Evocation, down to 1 Eitr at max level and attributs). Excess damage is taken as health.",
+                            "\nAbsorbs 100% of incoming damage using Eitr. Depletes 1 Arcane charge per hit taken. Efficiency improves with Evocation level (1 Damage costs 3 Eitr with no Evocation, down to 1 Eitr at max level and attributes). Excess damage is taken as health."+
+							"\nIf mage takes a hit that would cause death while Eith Shield is up, it shatters leaving the player alive with 1 health, zero affinity charges and a huge Mana Shield cooldown.",
                 m_topic = "Legend Mage"
             };
             if (!Tutorial.instance.m_texts.Contains(item3))

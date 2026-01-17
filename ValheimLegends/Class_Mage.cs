@@ -42,6 +42,7 @@ namespace ValheimLegends
         private static bool blizzardCharging = false;
         private static float blizzardChargeTimer = 0f;
         private static float blizzardSpawnTimer = 0f;
+        private static int blizzardTickCount = 0;
 
         // Meditation Variables
         private static float meditationTimer = 0f;
@@ -64,13 +65,13 @@ namespace ValheimLegends
             }
         }
 
-        private static void AddCooldown(string id, float duration)
+        public static void AddCooldown(string id, float duration)
         {
             if (InternalCooldowns.ContainsKey(id)) InternalCooldowns[id] = duration;
             else InternalCooldowns.Add(id, duration);
         }
 
-        private static bool IsOnCooldown(string id)
+        public static bool IsOnCooldown(string id)
         {
             return InternalCooldowns.ContainsKey(id) && InternalCooldowns[id] > 0;
         }
@@ -109,6 +110,9 @@ namespace ValheimLegends
         // --- PROCESS INPUT ---
         public static void Process_Input(Player player, float altitude)
         {
+
+            if (player != Player.m_localPlayer) return;
+
             UpdateInternalCooldowns(Time.deltaTime);
             EnsureAffinities(player);
 
@@ -243,7 +247,7 @@ namespace ValheimLegends
                         {
                             case MageAffinity.Arcane:
                                 hash = Hash_ArcaneAffinity;
-                                fx = "vfx_Potion_eitr_minor";
+                                fx = "fx_VL_ReplicaCreate";
                                 name = "Arcane";
                                 break;
                             case MageAffinity.Frost:
@@ -253,7 +257,7 @@ namespace ValheimLegends
                                 break;
                             case MageAffinity.Fire:
                                 hash = Hash_FireAffinity;
-                                fx = "fx_Potion_fireresist";
+                                fx = "fx_VL_Flames";
                                 name = "Fire";
                                 break;
                         }
@@ -467,8 +471,9 @@ namespace ValheimLegends
                     AddCooldown("Fireball", VL_Utility.GetFireballCooldownTime);
                     player.UseStamina(VL_Utility.GetFireballCost);
 
-                    ((ZSyncAnimation)typeof(Player).GetField("m_zanim", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(player)).SetTrigger("gpower");
-                    ((ZSyncAnimation)typeof(Player).GetField("m_zanim", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(player)).SetSpeed(3f);
+                    //((ZSyncAnimation)typeof(Player).GetField("m_zanim", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(player)).SetTrigger("gpower");
+                    //((ZSyncAnimation)typeof(Player).GetField("m_zanim", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(player)).SetSpeed(3f);
+                    player.StartEmote("cheer");
 
                     GameObject fx = ZNetScene.instance.GetPrefab("fx_VL_Flames");
                     if (fx) GO_CastFX = UnityEngine.Object.Instantiate(fx, player.transform.position, UnityEngine.Quaternion.identity);
@@ -503,7 +508,7 @@ namespace ValheimLegends
             {
                 meteorCharging = false;
                 CastMeteor(player, meteorCount);
-                AddCooldown("Meteor", VL_Utility.GetMeteorCooldownTime);
+                AddCooldown("Meteor", VL_Utility.GetMeteorCooldownTime * (meteorCount));
                 meteorCount = 0;
                 ValheimLegends.isChanneling = false;
                 ValheimLegends.channelingBlocksMovement = true;
@@ -571,7 +576,7 @@ namespace ValheimLegends
                 ValheimLegends.isChanneling = true;
                 meteorTimer += Time.deltaTime;
 
-                float chargeInterval = Mathf.Max(0.5f, 2.0f - (level * 0.01f));
+                float chargeInterval = Mathf.Max(0.5f, 8.0f - (level * 0.2f));
 
                 if (meteorTimer >= chargeInterval)
                 {
@@ -734,7 +739,7 @@ namespace ValheimLegends
                                 if (vfx) UnityEngine.Object.Instantiate(vfx, player.GetCenterPoint(), UnityEngine.Quaternion.identity);
                                 ValheimLegends.shouldUseGuardianPower = false;
                                 ((ZSyncAnimation)typeof(Player).GetField("m_zanim", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(player)).SetTrigger("gpower");
-                                ((ZSyncAnimation)typeof(Player).GetField("m_zanim", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(player)).SetSpeed(2f);
+                                ((ZSyncAnimation)typeof(Player).GetField("m_zanim", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(player)).SetSpeed(5f);
                                 player.Message(MessageHud.MessageType.TopLeft, $"{msgName}: ON");
                                 AddCooldown(cdName, 1f);
                             }
@@ -744,8 +749,10 @@ namespace ValheimLegends
                 }
                 else
                 {
-                    GameObject vfx = ZNetScene.instance.GetPrefab("fx_VL_ParticleLightburst");
-                    if (vfx) UnityEngine.Object.Instantiate(vfx, player.GetCenterPoint(), UnityEngine.Quaternion.LookRotation(Vector3.up));
+                    GameObject vfx = ZNetScene.instance.GetPrefab("vfx_HitSparks");
+                    if (vfx) UnityEngine.Object.Instantiate(vfx, player.GetEyePoint(), UnityEngine.Quaternion.LookRotation(Vector3.up));
+                    vfx = ZNetScene.instance.GetPrefab("sfx_lootspawn");
+                    if (vfx) UnityEngine.Object.Instantiate(vfx, player.GetEyePoint(), UnityEngine.Quaternion.LookRotation(Vector3.up));
                     player.GetSEMan().RemoveStatusEffect(buffHash);
                     player.Message(MessageHud.MessageType.TopLeft, $"{msgName}: OFF");
                     AddCooldown(cdName, 1f);
@@ -769,9 +776,13 @@ namespace ValheimLegends
                     {
                         ValheimLegends.shouldUseGuardianPower = false;
                         ValheimLegends.isChanneling = true;
+
+                        // Inicialização
                         blizzardCharging = true;
-                        blizzardChargeTimer = 1.1f;
+                        blizzardTickCount = 0; // Reseta o contador ao iniciar
+                        blizzardChargeTimer = 1.1f; // Garante que o primeiro tick ocorra imediatamente no próximo update
                         blizzardSpawnTimer = 0f;
+
                         ((ZSyncAnimation)typeof(Player).GetField("m_zanim", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(player)).SetTrigger("gpower");
                         ((ZSyncAnimation)typeof(Player).GetField("m_zanim", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(player)).SetSpeed(0.8f);
                     }
@@ -780,13 +791,17 @@ namespace ValheimLegends
             }
             else if (VL_Utility.Ability3_Input_Pressed && blizzardCharging)
             {
+                // SAÍDA 1: Sem Stamina
                 if (player.GetStamina() <= 5f)
                 {
                     blizzardCharging = false;
                     ValheimLegends.isChanneling = false;
                     ValheimLegends.channelingBlocksMovement = true;
                     typeof(Player).GetMethod("StopEmote", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public)?.Invoke(player, null);
-                    AddCooldown("Blizzard", VL_Utility.GetMeteorCooldownTime * 0.75f);
+
+                    // Nova Lógica de CD
+                    float finalCD = (float)blizzardTickCount * VL_Utility.GetMeteorCooldownTime;
+                    AddCooldown("Blizzard", finalCD);
                     return;
                 }
 
@@ -808,6 +823,9 @@ namespace ValheimLegends
                     {
                         ValheimLegends.shouldUseGuardianPower = false;
                         affinity.ConsumeCharges(1);
+
+                        blizzardTickCount++; // Incrementa o contador de ticks
+
                         blizzardChargeTimer = 0f;
                         ValheimLegends.isChanneling = true;
                         ((ZSyncAnimation)typeof(Player).GetField("m_zanim", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(player)).SetTrigger("gpower");
@@ -815,22 +833,31 @@ namespace ValheimLegends
                     }
                     else
                     {
+                        // SAÍDA 2: Sem Cargas
                         blizzardCharging = false;
                         ValheimLegends.isChanneling = false;
                         ValheimLegends.channelingBlocksMovement = true;
                         typeof(Player).GetMethod("StopEmote", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public)?.Invoke(player, null);
-                        AddCooldown("Blizzard", VL_Utility.GetMeteorCooldownTime * 0.75f);
+
+                        // Nova Lógica de CD
+                        float finalCD = (float)blizzardTickCount * VL_Utility.GetMeteorCooldownTime;
+                        AddCooldown("Blizzard", finalCD);
+
                         player.Message(MessageHud.MessageType.TopLeft, "Out of Frost Charges");
                     }
                 }
             }
+            // SAÍDA 3: Soltou o botão
             else if (blizzardCharging && (VL_Utility.Ability3_Input_Up || player.GetStamina() <= 5f))
             {
                 blizzardCharging = false;
                 ValheimLegends.isChanneling = false;
                 ValheimLegends.channelingBlocksMovement = true;
                 typeof(Player).GetMethod("StopEmote", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public)?.Invoke(player, null);
-                AddCooldown("Blizzard", VL_Utility.GetMeteorCooldownTime * 0.75f);
+
+                // Nova Lógica de CD
+                float finalCD = (float)blizzardTickCount * VL_Utility.GetMeteorCooldownTime;
+                AddCooldown("Blizzard", finalCD);
             }
         }
 
@@ -937,12 +964,15 @@ namespace ValheimLegends
             bool hasElementalMastery = player.GetSEMan().HaveStatusEffect(Hash_ElementalMastery);
             for (int i = 0; i < count; i++)
             {
-                UnityEngine.Vector3 spawnPos = new UnityEngine.Vector3(targetBase.x + (float)random.Next(-10, 10), targetBase.y + 100f, targetBase.z + (float)random.Next(-10, 10));
+                UnityEngine.Vector3 spawnPos = new UnityEngine.Vector3(targetBase.x + (float)random.Next(-8, 8), targetBase.y + 100f, targetBase.z + (float)random.Next(-8, 8));
                 GameObject go = UnityEngine.Object.Instantiate(prefab, spawnPos, UnityEngine.Quaternion.identity);
                 Projectile p = go.GetComponent<Projectile>();
+                p.m_respawnItemOnHit = false;
+                p.m_rayRadius = 0.1f;
+                p.m_aoe = 8f + 0.03f * level;
                 HitData hitData = new HitData();
-                hitData.m_damage.m_fire = UnityEngine.Random.Range(10f + 3.0f * level, 40f + 4.5f * level) * VL_GlobalConfigs.g_DamageModifer;
-                hitData.m_damage.m_blunt = UnityEngine.Random.Range(8f + 1.5f * level, 30f + 3.0f * level) * VL_GlobalConfigs.g_DamageModifer;
+                hitData.m_damage.m_fire = UnityEngine.Random.Range(8f + 1.5f * level, 30f + 3.0f * level) * VL_GlobalConfigs.g_DamageModifer;
+                hitData.m_damage.m_blunt = UnityEngine.Random.Range(20f + 3.0f * level, 60f + 6.0f * level) * VL_GlobalConfigs.g_DamageModifer;
                 hitData.SetAttacker(player);
                 hitData.m_skill = ValheimLegends.EvocationSkill;
                 if (hasElementalMastery) AddElementalMasteryDamage(player, ref hitData, 1.2f / count);
@@ -1007,7 +1037,7 @@ namespace ValheimLegends
                   * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddCriticalChance() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 80f), 0f, 0.5f));
         }
 
-        private static float GetCooldownReduction(Player player)
+        public static float GetCooldownReduction(Player player)
         {
             return (1f - (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 80f));
         }
@@ -1043,7 +1073,7 @@ namespace ValheimLegends
             string fxPrefabName = "";
             switch (target)
             {
-                case MageAffinity.Fire: targetAffinity = fire; fxPrefabName = "fx_Potion_fireresist"; break;
+                case MageAffinity.Fire: targetAffinity = fire; fxPrefabName = "fx_VL_Flames"; break;
                 case MageAffinity.Frost: targetAffinity = frost; fxPrefabName = "fx_Potion_frostresist"; break;
                 case MageAffinity.Arcane: targetAffinity = arcane; fxPrefabName = "vfx_Potion_eitr_minor"; break;
             }
@@ -1067,13 +1097,15 @@ namespace ValheimLegends
 
                     if (!string.IsNullOrEmpty(fxPrefabName))
                     {
-                        GameObject prefab = ZNetScene.instance.GetPrefab(fxPrefabName);
-                        if (prefab) UnityEngine.Object.Instantiate(prefab, player.transform.position, UnityEngine.Quaternion.identity);
-                    }
-                    if (target == MageAffinity.Arcane)
-                    {
-                        GameObject prefab = ZNetScene.instance.GetPrefab("sfx_Potion_eitr_minor");
-                        if (prefab) UnityEngine.Object.Instantiate(prefab, player.transform.position, UnityEngine.Quaternion.identity);
+                        if (target == MageAffinity.Arcane)
+                        {
+                            GameObject prefab = ZNetScene.instance.GetPrefab(fxPrefabName);
+                            if (prefab) UnityEngine.Object.Instantiate(prefab, player.transform.position, UnityEngine.Quaternion.identity);
+                            UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("sfx_staff_lightning_charge"), player.GetEyePoint(), UnityEngine.Quaternion.identity);
+                        } else { 
+                            GameObject prefab = ZNetScene.instance.GetPrefab(fxPrefabName);
+                            if (prefab) UnityEngine.Object.Instantiate(prefab, player.transform.position, UnityEngine.Quaternion.identity);
+                        }
                     }
                 }
                 else player.Message(MessageHud.MessageType.TopLeft, $"Not enough stamina to recharge ({player.GetStamina():0}/{cost:0})");
@@ -1094,11 +1126,23 @@ namespace ValheimLegends
             string msg = "";
             switch (target)
             {
-                case MageAffinity.Fire: msg = "<color=#FF8000>🔥</color>"; break;
-                case MageAffinity.Frost: msg = "<color=#00FFFF>❄</color>"; break;
-                case MageAffinity.Arcane: msg = "<color=#9966CC>🪄</color>"; break;
+                case MageAffinity.Fire:
+                    UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("vfx_FireAddFuel"), player.GetCenterPoint(), UnityEngine.Quaternion.identity);
+                    UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("sfx_FireAddFuel"), player.GetCenterPoint(), UnityEngine.Quaternion.identity);
+                    msg = "<color=#FF8000>🔥</color>"; 
+                    break;
+                case MageAffinity.Frost:
+                    UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("fx_iceshard_launch"), player.GetCenterPoint(), UnityEngine.Quaternion.LookRotation(Vector3.up));
+                    msg = "<color=#00FFFF>❄</color>"; 
+                    break;
+                case MageAffinity.Arcane:
+                    UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("fx_VL_ReplicaCreate"), player.GetEyePoint(), UnityEngine.Quaternion.identity);
+                    UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("sfx_staff_lightning_charge"), player.GetEyePoint(), UnityEngine.Quaternion.identity);
+                    msg = "<color=#9966CC>🪄</color>"; 
+                    break;
             }
             player.Message(MessageHud.MessageType.Center, msg);
+
         }
 
         public static MageAffinity GetCurrentFocus(Player player)

@@ -140,7 +140,7 @@ public static class VL_Utility
 
 	public static float GetFireballCost => 50f * VL_GlobalConfigs.g_EnergyCostModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getStaminaReduction() / 100f));
 
-	public static float GetFireballCooldownTime => 6f * VL_GlobalConfigs.g_CooldownModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 100f));
+	public static float GetFireballCooldownTime => 2f * VL_GlobalConfigs.g_CooldownModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 100f));
 
 	public static float GetFireballSkillGain => 1.0f * VL_GlobalConfigs.g_SkillGainModifer * (1f + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 16f));
 
@@ -148,7 +148,7 @@ public static class VL_Utility
 
 	public static float GetMeteorCostPerUpdate => 0.5f * VL_GlobalConfigs.g_EnergyCostModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getStaminaReduction() / 100f));
 
-	public static float GetMeteorCooldownTime => 180f * VL_GlobalConfigs.g_CooldownModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 100f));
+	public static float GetMeteorCooldownTime => 30f * VL_GlobalConfigs.g_CooldownModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 100f));
 
 	public static float GetMeteorSkillGain => 2.0f * VL_GlobalConfigs.g_SkillGainModifer * (1f + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 16f));
 

@@ -55,7 +55,9 @@ namespace ValheimLegends
                     else
                     {
                         // Remove o buff se não conseguir pagar o custo
-                        GameObject vfx = ZNetScene.instance.GetPrefab("fx_VL_ParticleLightburst");
+                        GameObject vfx = ZNetScene.instance.GetPrefab("vfx_HitSparks");
+                        if (vfx) UnityEngine.Object.Instantiate(vfx, m_character.GetCenterPoint(), UnityEngine.Quaternion.LookRotation(UnityEngine.Vector3.up));
+                        vfx = ZNetScene.instance.GetPrefab("sfx_lootspawn");
                         if (vfx) UnityEngine.Object.Instantiate(vfx, m_character.GetCenterPoint(), UnityEngine.Quaternion.LookRotation(UnityEngine.Vector3.up));
                         m_character.Message(MessageHud.MessageType.TopLeft, "Elemental Mastery fades (No Charges)");
                         seman.RemoveStatusEffect(this.name.GetStableHashCode());
