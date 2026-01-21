@@ -21,7 +21,7 @@ namespace ValheimLegends
         {
             base.name = "SE_VL_ArcaneIntellect";
             m_name = "Arcane Intellect";
-            m_tooltip = "Eitr costs Stamina first.\nEfficiency improves with Evocation level (500% to 200% cost).\nConsumes 1 Arcane Charge every 15s.";
+            m_tooltip = "Eitr costs Stamina first.\nEfficiency improves with Evocation level (500% to 200% cost).\nConsumes 1 Arcane Charge every 20s.";
             if (ZNetScene.instance)
             {
                 var prefab = ZNetScene.instance.GetPrefab("HelmetPointyHat");
@@ -32,6 +32,11 @@ namespace ValheimLegends
         public override void UpdateStatusEffect(float dt)
         {
             base.UpdateStatusEffect(dt);
+
+            // [CORREÇÃO MULTIPLAYER] 
+            // Impede que outros clientes tentem gerenciar as cargas do seu personagem
+            if (m_character != Player.m_localPlayer) return;
+
             m_timer += dt;
             if (m_timer >= m_consumptionInterval)
             {
@@ -46,8 +51,6 @@ namespace ValheimLegends
                     }
                     else
                     {
-                        //GameObject vfx = ZNetScene.instance.GetPrefab("fx_VL_ParticleLightburst");
-                        //if (vfx) UnityEngine.Object.Instantiate(vfx, m_character.GetCenterPoint(), UnityEngine.Quaternion.LookRotation(UnityEngine.Vector3.up));
                         GameObject vfx = ZNetScene.instance.GetPrefab("vfx_HitSparks");
                         if (vfx) UnityEngine.Object.Instantiate(vfx, m_character.GetCenterPoint(), UnityEngine.Quaternion.LookRotation(UnityEngine.Vector3.up));
                         vfx = ZNetScene.instance.GetPrefab("sfx_lootspawn");
@@ -82,17 +85,11 @@ namespace ValheimLegends
             catch { return true; }
         }
 
-        /// <summary>
-        /// Retorna o multiplicador de custo de Stamina.
-        /// Level 0   = 5x (500%)
-        /// Level 150 = 2x (200%)
-        /// </summary>
         internal static float GetStaminaCostRatio(Player p)
         {
             float level = 0f;
             try
             {
-                // Chama o método estático solicitado Class_Mage.GetEvocationLevel
                 level = Class_Mage.GetEvocationLevel(p);
             }
             catch
@@ -100,19 +97,11 @@ namespace ValheimLegends
                 level = 0f;
             }
 
-            // Matemática Linear:
-            // (0, 5) -> (150, 2)
-            // m = (2 - 5) / 150 = -0.02
-            // y = 5 - 0.02 * x
-
             float ratio = 3.0f - (level * 0.02f);
             return Mathf.Clamp(ratio, 1.0f, 3.0f);
         }
     }
 
-    // =========================================================
-    //  Patch: Gastar Eitr => gasta Stamina primeiro (com custo extra)
-    // =========================================================
     [HarmonyPatch]
     public static class ArcaneIntellect_EitrCostRedirect_Patch
     {
@@ -133,16 +122,10 @@ namespace ValheimLegends
             if (ArcaneIntellectUtil.RedirectingEitrCost) return true;
 
             float currentStamina = __instance.GetStamina();
-            if (currentStamina <= 1.0f) return true; // Sem stamina mínima para converter
+            if (currentStamina <= 1.0f) return true;
 
-            // 1. Obter o custo (Ratio) baseado no Level
             float costRatio = ArcaneIntellectUtil.GetStaminaCostRatio(__instance);
-
-            // 2. Calcular quanto de Eitr conseguimos pagar com a Stamina atual
-            // Ex: Tenho 100 Stamina, Ratio é 5.0. Consigo pagar por 20 Eitr.
             float maxEitrAffordable = currentStamina / costRatio;
-
-            // 3. O quanto vamos realmente pagar (limitado pelo custo original 'v')
             float eitrToOffset = Mathf.Min(v, maxEitrAffordable);
 
             if (eitrToOffset > 0f)
@@ -159,11 +142,7 @@ namespace ValheimLegends
                     ArcaneIntellectUtil.RedirectingEitrCost = false;
                 }
 
-                // Deduzimos do custo original de Eitr o que foi pago com Stamina
                 v -= eitrToOffset;
-
-                // Se pagamos tudo (v <= 0), impedimos o método original de rodar (retornando false)
-                // Se sobrou v > 0, o método original roda e desconta o restante do Eitr real.
                 if (v <= 0f) return false;
             }
 

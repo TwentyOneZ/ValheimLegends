@@ -62,7 +62,6 @@ public class Class_Monk
             {
                 ItemDrop.ItemData value = Traverse.Create(localPlayer).Field("m_leftItem").GetValue<ItemDrop.ItemData>();
                 ItemDrop.ItemData.SharedData shared = localPlayer.GetCurrentWeapon().m_shared;
-                Debug.Log("Name:" + shared.m_name.ToLower().ToString());
                 if (shared != null && (shared.m_name.ToLower() == "unarmed" || (shared.m_attachOverride == ItemDrop.ItemData.ItemType.Hands) && value == null))
                 {
                     return true;

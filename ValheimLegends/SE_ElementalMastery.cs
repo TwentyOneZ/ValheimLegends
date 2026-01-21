@@ -20,7 +20,6 @@ namespace ValheimLegends
             m_startMessage = "Elemental Mastery Activated";
             m_stopMessage = "Elemental Mastery Deactivated";
 
-            // Verificação de segurança para o ZNetScene
             if (ZNetScene.instance)
             {
                 GameObject prefab = ZNetScene.instance.GetPrefab("Eitr");
@@ -35,26 +34,26 @@ namespace ValheimLegends
         {
             base.UpdateStatusEffect(dt);
 
+            // [CORREÇÃO MULTIPLAYER]
+            // Garante que só o jogador local verifica suas cargas e decide se o buff expira
+            if (m_character != Player.m_localPlayer) return;
+
             m_timer += dt;
             if (m_timer >= m_consumptionInterval)
             {
-                m_timer = 0f; // Reinicia o timer para os próximos 20s
+                m_timer = 0f;
 
                 if (m_character.IsPlayer())
                 {
-                    // Busca a afinidade no jogador
                     var seman = m_character.GetSEMan();
                     SE_MageArcaneAffinity affinity = seman.GetStatusEffect(Hash_ArcaneAffinity) as SE_MageArcaneAffinity;
 
-                    // Verifica se tem afinidade e cargas suficientes
                     if (affinity != null && affinity.m_currentCharges >= 1)
                     {
                         affinity.ConsumeCharges(1);
-                        // Opcional: Efeito visual discreto de consumo de mana/carga
                     }
                     else
                     {
-                        // Remove o buff se não conseguir pagar o custo
                         GameObject vfx = ZNetScene.instance.GetPrefab("vfx_HitSparks");
                         if (vfx) UnityEngine.Object.Instantiate(vfx, m_character.GetCenterPoint(), UnityEngine.Quaternion.LookRotation(UnityEngine.Vector3.up));
                         vfx = ZNetScene.instance.GetPrefab("sfx_lootspawn");

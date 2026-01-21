@@ -194,6 +194,8 @@ public class ValheimLegends : BaseUnityPlugin
                     hit.m_dir = __instance.transform.forward;
                     hit.m_skill = __instance.m_skill;
                     hit.SetAttacker(attacker);
+                    // Flag para ignorar no Patch de Dano geral (sua solicitação anterior)
+                    hit.m_toolTier = 136;
 
                     // ALTERAÇÃO:
                     // Verifica apenas se o alvo está congelado para aplicar o multiplicador de dano.
@@ -206,6 +208,9 @@ public class ValheimLegends : BaseUnityPlugin
                         victim.m_critHitEffects.Create(hit.m_point, UnityEngine.Quaternion.identity, victim.transform); 
 						UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("fx_DvergerMage_Ice_hit"), hit.m_point, UnityEngine.Quaternion.identity);
                         attacker.Message(MessageHud.MessageType.TopLeft, "Ice Shard Critical! (3.0x damage!)");
+                        UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("vfx_ice_destroyed"), hit.m_point, UnityEngine.Quaternion.identity);
+                        GameObject sfx = ZNetScene.instance.GetPrefab("sfx_ice_destroyed");
+                        if (sfx) UnityEngine.Object.Instantiate(sfx, hit.m_point, UnityEngine.Quaternion.identity);
                     }
 
                     victim.Damage(hit);
@@ -1193,10 +1198,10 @@ public class ValheimLegends : BaseUnityPlugin
                                     // Lista de candidatos elegíveis (Abaixo do máximo e timer < 25s)
                                     List<SE_MageAffinityBase> candidates = new List<SE_MageAffinityBase>();
 
-                                    if (fireAffinity != null && fireAffinity.m_currentCharges < maxCharges && fireAffinity.m_chargeTimer >= 5f)
+                                    if (fireAffinity != null && fireAffinity.m_currentCharges < maxCharges && fireAffinity.m_chargeTimer >= 1f)
                                         candidates.Add(fireAffinity);
 
-                                    if (frostAffinity != null && frostAffinity.m_currentCharges < maxCharges && frostAffinity.m_chargeTimer >= 5f)
+                                    if (frostAffinity != null && frostAffinity.m_currentCharges < maxCharges && frostAffinity.m_chargeTimer >= 1f)
                                         candidates.Add(frostAffinity);
 
                                     // LÓGICA DE DECISÃO
@@ -1209,7 +1214,7 @@ public class ValheimLegends : BaseUnityPlugin
                                         string elemName = winner.m_name.Split(':')[0]; // Pega só o nome do elemento
                                         attacker.Message(MessageHud.MessageType.TopLeft, $"Arcane Flux: {elemName} Recharged!", 0, null);
                                         attacker.m_critHitEffects.Create(hit.m_point, UnityEngine.Quaternion.identity, attacker.transform);
-										if (elemName == "Fire")
+										if (elemName == "Flame Affinity")
 										{
                                             GameObject vfx = ZNetScene.instance.GetPrefab("vfx_FireAddFuel");
                                             if (vfx) UnityEngine.Object.Instantiate(vfx, attacker.GetCenterPoint(), UnityEngine.Quaternion.identity);
@@ -1223,16 +1228,16 @@ public class ValheimLegends : BaseUnityPlugin
                                             if (vfx) UnityEngine.Object.Instantiate(vfx, attacker.GetEyePoint(), UnityEngine.Quaternion.identity);
                                         }
                                     }
-                                    else if (arcaneAffinity.m_currentCharges < maxCharges && arcaneAffinity.m_chargeTimer >= 5f)
+                                    else if (arcaneAffinity.m_currentCharges < maxCharges && arcaneAffinity.m_chargeTimer >= 1f)
                                     {
                                         // 2. Fallback: Recuperar Arcane
                                         arcaneAffinity.m_chargeTimer = 30f;
                                         attacker.Message(MessageHud.MessageType.TopLeft, $"Arcane Flux: Arcane Recharged!", 0, null);
                                         attacker.m_critHitEffects.Create(hit.m_point, UnityEngine.Quaternion.identity, attacker.transform);
                                         GameObject burstFx = ZNetScene.instance.GetPrefab("fx_VL_ReplicaCreate");
-                                        if (burstFx) UnityEngine.Object.Instantiate(burstFx, hit.m_point, UnityEngine.Quaternion.identity);
+                                        if (burstFx) UnityEngine.Object.Instantiate(burstFx, attacker.GetEyePoint(), UnityEngine.Quaternion.identity);
                                         burstFx = ZNetScene.instance.GetPrefab("sfx_staff_lightning_charge");
-                                        if (burstFx) UnityEngine.Object.Instantiate(burstFx, hit.m_point, UnityEngine.Quaternion.identity);
+                                        if (burstFx) UnityEngine.Object.Instantiate(burstFx, attacker.GetEyePoint(), UnityEngine.Quaternion.identity);
                                         
                                     }
                                     else
@@ -1258,21 +1263,33 @@ public class ValheimLegends : BaseUnityPlugin
                                 }
                             }
                         }
-
+						
                         if (frostAffinity != null && frostAffinity.isFocused && frostAffinity.m_currentCharges > 0)
                         {
-							// Verifica se o dano vem de uma Skill que deve aplicar proc (evita loop infinito se necessário)
-							// Mas assumindo que qualquer ataque conta:
+                            // Verifica se o dano vem de uma Skill que deve aplicar proc (evita loop infinito se necessário)
+                            // Mas assumindo que qualquer ataque conta:
 
-							if (hit.m_toolTier == 137)
+                            if (hit.m_toolTier == 137)
                             {
+                                // BlizzardShards
                                 // Opcional: Restaurar o toolTier para 0 se achar necessário, 
                                 // mas geralmente não afeta combate contra mobs.
                                 hit.m_toolTier = 0;
+
                                 return true; // Deixa o jogo processar o dano normalmente, mas sai da lógica do Patch
                             }
-                            
-							float level = Class_Mage.GetEvocationLevel(player);
+                            float level = Class_Mage.GetEvocationLevel(player);
+
+                            //if (hit.m_toolTier == 136)
+                            //{
+                            //    // IceShard
+                            //    // mas geralmente não afeta combate contra mobs.
+                            //    hit.m_toolTier = 0;
+                            //    // Aplica efeitos de gelo (Sem Shatter)
+                            //    Class_Mage.ApplyFrostProgression(attacker, __instance, hit, level, false, false, false);
+
+                            //    return true; // Deixa o jogo processar o dano normalmente, mas sai da lógica do Patch
+                            //}
 
                             // REGRAS DE AFINIDADE:
                             // canShatter = true
@@ -1280,7 +1297,7 @@ public class ValheimLegends : BaseUnityPlugin
                             // forceFreeze = false (Usa RNG - Regra #3)
 
                             // Nota: Passamos a referência de 'hit' original, pois estamos no Prefix do Damage
-                            Class_Mage.ApplyFrostProgression(attacker, __instance, hit, level, true, false, false);
+                            Class_Mage.ApplyFrostProgression(attacker, __instance, hit, level, false, false, false);
 
                         }
                     }
@@ -2387,7 +2404,7 @@ public class ValheimLegends : BaseUnityPlugin
                 {
                     if (__instance.GetSEMan().HaveStatusEffect("SE_VL_ManaShield".GetStableHashCode()))
                     {
-                        Class_Mage.AddCooldown("ManaShield", 600f * VL_GlobalConfigs.c_priestBonusDyingLightCooldown * Class_Mage.GetCooldownReduction(player));
+                        Class_Mage.AddCooldown(player, "ManaShield", 600f * VL_GlobalConfigs.c_priestBonusDyingLightCooldown * Class_Mage.GetCooldownReduction(player));
 						__instance.GetSEMan().RemoveStatusEffect(__instance.GetSEMan().GetStatusEffect("SE_VL_ManaShield".GetStableHashCode()));
                         __instance.SetHealth(1f);
                         __instance.Message(MessageHud.MessageType.Center, "<color=red>Eitr Shield shattered!</color>");
@@ -3185,13 +3202,13 @@ public class ValheimLegends : BaseUnityPlugin
                             "\nChannels energy to call down a meteor storm. Hold to channel multiple meteors." +
                             "\n\n--- FROST AFFINITY ---" +
                             "\nActivate Focus: Hold Block + Press Ability 2 (Frost Nova)" +
-                            "\nFocus Bonus: 'Shatter'. Hitting a Frozen target with Frost damage accumulates damage and have a chance to apply Shatter. Shatter deals all accumulated damage once again and removes the freeze. Has a chance to consume 1 Frost Charge." +
+                            "\nFocus Bonus: Hitting a target with Frost damage have a chance (scales with frost damage percent of your total damage and Evocation) to apply Slow and Frozen. Hitting a Frozen target with IceShard triples damage." +
                             "\n\nIce Shard (Ability 1):" +
                             "\nCost: 1 Frost Charge + Stamina" +
                             "\nFires a quick and sharp icicle with high velocity and range. Deals 3x damage in Frozen targets." +
                             "\n\nFrost Nova (Ability 2):" +
                             "\nCost: 3 Frost Charges + Stamina" +
-                            "\nFreezes nearby enemies and pushes them back instantly." +
+                            "\nFreezes nearby enemies and pushes them back instantly. Minor damage. Removes caster's burning effect, if any." +
                             "\n\nBlizzard (Ability 3):" +
                             "\nCost: 1 Frost Charge (start) + 1 Charge per second + Stamina" +
                             "\nChannels a storm of ice shards that rain down on the targeted area, slowing and freezing enemies." +

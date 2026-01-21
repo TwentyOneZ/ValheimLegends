@@ -10,14 +10,9 @@ namespace ValheimLegends
 {
     // =========================
     //  SE: Eitr Shield
-    //  Funcionalidade: Absorve dano usando Eitr (e Stamina com Arcane Intellect).
-    //  Custo: 1 Carga Arcana por Hit.
-    //  Cooldown: 20s ao desativar/quebrar.
     // =========================
     public class SE_ManaShield : StatusEffect
     {
-        // Timer e Intervalo removidos (não consome mais por tempo)
-
         public SE_ManaShield()
         {
             base.name = "SE_VL_ManaShield";
@@ -33,9 +28,7 @@ namespace ValheimLegends
         public override void UpdateStatusEffect(float dt)
         {
             base.UpdateStatusEffect(dt);
-            // Lógica de tempo removida.
         }
-
     }
 
     internal static class ManaShieldUtil
@@ -43,22 +36,10 @@ namespace ValheimLegends
         internal static readonly int SE_HASH = "SE_VL_ManaShield".GetStableHashCode();
         internal static readonly int ARCANE_AFFINITY_HASH = "SE_VL_MageArcaneAffinity".GetStableHashCode();
 
-        // Cache para o método AddCooldown da Class_Mage (caso seja privado ou static)
-        private static MethodInfo _addCooldownMethod;
-
         internal static void ApplyCooldown(Player p, string abilityName, float duration)
         {
-            // Tenta invocar Class_Mage.AddCooldown via Reflection para garantir compatibilidade
-            if (_addCooldownMethod == null)
-            {
-                _addCooldownMethod = AccessTools.Method(typeof(Class_Mage), "AddCooldown", new Type[] { typeof(string), typeof(float) });
-            }
-
-            if (_addCooldownMethod != null)
-            {
-                // AddCooldown é static na Class_Mage na maioria das implementações deste mod
-                _addCooldownMethod.Invoke(null, new object[] { abilityName, duration });
-            }
+            // [CORREÇÃO] Chamada direta para a nova assinatura da Class_Mage que aceita Player
+            Class_Mage.AddCooldown(p, abilityName, duration);
         }
 
         internal static bool HasManaShield(Player p)
@@ -78,9 +59,6 @@ namespace ValheimLegends
             catch { return true; }
         }
 
-        /// <summary>
-        /// Mantido conforme original (Revert)
-        /// </summary>
         internal static float GetEitrCostRatio(float level)
         {
             float ratio = 3.0f - (level * (2.0f / 150.0f));
@@ -111,13 +89,12 @@ namespace ValheimLegends
         {
             if (totalDamage <= 0.1f) return 0f;
 
-            // 1. VERIFICAÇÃO DE CARGAS (Nova Lógica: 1 Carga por Hit)
+            // 1. VERIFICAÇÃO DE CARGAS
             var seman = p.GetSEMan();
             var affinity = seman.GetStatusEffect(ARCANE_AFFINITY_HASH) as SE_MageAffinityBase;
 
             if (affinity != null && affinity.m_currentCharges >= 1)
             {
-                // Consome 1 carga obrigatória
                 affinity.ConsumeCharges(1);
             }
             else
@@ -128,17 +105,14 @@ namespace ValheimLegends
 
                 p.Message(MessageHud.MessageType.TopLeft, "Eitr Shield faded (No Charges)");
 
-                // Remover o efeito chamará SE_ManaShield.Stop(), que aplicará o Cooldown
                 seman.RemoveStatusEffect(SE_HASH);
-                // Calcula cooldown: 20s * Redução
-                float cdDuration = 20f * Class_Mage.GetCooldownReduction(p);
 
-                // Aplica o Cooldown
+                float cdDuration = 20f * Class_Mage.GetCooldownReduction(p);
                 ManaShieldUtil.ApplyCooldown(p, "Mana Shield", cdDuration);
                 return 0f;
             }
 
-            // 2. RECURSOS E CÁLCULOS (Lógica Mantida)
+            // 2. RECURSOS E CÁLCULOS
             float currentEitr = p.GetEitr();
             float currentStamina = p.GetStamina();
 
