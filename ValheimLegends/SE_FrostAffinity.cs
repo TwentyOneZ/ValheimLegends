@@ -5,7 +5,7 @@ namespace ValheimLegends;
 
 public class SE_Frostaffinity : StatusEffect
 {
-	public static Sprite AbilityIcon = ZNetScene.instance.GetPrefab("StaffIceShards").GetComponent<ItemDrop>().m_itemData.GetIcon();
+	public static Sprite AbilityIcon;
 
 	public static GameObject GO_SEFX;
 
@@ -14,7 +14,7 @@ public class SE_Frostaffinity : StatusEffect
 	public SE_Frostaffinity()
 	{
 		base.name = "SE_VL_Frostaffinity";
-		m_icon = ZNetScene.instance.GetPrefab("StaffIceShards").GetComponent<ItemDrop>().m_itemData.GetIcon();
+		m_icon = AbilityIcon;
 		m_tooltip = "Attacks are imbued with Frost";
 		m_name = "Enchant Frost";
 		doOnce = true;

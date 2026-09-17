@@ -406,7 +406,7 @@ public static class VL_Utility
             if (rt == null) continue;
 
             // No template existe "TimeText" (hotkey/cooldown) e existe o text do nome.
-            // Então pegamos o TMP_Text que NÃO é o TimeText.
+            // Entï¿½o pegamos o TMP_Text que Nï¿½O ï¿½ o TimeText.
             TMP_Text label = null;
             var texts = rt.GetComponentsInChildren<TMP_Text>(true);
             foreach (var t in texts)
@@ -419,7 +419,7 @@ public static class VL_Utility
 
             if (label == null) continue;
 
-            // Localize se possível, senão escreve raw
+            // Localize se possï¿½vel, senï¿½o escreve raw
             if (Localization.instance != null)
                 label.text = Localization.instance.Localize(names[i]);
             else
@@ -450,24 +450,26 @@ public static class VL_Utility
 
     public static Texture2D LoadTextureFromAssets(string path)
     {
-        //IL_001a: Unknown result type (might be due to invalid IL or missing references)
-        //IL_0020: Expected O, but got Unknown
-        //IL_0041: Unknown result type (might be due to invalid IL or missing references)
-        //IL_0048: Expected O, but got Unknown
-        try
+        string p1 = Path.Combine(Folder, "VLAssets", path);
+        if (File.Exists(p1))
         {
-            byte[] array = File.ReadAllBytes(Path.Combine(Folder, "VLAssets", path));
+            byte[] array = File.ReadAllBytes(p1);
             Texture2D val = new Texture2D(1, 1);
             ImageConversion.LoadImage(val, array);
             return val;
         }
-        catch
+
+        string p2 = Path.Combine(Folder, path);
+        if (File.Exists(p2))
         {
-            byte[] array2 = File.ReadAllBytes(Path.Combine(Folder, path));
+            byte[] array2 = File.ReadAllBytes(p2);
             Texture2D val2 = new Texture2D(1, 1);
             ImageConversion.LoadImage(val2, array2);
             return val2;
         }
+
+        ZLog.LogError("[ValheimLegends] Asset texture not found: " + path + " (checked " + p1 + " and " + p2 + ")");
+        return new Texture2D(1, 1);
     }
 
 

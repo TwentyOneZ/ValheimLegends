@@ -126,37 +126,7 @@ public static class ObjectDBPatches
 	{
 		public static void Postfix(Hud __instance)
 		{
-			SE_Regeneration.AbilityIcon = ZNetScene.instance.GetPrefab("TrophyGreydwarfShaman").GetComponent<ItemDrop>().m_itemData.GetIcon();
-			SE_Bulwark.AbilityIcon = ZNetScene.instance.GetPrefab("ShieldBlackmetalTower").GetComponent<ItemDrop>().m_itemData.GetIcon();
-			SE_Enrage.AbilityIcon = ZNetScene.instance.GetPrefab("TrophyGoblinBrute").GetComponent<ItemDrop>().m_itemData.GetIcon();
-			SE_Shell.AbilityIcon = ZNetScene.instance.GetPrefab("ShieldSerpentscale").GetComponent<ItemDrop>().m_itemData.GetIcon();
-			SE_SpiritDrain.AbilityIcon = ZNetScene.instance.GetPrefab("TrophyDragonQueen").GetComponent<ItemDrop>().m_itemData.GetIcon();
-			SE_Berserk.AbilityIcon = ZNetScene.instance.GetPrefab("TrophyGoblinKing").GetComponent<ItemDrop>().m_itemData.GetIcon();
-			SE_Execute.AbilityIcon = ZNetScene.instance.GetPrefab("SwordCheat").GetComponent<ItemDrop>().m_itemData.GetIcon();
-			SE_PowerShot.AbilityIcon = ZNetScene.instance.GetPrefab("ArrowFire").GetComponent<ItemDrop>().m_itemData.GetIcon();
-			SE_ShadowStalk.AbilityIcon = ZNetScene.instance.GetPrefab("TrophyWraith").GetComponent<ItemDrop>().m_itemData.GetIcon();
-			SE_Companion.AbilityIcon = ZNetScene.instance.GetPrefab("TrophyWolf").GetComponent<ItemDrop>().m_itemData.GetIcon();
-			SE_RootsBuff.AbilityIcon = ZNetScene.instance.GetPrefab("TrophyWolf").GetComponent<ItemDrop>().m_itemData.GetIcon();
-			SE_Slow.AbilityIcon = ZNetScene.instance.GetPrefab("TrophyWolf").GetComponent<ItemDrop>().m_itemData.GetIcon();
-			SE_DyingLight_CD.AbilityIcon = ZNetScene.instance.GetPrefab("TrophySkeleton").GetComponent<ItemDrop>().m_itemData.GetIcon();
-			SE_Reactivearmor.AbilityIcon = ZNetScene.instance.GetPrefab("StaffShield").GetComponent<ItemDrop>().m_itemData.GetIcon();
-			SE_Riposte.AbilityIcon = ValheimLegends.RiposteIcon;
-			SE_Rogue.AbilityIcon = ValheimLegends.RogueIcon;
-			SE_Monk.AbilityIcon = ValheimLegends.MonkIcon;
-			SE_Ranger.AbilityIcon = ValheimLegends.RangerIcon;
-			SE_Valkyrie.AbilityIcon = ValheimLegends.ValkyrieIcon;
-			SE_Weaken.AbilityIcon = ValheimLegends.WeakenIcon;
-			SE_BiomeMeadows.AbilityIcon = ValheimLegends.BiomeMeadowsIcon;
-			SE_BiomeBlackForest.AbilityIcon = ValheimLegends.BiomeBlackForestIcon;
-			SE_BiomeSwamp.AbilityIcon = ValheimLegends.BiomeSwampIcon;
-			SE_BiomeMountain.AbilityIcon = ValheimLegends.BiomeMountainIcon;
-			SE_BiomePlains.AbilityIcon = ValheimLegends.BiomePlainsIcon;
-			SE_BiomeOcean.AbilityIcon = ValheimLegends.BiomeOceanIcon;
-			SE_BiomeMist.AbilityIcon = ValheimLegends.BiomeMistIcon;
-			SE_BiomeAsh.AbilityIcon = ValheimLegends.BiomeAshIcon;
-			SE_Ability1_CD.AbilityIcon = ZNetScene.instance.GetPrefab("ShieldWood").GetComponent<ItemDrop>().m_itemData.GetIcon();
-			SE_Ability2_CD.AbilityIcon = ZNetScene.instance.GetPrefab("ShieldBanded").GetComponent<ItemDrop>().m_itemData.GetIcon();
-			SE_Ability3_CD.AbilityIcon = ZNetScene.instance.GetPrefab("ShieldSilver").GetComponent<ItemDrop>().m_itemData.GetIcon();
+			VLGameAssets.ResolveAllRuntimeIcons();
 		}
 	}
 
@@ -377,6 +347,11 @@ public static class ObjectDBPatches
 		if (!odb.m_StatusEffects.Find((StatusEffect se) => se.name == "SE_VL_SeedRegeneration"))
 		{
 			odb.m_StatusEffects.Add(ScriptableObject.CreateInstance<SE_SeedRegeneration>());
+		}
+
+		if (ZNetScene.instance != null)
+		{
+			VLGameAssets.ResolveAllRuntimeIcons();
 		}
 	}
 }

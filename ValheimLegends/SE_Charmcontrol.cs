@@ -5,7 +5,7 @@ namespace ValheimLegends;
 
 public class SE_Charmcontrol : StatusEffect
 {
-	public static Sprite AbilityIcon = ZNetScene.instance.GetPrefab("StaffSkeleton").GetComponent<ItemDrop>().m_itemData.GetIcon();
+	public static Sprite AbilityIcon;
 
 	public static GameObject GO_SEFX;
 
@@ -23,7 +23,7 @@ public class SE_Charmcontrol : StatusEffect
 	public SE_Charmcontrol()
 	{
 		base.name = "SE_VL_Charmcontrol";
-		m_icon = ZNetScene.instance.GetPrefab("StaffSkeleton").GetComponent<ItemDrop>().m_itemData.GetIcon();
+		m_icon = AbilityIcon;
 		m_tooltip = "Charm Limit";
 		m_name = "Charm Control";
 		m_ttl = m_baseTTL;

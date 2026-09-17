@@ -6,7 +6,7 @@ namespace ValheimLegends;
 
 public class SE_FlameArmor : StatusEffect
 {
-	public static Sprite AbilityIcon = ZNetScene.instance.GetPrefab("SurtlingCore").GetComponent<ItemDrop>().m_itemData.GetIcon();
+	public static Sprite AbilityIcon;
 
 	public static GameObject GO_SEFX;
 
@@ -32,7 +32,7 @@ public class SE_FlameArmor : StatusEffect
 	public SE_FlameArmor()
 	{
 		base.name = "SE_VL_FlameArmor";
-		m_icon = ZNetScene.instance.GetPrefab("SurtlingCore").GetComponent<ItemDrop>().m_itemData.GetIcon();
+		m_icon = AbilityIcon;
 		m_tooltip = "Your wounds are being cauterized. Immune to Cold. Magical resist increased.";
 		m_name = "Flame Armor";
 		doOnce = true;

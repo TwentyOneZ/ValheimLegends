@@ -5,9 +5,7 @@ namespace ValheimLegends;
 
 public class SE_FlameWeapon : StatusEffect
 {
-    public static Sprite AbilityIcon =
-        ZNetScene.instance.GetPrefab("StaffFireball")
-            .GetComponent<ItemDrop>().m_itemData.GetIcon();
+    public static Sprite AbilityIcon;
 
     public static GameObject GO_SEFX;
 
@@ -25,8 +23,7 @@ public class SE_FlameWeapon : StatusEffect
     public SE_FlameWeapon()
     {
         base.name = "SE_VL_FlameWeapon";
-        m_icon = ZNetScene.instance.GetPrefab("StaffFireball")
-            .GetComponent<ItemDrop>().m_itemData.GetIcon();
+        m_icon = AbilityIcon;
         m_tooltip = "Attacks are imbued with fire.";
         m_name = "Flame Weapon: 0";
 
@@ -59,7 +56,7 @@ public class SE_FlameWeapon : StatusEffect
 
     public override void UpdateStatusEffect(float dt)
     {
-        // Garante que o nome base nunca fique poluído
+        // Garante que o nome base nunca fique poluï¿½do
         if (string.IsNullOrEmpty(_baseName))
         {
             _baseName = "Flame Weapon";

@@ -16,7 +16,7 @@ using static ValheimLegends.Class_Mage;
 
 namespace ValheimLegends;
 
-[BepInPlugin("ValheimLegends", "ValheimLegends", "0.5.0")]
+[BepInPlugin("ValheimLegends", "ValheimLegends", "0.5.1")]
 [BepInDependency("EpicMMOSystem", BepInDependency.DependencyFlags.SoftDependency)]
 public class ValheimLegends : BaseUnityPlugin
 {
@@ -4013,6 +4013,11 @@ public class ValheimLegends : BaseUnityPlugin
 				__instance.m_prefabs.Add(fx_VL_ShieldRelease);
 			}
 		}
+
+		public static void Postfix(ZNetScene __instance)
+		{
+			VLGameAssets.ResolveAllRuntimeIcons();
+		}
 	}
 
 	[HarmonyPatch(typeof(ObjectDB), "CopyOtherDB")]
@@ -4035,7 +4040,7 @@ public class ValheimLegends : BaseUnityPlugin
 
 	public static Harmony _Harmony;
 
-	public const string Version = "0.5.0";
+	public const string Version = "0.5.1";
 
 	public const float VersionF = 0.5f;
 
@@ -4754,7 +4759,18 @@ public class ValheimLegends : BaseUnityPlugin
 		VL_GlobalConfigs.ConfigStrings.Add("vl_svr_allowAltarClassChange", vl_svr_allowAltarClassChange.Value ? 1f : 0f);
 		VL_Utility.ModID = "valheim.torann.valheimlegends";
 		VL_Utility.Folder = Path.GetDirectoryName(base.Info.Location);
-		ZLog.Log("Valheim Legends attempting to find VLAssets in the directory with " + base.Info.Location);
+		ZLog.Log("[ValheimLegends] Assembly: " + base.Info.Location);
+		ZLog.Log("[ValheimLegends] Plugin version: 0.5.1");
+		ZLog.Log("[ValheimLegends] Asset directory: " + VL_Utility.Folder);
+		string vlAssetsPath = Path.Combine(VL_Utility.Folder, "VLAssets");
+		if (Directory.Exists(vlAssetsPath))
+		{
+			ZLog.Log("[ValheimLegends] VLAssets loaded successfully from: " + vlAssetsPath);
+		}
+		else
+		{
+			ZLog.LogWarning("[ValheimLegends] VLAssets directory not found at: " + vlAssetsPath + " (falling back to plugin folder)");
+		}
 		Texture2D texture2D = VL_Utility.LoadTextureFromAssets("abjuration_skill.png");
 		Sprite icon = Sprite.Create(texture2D, new Rect(0f, 0f, texture2D.width, texture2D.height), new UnityEngine.Vector2(0.5f, 0.5f));
 		Texture2D texture2D2 = VL_Utility.LoadTextureFromAssets("conjuration_skill.png");

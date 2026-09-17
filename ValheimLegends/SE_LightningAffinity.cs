@@ -5,7 +5,7 @@ namespace ValheimLegends;
 
 public class SE_Lightningaffinity : StatusEffect
 {
-	public static Sprite AbilityIcon = ZNetScene.instance.GetPrefab("DragonTear").GetComponent<ItemDrop>().m_itemData.GetIcon();
+	public static Sprite AbilityIcon;
 
 	public static GameObject GO_SEFX;
 
@@ -14,7 +14,7 @@ public class SE_Lightningaffinity : StatusEffect
 	public SE_Lightningaffinity()
 	{
 		base.name = "SE_VL_Lightningaffinity";
-		m_icon = ZNetScene.instance.GetPrefab("DragonTear").GetComponent<ItemDrop>().m_itemData.GetIcon();
+		m_icon = AbilityIcon;
 		m_tooltip = "Attacks are imbued with Lightning, jumps to nearby targets";
 		m_name = "Enchant Lightning";
 		doOnce = true;

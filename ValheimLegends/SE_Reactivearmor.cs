@@ -5,7 +5,7 @@ namespace ValheimLegends;
 
 public class SE_Reactivearmor : SE_Stats
 {
-	public static Sprite AbilityIcon = ZNetScene.instance.GetPrefab("StaffShield").GetComponent<ItemDrop>().m_itemData.GetIcon();
+	public static Sprite AbilityIcon;
 
 	public static GameObject GO_SEFX;
 
@@ -22,7 +22,7 @@ public class SE_Reactivearmor : SE_Stats
 	public SE_Reactivearmor()
 	{
 		base.name = "SE_VL_Reactivearmor";
-		m_icon = ZNetScene.instance.GetPrefab("StaffShield").GetComponent<ItemDrop>().m_itemData.GetIcon();
+		m_icon = AbilityIcon;
 		m_tooltip = "Reactive Armor";
 		m_name = "Reactive Armor";
 		doOnce = true;

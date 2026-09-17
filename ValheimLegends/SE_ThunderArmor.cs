@@ -5,7 +5,7 @@ namespace ValheimLegends;
 
 public class SE_ThunderArmor : StatusEffect
 {
-	public static Sprite AbilityIcon = ZNetScene.instance.GetPrefab("Thunderstone").GetComponent<ItemDrop>().m_itemData.GetIcon();
+	public static Sprite AbilityIcon;
 
 	public static GameObject GO_SEFX;
 
@@ -15,7 +15,7 @@ public class SE_ThunderArmor : StatusEffect
 	public SE_ThunderArmor()
 	{
 		base.name = "SE_VL_ThunderArmor";
-		m_icon = ZNetScene.instance.GetPrefab("Thunderstone").GetComponent<ItemDrop>().m_itemData.GetIcon();
+		m_icon = AbilityIcon;
 		m_tooltip = "Chance to burst a chain lightning back at attackers. Increases movement speed.";
 		m_name = "Thunder Armor";
 		doOnce = true;

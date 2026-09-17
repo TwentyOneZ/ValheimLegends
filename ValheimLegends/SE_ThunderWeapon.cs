@@ -5,7 +5,7 @@ namespace ValheimLegends;
 
 public class SE_ThunderWeapon : StatusEffect
 {
-    public static Sprite AbilityIcon = ZNetScene.instance.GetPrefab("DragonTear").GetComponent<ItemDrop>().m_itemData.GetIcon();
+    public static Sprite AbilityIcon;
 
     public static GameObject GO_SEFX;
 
@@ -16,7 +16,7 @@ public class SE_ThunderWeapon : StatusEffect
     // -----------------------------
     public const int MaxCharges = 10;
 
-    // Guarda o nome base ("Thunder Weapon") para não ir concatenando infinito
+    // Guarda o nome base ("Thunder Weapon") para nï¿½o ir concatenando infinito
     private string _baseName = "Thunder Weapon";
 
     public int Charges { get; private set; } = 0;
@@ -24,7 +24,7 @@ public class SE_ThunderWeapon : StatusEffect
     public SE_ThunderWeapon()
     {
         base.name = "SE_VL_ThunderWeapon";
-        m_icon = ZNetScene.instance.GetPrefab("DragonTear").GetComponent<ItemDrop>().m_itemData.GetIcon();
+        m_icon = AbilityIcon;
         m_tooltip = "Attacks are imbued with Lightning, jumps to nearby targets";
         m_name = "Thunder Weapon: 0";
 
@@ -69,7 +69,7 @@ public class SE_ThunderWeapon : StatusEffect
             _baseName = _baseName.Split(':')[0].Trim();
         }
 
-        // Reaplica o nome com charges (mantém sempre certo)
+        // Reaplica o nome com charges (mantï¿½m sempre certo)
         UpdateName();
 
         float level = m_character.GetSkills().GetSkillList()
