@@ -11,29 +11,41 @@
   <PropertyGroup>
     <RootNamespace />
   </PropertyGroup>
+  <PropertyGroup>
+    <ValheimGamePath Condition="'$(ValheimGamePath)' == ''">D:\spellbook\steam\steamapps\common\Valheim</ValheimGamePath>
+    <ValheimManaged Condition="Exists('$(ValheimGamePath)\valheim_Data\Managed\assembly_valheim.dll')">$(ValheimGamePath)\valheim_Data\Managed</ValheimManaged>
+    <ValheimManaged Condition="'$(ValheimManaged)' == ''">Libs</ValheimManaged>
+    <ValheimBepInEx Condition="Exists('$(ValheimGamePath)\BepInEx\core\BepInEx.dll')">$(ValheimGamePath)\BepInEx\core</ValheimBepInEx>
+    <ValheimBepInEx Condition="'$(ValheimBepInEx)' == ''">Libs</ValheimBepInEx>
+  </PropertyGroup>
   <ItemGroup>
     <None Remove="ValheimLegends.vl_assetbundle" />
     <EmbeddedResource Include="ValheimLegends.vl_assetbundle" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="0Harmony">
-      <HintPath>Libs\0Harmony.dll</HintPath>
+      <HintPath Condition="Exists('$(ValheimBepInEx)\0Harmony.dll')">$(ValheimBepInEx)\0Harmony.dll</HintPath>
+      <HintPath Condition="!Exists('$(ValheimBepInEx)\0Harmony.dll')">Libs\0Harmony.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="assembly_guiutils">
-      <HintPath>Libs\assembly_guiutils.dll</HintPath>
+      <HintPath Condition="Exists('$(ValheimManaged)\assembly_guiutils.dll')">$(ValheimManaged)\assembly_guiutils.dll</HintPath>
+      <HintPath Condition="!Exists('$(ValheimManaged)\assembly_guiutils.dll')">Libs\assembly_guiutils.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="assembly_utils">
-      <HintPath>Libs\assembly_utils.dll</HintPath>
+      <HintPath Condition="Exists('$(ValheimManaged)\assembly_utils.dll')">$(ValheimManaged)\assembly_utils.dll</HintPath>
+      <HintPath Condition="!Exists('$(ValheimManaged)\assembly_utils.dll')">Libs\assembly_utils.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="assembly_valheim">
-      <HintPath>Libs\assembly_valheim.dll</HintPath>
+      <HintPath Condition="Exists('$(ValheimManaged)\assembly_valheim.dll')">$(ValheimManaged)\assembly_valheim.dll</HintPath>
+      <HintPath Condition="!Exists('$(ValheimManaged)\assembly_valheim.dll')">Libs\assembly_valheim.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="BepInEx">
-      <HintPath>Libs\BepInEx.dll</HintPath>
+      <HintPath Condition="Exists('$(ValheimBepInEx)\BepInEx.dll')">$(ValheimBepInEx)\BepInEx.dll</HintPath>
+      <HintPath Condition="!Exists('$(ValheimBepInEx)\BepInEx.dll')">Libs\BepInEx.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="EpicMMOSystem">

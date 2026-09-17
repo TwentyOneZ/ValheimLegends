@@ -1,4 +1,4 @@
-﻿using HarmonyLib;
+using HarmonyLib;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -254,8 +254,14 @@ namespace ValheimLegends
             bool perfect = false;
             try
             {
-                var f = AccessTools.Field(typeof(Humanoid), "m_perfectBlock");
-                if (f != null) perfect = (bool)f.GetValue(__instance);
+                var fTimer = AccessTools.Field(typeof(Humanoid), "m_blockTimer");
+                var fInterval = AccessTools.Field(typeof(Humanoid), "m_perfectBlockInterval");
+                if (fTimer != null && fInterval != null)
+                {
+                    float timer = (float)fTimer.GetValue(__instance);
+                    float interval = (float)fInterval.GetValue(__instance);
+                    perfect = timer >= 0f && timer <= interval;
+                }
             }
             catch { }
 

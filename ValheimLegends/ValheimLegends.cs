@@ -228,9 +228,10 @@ public class ValheimLegends : BaseUnityPlugin
 		{
 			try
 			{
-				Directory.CreateDirectory(Utils.GetSaveDataPath(FileHelpers.FileSource.Local) + "/characters/VL");
-				string text = Utils.GetSaveDataPath(FileHelpers.FileSource.Local) + "/characters/VL/" + ___m_filename + "_vl.fch";
-				string text2 = Utils.GetSaveDataPath(FileHelpers.FileSource.Local) + "/characters/VL/" + ___m_filename + "_vl.fch.new";
+				string saveDir = Path.Combine(Utils.GetSaveDataPath(FileHelpers.FileSource.Local), "characters", "VL");
+				Directory.CreateDirectory(saveDir);
+				string text = Path.Combine(saveDir, ___m_filename + "_vl.fch");
+				string text2 = text + ".new";
 				ZPackage zPackage = new ZPackage();
 				zPackage.Write(GetPlayerClassNum);
 				byte[] array = zPackage.GenerateHash();
@@ -285,9 +286,63 @@ public class ValheimLegends : BaseUnityPlugin
 			}
 		}
 
+		private static string ResolveVLProfilePath(string m_filename)
+		{
+			string basePath = Utils.GetSaveDataPath(FileHelpers.FileSource.Local);
+			string[] dirs = new string[]
+			{
+				Path.Combine(basePath, "characters", "VL"),
+				Path.Combine(basePath, "characters_local", "VL"),
+				Path.Combine(Utils.GetSaveDataPath(FileHelpers.FileSource.Legacy), "characters", "VL")
+			};
+
+			List<string> candidateNames = new List<string>();
+			if (!string.IsNullOrEmpty(m_filename))
+			{
+				candidateNames.Add(m_filename);
+				if (m_filename.StartsWith("Steam_", StringComparison.OrdinalIgnoreCase))
+				{
+					int lastIdx = m_filename.LastIndexOf('_');
+					if (lastIdx > 0 && lastIdx < m_filename.Length - 1)
+					{
+						candidateNames.Add(m_filename.Substring(lastIdx + 1));
+					}
+				}
+			}
+
+			foreach (string dir in dirs)
+			{
+				if (!Directory.Exists(dir)) continue;
+
+				foreach (string name in candidateNames)
+				{
+					string exact = Path.Combine(dir, name + "_vl.fch");
+					if (File.Exists(exact)) return exact;
+				}
+
+				foreach (string name in candidateNames)
+				{
+					try
+					{
+						string[] matches = Directory.GetFiles(dir, "*" + name + "_vl.fch");
+						if (matches != null && matches.Length > 0)
+						{
+							return matches[0];
+						}
+					}
+					catch { }
+				}
+			}
+			return null;
+		}
+
 		private static ZPackage LoadPlayerDataFromDisk(string m_filename)
 		{
-			string path = Utils.GetSaveDataPath(FileHelpers.FileSource.Local) + "/characters/VL/" + m_filename + "_vl.fch";
+			string path = ResolveVLProfilePath(m_filename);
+			if (string.IsNullOrEmpty(path))
+			{
+				return null;
+			}
 			FileStream fileStream;
 			try
 			{
@@ -308,7 +363,7 @@ public class ValheimLegends : BaseUnityPlugin
 			}
 			catch
 			{
-				ZLog.LogError("  error loading VL player data");
+				ZLog.LogError("  error loading VL player data from " + path);
 				fileStream.Dispose();
 				return null;
 			}
@@ -474,6 +529,9 @@ public class ValheimLegends : BaseUnityPlugin
 	[HarmonyPatch(typeof(Attack), "Start", null)]
 	public class ShadowWolfAttack_Patch
 	{
+		private static readonly Func<Humanoid, HitData, Character, bool> InvokeBlockAttack =
+			AccessTools.MethodDelegate<Func<Humanoid, HitData, Character, bool>>(AccessTools.Method(typeof(Humanoid), "BlockAttack", new[] { typeof(HitData), typeof(Character) }));
+
 		public static bool Prefix(Attack __instance, Humanoid character, Rigidbody body, ZSyncAnimation zanim, CharacterAnimEvent animEvent, VisEquipment visEquipment, ItemDrop.ItemData weapon, Attack previousAttack, float timeSinceLastAttack, float attackDrawPercentage, string ___m_attackAnimation)
 		{
 			if (character != null && (character.m_name == "Shadow Wolf" || character.m_name.Contains("Demon Wolf")))
@@ -513,10 +571,9 @@ public class ValheimLegends : BaseUnityPlugin
 						if (component.IsBlocking())
 						{
 							Player player = component as Player;
-							if (player != null)
+							if (player != null && InvokeBlockAttack != null)
 							{
-								MethodBase methodBase = AccessTools.Method(typeof(Humanoid), "BlockAttack");
-								methodBase.Invoke(player, new object[2] { hitData, character });
+								InvokeBlockAttack(player, hitData, character);
 							}
 						}
 						else
@@ -534,6 +591,24 @@ public class ValheimLegends : BaseUnityPlugin
 	public class CanSee_Shadow_Patch
 	{
 		public static bool Prefix(BaseAI __instance, Character target, ref bool __result)
+		{
+			if (target != null)
+			{
+				Player player = target as Player;
+				if (player != null && player.GetSEMan().HaveStatusEffect("SE_VL_ShadowStalk".GetStableHashCode()) && player.IsCrouching())
+				{
+					__result = false;
+					return false;
+				}
+			}
+			return true;
+		}
+	}
+
+	[HarmonyPatch(typeof(BaseAI), "CanSenseTarget", new Type[] { typeof(Character), typeof(bool) })]
+	public class CanSee_Shadow_Patch_Overload
+	{
+		public static bool Prefix(BaseAI __instance, Character target, bool passiveAggresive, ref bool __result)
 		{
 			if (target != null)
 			{
