@@ -132,3 +132,4 @@ A migração foi concluída com êxito em todos os objetivos solicitados:
 - Nenhuma dependência externa de compatibilidade (`Valheim10Compatibility.dll`) é necessária.
 - Todos os poderes, classes, status effects e saves de personagens existentes funcionam de maneira estável e preservada.
 - O branch `valheim-1.0.14-port` contém o histórico limpo e auditável de todas as modificações.
+
