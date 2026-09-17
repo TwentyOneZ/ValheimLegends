@@ -42,6 +42,11 @@ public class SE_Berserk : SE_Stats
 	{
 		savedStaminaRegenDelay = Traverse.Create((Player)character).Field("m_staminaRegenDelay").GetValue<float>();
 		Traverse.Create((Player)character).Field("m_staminaRegenDelay").SetValue(0f);
+		if (character is Player player)
+		{
+			savedStaminaRegenDelay = VL_ReflectCache.GetStaminaRegenDelay(player);
+			VL_ReflectCache.SetStaminaRegenDelay(player, 0f);
+		}
 		base.Setup(character);
 	}
 
@@ -59,6 +64,12 @@ public class SE_Berserk : SE_Stats
 			{
 				SE_Berserk sE_Berserk = (SE_Berserk)m_character.GetSEMan().GetStatusEffect("SE_VL_Berserk".GetStableHashCode());
 				m_character.GetSEMan().RemoveStatusEffect(sE_Berserk, quiet: true);
+				var seMan = m_character.GetSEMan();
+				if (seMan != null)
+				{
+					StatusEffect sE_Berserk = seMan.GetStatusEffect(VL_Hashes.Berserk);
+					if (sE_Berserk != null) seMan.RemoveStatusEffect(sE_Berserk, quiet: true);
+				}
 				m_character.Message(MessageHud.MessageType.Center, "Low health!");
 				m_character.Message(MessageHud.MessageType.TopLeft, "Berserk dissipated due to low health!");
 			}
@@ -75,6 +86,10 @@ public class SE_Berserk : SE_Stats
 		if (m_ttl > 0f && m_time > m_ttl)
 		{
 			Traverse.Create((Player)m_character).Field("m_staminaRegenDelay").SetValue(savedStaminaRegenDelay);
+			if (m_character is Player player)
+			{
+				VL_ReflectCache.SetStaminaRegenDelay(player, savedStaminaRegenDelay);
+			}
 		}
 		return base.IsDone();
 	}

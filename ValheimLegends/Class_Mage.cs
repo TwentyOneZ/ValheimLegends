@@ -1,4 +1,4 @@
-﻿using HarmonyLib;
+using HarmonyLib;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -62,49 +62,39 @@ namespace ValheimLegends
         {
             if (p == null) return null;
             long id = p.GetPlayerID();
-            if (!CooldownRegistry.ContainsKey(id))
+            if (!CooldownRegistry.TryGetValue(id, out var dict))
             {
-                CooldownRegistry.Add(id, new Dictionary<string, float>());
+                dict = new Dictionary<string, float>();
+                CooldownRegistry[id] = dict;
             }
-            return CooldownRegistry[id];
+            return dict;
         }
 
         private static void UpdateInternalCooldowns(Player p, float dt)
         {
-            var cooldowns = GetPlayerCooldowns(p);
-            if (cooldowns == null || cooldowns.Count == 0) return;
-
-            List<string> keys = new List<string>(cooldowns.Keys);
-            foreach (var key in keys)
-            {
-                cooldowns[key] -= dt;
-                if (cooldowns[key] <= 0) cooldowns.Remove(key);
-            }
+            // Com timestamps de expiração (expiry = Time.time + duration),
+            // não é necessário iterar e decrementar o dicionário a cada frame.
         }
 
         public static void AddCooldown(Player p, string id, float duration)
         {
             var cooldowns = GetPlayerCooldowns(p);
             if (cooldowns == null) return;
-
-            if (cooldowns.ContainsKey(id)) cooldowns[id] = duration;
-            else cooldowns.Add(id, duration);
+            cooldowns[id] = Time.time + duration;
         }
 
         public static bool IsOnCooldown(Player p, string id)
         {
             var cooldowns = GetPlayerCooldowns(p);
             if (cooldowns == null) return false;
-
-            return cooldowns.ContainsKey(id) && cooldowns[id] > 0;
+            return cooldowns.TryGetValue(id, out float expiry) && Time.time < expiry;
         }
 
         private static float GetRemainingCooldown(Player p, string id)
         {
             var cooldowns = GetPlayerCooldowns(p);
             if (cooldowns == null) return 0f;
-
-            return cooldowns.ContainsKey(id) ? cooldowns[id] : 0f;
+            return cooldowns.TryGetValue(id, out float expiry) ? Mathf.Max(0f, expiry - Time.time) : 0f;
         }
 
         // --- LOGICA DE ACUMULO DE DANO (FROZEN) ---
@@ -114,22 +104,23 @@ namespace ValheimLegends
         {
             if (c == null) return;
             ZDOID id = c.GetZDOID();
-            if (FrozenDamageRegistry.ContainsKey(id)) FrozenDamageRegistry[id] += dmg;
-            else FrozenDamageRegistry.Add(id, dmg);
+            if (FrozenDamageRegistry.TryGetValue(id, out float current))
+                FrozenDamageRegistry[id] = current + dmg;
+            else
+                FrozenDamageRegistry[id] = dmg;
         }
 
         public static float GetFrozenDamage(Character c)
         {
             if (c == null) return 0f;
             ZDOID id = c.GetZDOID();
-            return FrozenDamageRegistry.ContainsKey(id) ? FrozenDamageRegistry[id] : 0f;
+            return FrozenDamageRegistry.TryGetValue(id, out float dmg) ? dmg : 0f;
         }
 
         public static void ClearFrozenDamage(Character c)
         {
             if (c == null) return;
-            ZDOID id = c.GetZDOID();
-            if (FrozenDamageRegistry.ContainsKey(id)) FrozenDamageRegistry.Remove(id);
+            FrozenDamageRegistry.Remove(c.GetZDOID());
         }
 
         // --- PROCESS INPUT ---
@@ -317,6 +308,7 @@ namespace ValheimLegends
         {
             int hashImmunity = "SE_VL_FrostImmunity".GetStableHashCode();
             bool isImmune = victim.GetSEMan().HaveStatusEffect(hashImmunity);
+            bool isImmune = victim.GetSEMan().HaveStatusEffect(Hash_FrostImmunity);
             if (isImmune) return;
 
             bool appliedEffect = false;
@@ -485,6 +477,7 @@ namespace ValheimLegends
                     player.UseStamina(VL_Utility.GetFrostNovaCost);
 
                     ((ZSyncAnimation)typeof(Player).GetField("m_zanim", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(player)).SetTrigger("swing_sledge");
+                    VL_ReflectCache.GetZAnim(player)?.SetTrigger("swing_sledge");
                     ValheimLegends.isChargingDash = true;
                     ValheimLegends.dashCounter = 0;
                     QueuedAttack = MageAttackType.FlameNova;
@@ -529,6 +522,12 @@ namespace ValheimLegends
 
                             ((ZSyncAnimation)typeof(Player).GetField("m_zanim", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(player)).SetTrigger("gpower");
                             ((ZSyncAnimation)typeof(Player).GetField("m_zanim", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(player)).SetSpeed(0.5f);
+                            var zanim = VL_ReflectCache.GetZAnim(player);
+                            if (zanim != null)
+                            {
+                                zanim.SetTrigger("gpower");
+                                zanim.SetSpeed(0.5f);
+                            }
 
                             meteorCharging = true;
                             meteorCount = 0;
@@ -582,6 +581,12 @@ namespace ValheimLegends
                     ValheimLegends.shouldUseGuardianPower = false;
                     ((ZSyncAnimation)typeof(Player).GetField("m_zanim", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(player)).SetTrigger("gpower");
                     ((ZSyncAnimation)typeof(Player).GetField("m_zanim", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(player)).SetSpeed(0.5f);
+                    var zanim = VL_ReflectCache.GetZAnim(player);
+                    if (zanim != null)
+                    {
+                        zanim.SetTrigger("gpower");
+                        zanim.SetSpeed(0.5f);
+                    }
 
                     meteorSkillGain += VL_Utility.GetMeteorSkillGain;
                     if (meteorCount > 1) meteorSkillGain += 0.2f;
@@ -642,6 +647,7 @@ namespace ValheimLegends
                         UnityEngine.Vector3 vector2 = UnityEngine.Vector3.MoveTowards(gameObject.transform.position, target, 1f);
                         component.Setup(player, (vector2 - gameObject.transform.position) * 55f, -1f, hitData2, null, null);
                         Traverse.Create(component).Field("m_skill").SetValue(ValheimLegends.EvocationSkill);
+                        VL_ReflectCache.SetProjectileSkill(component, ValheimLegends.EvocationSkill);
                     }
                     player.RaiseSkill(ValheimLegends.EvocationSkill, VL_Utility.GetFireballSkillGain * 0.1f);
                     if (affinity != null) affinity.ConsumeCharges(1);
@@ -657,17 +663,26 @@ namespace ValheimLegends
                     player.UseStamina(VL_Utility.GetFrostNovaCost);
                     AddCooldown(player, "FrostNova", VL_Utility.GetFrostNovaCooldownTime);
                     ((ZSyncAnimation)typeof(Player).GetField("m_zanim", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(player)).SetTrigger("swing_axe1");
+                    VL_ReflectCache.GetZAnim(player)?.SetTrigger("swing_axe1");
 
                     GameObject fx = ZNetScene.instance.GetPrefab("fx_guardstone_activate");
                     if (fx) UnityEngine.Object.Instantiate(fx, player.transform.position, UnityEngine.Quaternion.identity);
                     if (player.GetSEMan().HaveStatusEffect("Burning".GetStableHashCode()))
                         player.GetSEMan().RemoveStatusEffect("Burning".GetStableHashCode());
+                    var pSE = player.GetSEMan();
+                    if (pSE != null && pSE.HaveStatusEffect(VL_Hashes.Burning))
+                        pSE.RemoveStatusEffect(VL_Hashes.Burning);
 
                     bool hasElementalMastery = player.GetSEMan().HaveStatusEffect(Hash_ElementalMastery);
                     foreach (Character item in Character.GetAllCharacters())
+                    bool hasElementalMastery = pSE != null && pSE.HaveStatusEffect(Hash_ElementalMastery);
+                    float frostNovaRadius = 10f + 0.1f * level;
+                    using (VL_BufferPool.GetScope(out var nearbyCharacters))
                     {
                         if (BaseAI.IsEnemy(player, item) && (item.transform.position - player.transform.position).magnitude <= 10f + 0.1f * level &&
                             VL_Utility.LOS_IsValid(item, player.GetCenterPoint(), player.transform.position + player.transform.up * 0.15f))
+                        Character.GetCharactersInRange(player.transform.position, frostNovaRadius, nearbyCharacters);
+                        foreach (Character item in nearbyCharacters)
                         {
                             HitData hitData2 = new HitData();
                             hitData2.m_damage.m_frost = UnityEngine.Random.Range(2f + 0.2f * level, 3f + 0.3f * level) * VL_GlobalConfigs.g_DamageModifer * VL_GlobalConfigs.c_mageFrostNova;
@@ -677,10 +692,36 @@ namespace ValheimLegends
                             hitData2.m_skill = ValheimLegends.EvocationSkill;
                             hitData2.SetAttacker(player);
                             item.Damage(hitData2);
+                            if (item != null && BaseAI.IsEnemy(player, item) &&
+                                VL_Utility.LOS_IsValid(item, player.GetCenterPoint(), player.transform.position + player.transform.up * 0.15f))
+                            {
+                                HitData hitData2 = new HitData();
+                                hitData2.m_damage.m_frost = UnityEngine.Random.Range(2f + 0.2f * level, 3f + 0.3f * level) * VL_GlobalConfigs.g_DamageModifer * VL_GlobalConfigs.c_mageFrostNova;
+                                if (hasElementalMastery) AddElementalMasteryDamage(player, ref hitData2, 1.0f);
+                                hitData2.m_pushForce = 20f;
+                                hitData2.m_dir = item.transform.position - player.transform.position;
+                                hitData2.m_skill = ValheimLegends.EvocationSkill;
+                                hitData2.SetAttacker(player);
+                                item.Damage(hitData2);
 
                             if (item.GetSEMan().HaveStatusEffect(Hash_Slow))
                             {
                                 item.GetSEMan().RemoveStatusEffect(Hash_Slow);
+                                var itemSE = item.GetSEMan();
+                                if (itemSE != null)
+                                {
+                                    if (itemSE.HaveStatusEffect(Hash_Slow))
+                                    {
+                                        itemSE.RemoveStatusEffect(Hash_Slow);
+                                    }
+                                    SE_Frozen sE_Frozen = (SE_Frozen)ScriptableObject.CreateInstance(typeof(SE_Frozen));
+                                    sE_Frozen.name = "SE_VL_Frozen";
+                                    sE_Frozen.m_ttl = 6f + 9f * (level / 150f);
+                                    itemSE.AddStatusEffect(sE_Frozen, true);
+                                }
+
+                                GameObject vfx = ZNetScene.instance.GetPrefab("fx_DvergerMage_Ice_hit");
+                                if (vfx) UnityEngine.Object.Instantiate(vfx, hitData2.m_point, UnityEngine.Quaternion.identity);
                             }
                             SE_Frozen sE_Frozen = (SE_Frozen)ScriptableObject.CreateInstance(typeof(SE_Frozen));
                             sE_Frozen.name = "SE_VL_Frozen";
@@ -725,6 +766,12 @@ namespace ValheimLegends
                                 ValheimLegends.shouldUseGuardianPower = false;
                                 ((ZSyncAnimation)typeof(Player).GetField("m_zanim", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(player)).SetTrigger("gpower");
                                 ((ZSyncAnimation)typeof(Player).GetField("m_zanim", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(player)).SetSpeed(5f);
+                                var zanim = VL_ReflectCache.GetZAnim(player);
+                                if (zanim != null)
+                                {
+                                    zanim.SetTrigger("gpower");
+                                    zanim.SetSpeed(5f);
+                                }
                                 player.Message(MessageHud.MessageType.TopLeft, $"{msgName}: ON");
                                 AddCooldown(player, cdName, 1f);
                             }
@@ -770,6 +817,12 @@ namespace ValheimLegends
 
                         ((ZSyncAnimation)typeof(Player).GetField("m_zanim", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(player)).SetTrigger("gpower");
                         ((ZSyncAnimation)typeof(Player).GetField("m_zanim", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(player)).SetSpeed(0.8f);
+                        var zanim = VL_ReflectCache.GetZAnim(player);
+                        if (zanim != null)
+                        {
+                            zanim.SetTrigger("gpower");
+                            zanim.SetSpeed(0.8f);
+                        }
                     }
                     else player.Message(MessageHud.MessageType.TopLeft, "Need 1 Frost Charge to start");
                 }
@@ -813,6 +866,12 @@ namespace ValheimLegends
                         ValheimLegends.isChanneling = true;
                         ((ZSyncAnimation)typeof(Player).GetField("m_zanim", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(player)).SetTrigger("gpower");
                         ((ZSyncAnimation)typeof(Player).GetField("m_zanim", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(player)).SetSpeed(0.8f);
+                        var zanim = VL_ReflectCache.GetZAnim(player);
+                        if (zanim != null)
+                        {
+                            zanim.SetTrigger("gpower");
+                            zanim.SetSpeed(0.8f);
+                        }
                     }
                     else
                     {
@@ -931,12 +990,12 @@ namespace ValheimLegends
             UnityEngine.Vector3 vector4 = UnityEngine.Vector3.MoveTowards(GO_Fireball.transform.position, target2, 1f);
             P_Fireball.Setup(player, (vector4 - GO_Fireball.transform.position) * 25f, -1f, hitData3, null, null);
             Traverse.Create(P_Fireball).Field("m_skill").SetValue(ValheimLegends.EvocationSkill);
+            VL_ReflectCache.SetProjectileSkill(P_Fireball, ValheimLegends.EvocationSkill);
         }
 
         private static void CastMeteor(Player player, int count)
         {
             float level = GetEvocationLevel(player);
-            System.Random random = new System.Random();
             UnityEngine.Vector3 targetBase = player.transform.position + player.transform.up * 2f + player.GetLookDir() * 10f;
             RaycastHit hitInfo = default(RaycastHit);
             if (Physics.Raycast(player.GetEyePoint(), player.GetLookDir(), out hitInfo, 1000f, ScriptChar_Layermask)) targetBase = hitInfo.point;
@@ -944,7 +1003,7 @@ namespace ValheimLegends
             bool hasElementalMastery = player.GetSEMan().HaveStatusEffect(Hash_ElementalMastery);
             for (int i = 0; i < count; i++)
             {
-                UnityEngine.Vector3 spawnPos = new UnityEngine.Vector3(targetBase.x + (float)random.Next(-8, 8), targetBase.y + 100f, targetBase.z + (float)random.Next(-8, 8));
+                UnityEngine.Vector3 spawnPos = new UnityEngine.Vector3(targetBase.x + (float)UnityEngine.Random.Range(-8, 8), targetBase.y + 100f, targetBase.z + (float)UnityEngine.Random.Range(-8, 8));
                 GameObject go = UnityEngine.Object.Instantiate(prefab, spawnPos, UnityEngine.Quaternion.identity);
                 Projectile p = go.GetComponent<Projectile>();
                 p.m_respawnItemOnHit = false;
@@ -957,8 +1016,8 @@ namespace ValheimLegends
                 hitData.m_skill = ValheimLegends.EvocationSkill;
                 if (hasElementalMastery) AddElementalMasteryDamage(player, ref hitData, 4.0f);
                 UnityEngine.Vector3 target = targetBase;
-                target.x += random.Next(-8, 8);
-                target.z += random.Next(-8, 8);
+                target.x += UnityEngine.Random.Range(-8, 8);
+                target.z += UnityEngine.Random.Range(-8, 8);
                 p.Setup(player, (target - spawnPos).normalized * 50f, -1f, hitData, null, null);
             }
         }
@@ -972,6 +1031,13 @@ namespace ValheimLegends
             p.GetSEMan().RemoveStatusEffect("SE_VL_Ability1_CD".GetStableHashCode());
             p.GetSEMan().RemoveStatusEffect("SE_VL_Ability2_CD".GetStableHashCode());
             p.GetSEMan().RemoveStatusEffect("SE_VL_Ability3_CD".GetStableHashCode());
+            var seMan = p.GetSEMan();
+            if (seMan != null)
+            {
+                seMan.RemoveStatusEffect(VL_Hashes.Ability1_CD);
+                seMan.RemoveStatusEffect(VL_Hashes.Ability2_CD);
+                seMan.RemoveStatusEffect(VL_Hashes.Ability3_CD);
+            }
 
             // --- 2. Lógica de Recarga de Afinidades ---
             float level = GetEvocationLevel(p);
@@ -1014,8 +1080,11 @@ namespace ValheimLegends
 
         public static float GetEvocationLevel(Player player)
         {
-            return player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.EvocationSkillDef).m_level
-                  * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddCriticalChance() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 80f), 0f, 0.5f));
+            if (player == null) return 0f;
+            float rawLevel = VL_SkillHelper.GetSkillLevel(player, ValheimLegends.EvocationSkillDef);
+            var lvlSys = EpicMMOSystem.LevelSystem.Instance;
+            float bonus = (lvlSys != null) ? Mathf.Clamp((lvlSys.getAddCriticalChance() / 40f) + (lvlSys.getAddMagicDamage() / 80f), 0f, 0.5f) : 0f;
+            return rawLevel * (1f + bonus);
         }
 
         public static float GetCooldownReduction(Player player)

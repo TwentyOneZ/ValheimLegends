@@ -27,11 +27,19 @@ public class Class_Shaman
 		list.Clear();
 		Character.GetCharactersInRange(healer.transform.position, radius, list);
 		foreach (Character item in list)
+		using (VL_BufferPool.GetScope(out var list))
 		{
 			if (!BaseAI.IsEnemy(item, healer))
+			Character.GetCharactersInRange(healer.transform.position, radius, list);
+			foreach (Character item in list)
 			{
 				item.Heal(amount);
 				amount *= 0.7f;
+				if (!BaseAI.IsEnemy(item, healer))
+				{
+					item.Heal(amount);
+					amount *= 0.7f;
+				}
 			}
 		}
 	}
@@ -61,6 +69,7 @@ public class Class_Shaman
 					player.UseStamina(0.3f * VL_GlobalConfigs.c_shamanBonusWaterGlideCost);
 					VL_Utility.RotatePlayerToTarget(player);
 					((ZSyncAnimation)typeof(Player).GetField("m_zanim", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(Player.m_localPlayer)).StopAllCoroutines();
+					VL_ReflectCache.GetZAnim(Player.m_localPlayer).StopAllCoroutines();
 					RaycastHit hitInfo = default(RaycastHit);
 					UnityEngine.Vector3 vector = player.transform.position + player.transform.up * 0.15f;
 					UnityEngine.Vector3 lookDir = player.GetLookDir();
@@ -89,6 +98,7 @@ public class Class_Shaman
 		if (VL_Utility.Ability3_Input_Down)
 		{
 			if (!player.GetSEMan().HaveStatusEffect("SE_VL_Ability3_CD".GetStableHashCode()))
+			if (!player.GetSEMan().HaveStatusEffect(VL_Hashes.Ability3_CD))
 			{
 				if (player.IsBlocking())
 				{
@@ -97,6 +107,7 @@ public class Class_Shaman
 						ValheimLegends.shouldUseGuardianPower = false;
 						float level4 = player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.AlterationSkillDef)
 							.m_level * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddCriticalChance() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 80f), 0f, 0.5f));
+						float level4 = VL_SkillHelper.GetSkillLevel(player, ValheimLegends.AlterationSkillDef) * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddCriticalChance() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 80f), 0f, 0.5f));
 						StatusEffect statusEffect = (SE_Ability3_CD)ScriptableObject.CreateInstance(typeof(SE_Ability3_CD));
 						statusEffect.m_ttl = VL_Utility.GetSpiritBombCooldown(player);
 						player.GetSEMan().AddStatusEffect(statusEffect);
@@ -122,14 +133,23 @@ public class Class_Shaman
 						float level = player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.EvocationSkillDef)
 							.m_level * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddCriticalChance() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 80f), 0f, 0.5f));
 						((ZSyncAnimation)typeof(Player).GetField("m_zanim", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(Player.m_localPlayer)).SetTrigger("battleaxe_attack1");
+						float level = VL_SkillHelper.GetSkillLevel(player, ValheimLegends.EvocationSkillDef) * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddCriticalChance() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 80f), 0f, 0.5f));
+						VL_ReflectCache.GetZAnim(Player.m_localPlayer).SetTrigger("battleaxe_attack1");
 						Object.Instantiate(ZNetScene.instance.GetPrefab("fx_goblinking_nova"), player.transform.position, UnityEngine.Quaternion.identity);
 						SE_SpiritDrain sE_SpiritDrain = (SE_SpiritDrain)ScriptableObject.CreateInstance(typeof(SE_SpiritDrain));
 						sE_SpiritDrain.m_ttl = SE_SpiritDrain.m_baseTTL;
 						sE_SpiritDrain.damageModifier = 1f + 0.1f * level;
 						List<Character> allCharacters = Character.GetAllCharacters();
 						foreach (Character item in allCharacters)
+						float radius = 11f + 0.05f * level;
+						float radiusSqr = radius * radius;
+						using (VL_BufferPool.GetScope(out var shockList))
 						{
 							if (BaseAI.IsEnemy(player, item) && (item.transform.position - player.transform.position).magnitude <= 11f + 0.05f * level && VL_Utility.LOS_IsValid(item, player.GetCenterPoint(), player.transform.position))
+							Character.GetCharactersInRange(player.transform.position, radius, shockList);
+							Vector3 pCenter = player.GetCenterPoint();
+							Vector3 pPos = player.transform.position;
+							foreach (Character item in shockList)
 							{
 								UnityEngine.Vector3 dir = item.transform.position - player.transform.position;
 								HitData hitData = new HitData();
@@ -141,6 +161,19 @@ public class Class_Shaman
 								hitData.m_skill = ValheimLegends.EvocationSkill;
 								item.Damage(hitData);
 								item.GetSEMan().AddStatusEffect(sE_SpiritDrain);
+								if (BaseAI.IsEnemy(player, item) && (item.transform.position - pPos).sqrMagnitude <= radiusSqr && VL_Utility.LOS_IsValid(item, pCenter, pPos))
+								{
+									UnityEngine.Vector3 dir = item.transform.position - pPos;
+									HitData hitData = new HitData();
+									hitData.m_damage.m_spirit = Random.Range(15f + 0.8f * level, 30f + 1.5f * level) * VL_GlobalConfigs.g_DamageModifer * VL_GlobalConfigs.c_shamanSpiritShock;
+									hitData.m_damage.m_lightning = Random.Range(15f + 0.8f * level, 30f + 1.5f * level) * VL_GlobalConfigs.g_DamageModifer * VL_GlobalConfigs.c_shamanSpiritShock;
+									hitData.m_pushForce = 25f + 0.1f * level;
+									hitData.m_point = item.GetEyePoint();
+									hitData.m_dir = dir;
+									hitData.m_skill = ValheimLegends.EvocationSkill;
+									item.Damage(hitData);
+									item.GetSEMan().AddStatusEffect(sE_SpiritDrain);
+								}
 							}
 						}
 						player.RaiseSkill(ValheimLegends.EvocationSkill, VL_Utility.GetSpiritBombSkillGain(player));
@@ -165,6 +198,7 @@ public class Class_Shaman
 		else if (VL_Utility.Ability2_Input_Down)
 		{
 			if (!player.GetSEMan().HaveStatusEffect("SE_VL_Ability2_CD".GetStableHashCode()))
+			if (!player.GetSEMan().HaveStatusEffect(VL_Hashes.Ability2_CD))
 			{
                 if (player.IsBlocking())
                 {
@@ -193,11 +227,12 @@ public class Class_Shaman
                         return;
                     }
 
-                    // 3) cooldown/skill etc (seu código)
+                    // 3) cooldown/skill etc (seu cÃ³digo)
                     player.RaiseSkill(ValheimLegends.AlterationSkill, VL_Utility.GetHealSkillGain);
                     StatusEffect statusEffect = (SE_Ability3_CD)ScriptableObject.CreateInstance(typeof(SE_Ability3_CD));
                     float level = player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.AlterationSkillDef)
                         .m_level * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddCriticalChance() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 80f), 0f, 0.5f));
+                    float level = VL_SkillHelper.GetSkillLevel(player, ValheimLegends.AlterationSkillDef) * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddCriticalChance() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 80f), 0f, 0.5f));
                     statusEffect.m_ttl = VL_Utility.GetHealCooldownTime * 20f / (1f + level / 150f);
                     player.GetSEMan().AddStatusEffect(statusEffect);
                     player.UseStamina(VL_Utility.GetShellCost(player));
@@ -205,7 +240,7 @@ public class Class_Shaman
                     // 4) consumir 1 Ancient Seed
                     inv.RemoveOneItem(foundItem);
 
-                    // 5) criar o item do prefab e adicionar no inventário
+                    // 5) criar o item do prefab e adicionar no inventÃ¡rio
                     const string vialPrefabName = "questitem_wraiths_breath";
 
                     if (ZNetScene.instance == null)
@@ -230,12 +265,13 @@ public class Class_Shaman
 
                     ItemDrop.ItemData vialItem = vialDrop.m_itemData.Clone();
 
-                    // adiciona no inventário (retorna false se inventário cheio)
+                    // adiciona no inventÃ¡rio (retorna false se inventÃ¡rio cheio)
                     bool added = inv.AddItem(vialItem);
                     if (!added)
                     {
-                        // fallback: se inventário cheio, dropa no chão
+                        // fallback: se inventÃ¡rio cheio, dropa no chÃ£o
                         ItemDrop.DropItem(vialItem, 1, player.transform.position + player.transform.forward, UnityEngine.Quaternion.identity);
+                        ItemDrop.DropItem(vialItem, 1, player.transform.position + player.transform.forward, Quaternion.identity);
                         player.Message(MessageHud.MessageType.TopLeft, "Inventory full. Dropped Spirit Binding Vial on the ground.");
                     }
                     else
@@ -258,6 +294,7 @@ public class Class_Shaman
 						player.UseStamina(VL_Utility.GetShellCost(player));
 						float level2 = player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.AbjurationSkillDef)
 							.m_level * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddHp() / 400f) + (EpicMMOSystem.LevelSystem.Instance.getAddStamina() / 200f), 0f, 0.5f));
+						float level2 = VL_SkillHelper.GetSkillLevel(player, ValheimLegends.AbjurationSkillDef) * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddHp() / 400f) + (EpicMMOSystem.LevelSystem.Instance.getAddStamina() / 200f), 0f, 0.5f));
 						ValheimLegends.shouldUseGuardianPower = false;
 						((ZSyncAnimation)typeof(Player).GetField("m_zanim", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(Player.m_localPlayer)).SetTrigger("gpower");
 						((ZSyncAnimation)typeof(Player).GetField("m_zanim", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(Player.m_localPlayer)).SetSpeed(1.25f);
@@ -266,6 +303,9 @@ public class Class_Shaman
 						Character.GetCharactersInRange(player.transform.position, 30f + 0.2f * level2, list);
 						GameObject prefab = ZNetScene.instance.GetPrefab("fx_guardstone_permitted_add");
 						foreach (Character item2 in list)
+						VL_ReflectCache.GetZAnim(Player.m_localPlayer).SetTrigger("gpower");
+						VL_ReflectCache.GetZAnim(Player.m_localPlayer).SetSpeed(1.25f);
+						using (VL_BufferPool.GetScope(out var list))
 						{
 							SE_Shell sE_Shell = (SE_Shell)ScriptableObject.CreateInstance(typeof(SE_Shell));
 							sE_Shell.m_ttl = SE_Shell.m_baseTTL + 0.3f * level2;
@@ -274,10 +314,33 @@ public class Class_Shaman
 							sE_Shell.m_icon = ZNetScene.instance.GetPrefab("ShieldSerpentscale").GetComponent<ItemDrop>().m_itemData.GetIcon();
 							sE_Shell.doOnce = false;
 							if (!BaseAI.IsEnemy(player, item2))
+							Character.GetCharactersInRange(player.transform.position, 30f + 0.2f * level2, list);
+							GameObject prefab = ZNetScene.instance.GetPrefab("fx_guardstone_permitted_add");
+							foreach (Character item2 in list)
 							{
 								if (item2 == Player.m_localPlayer)
+								SE_Shell sE_Shell = (SE_Shell)ScriptableObject.CreateInstance(typeof(SE_Shell));
+								sE_Shell.m_ttl = SE_Shell.m_baseTTL + 0.3f * level2;
+								sE_Shell.spiritDamageOffset = (6f + 0.3f * level2) * VL_GlobalConfigs.g_DamageModifer * VL_GlobalConfigs.c_shamanShell;
+								sE_Shell.resistModifier = (0.6f - 0.006f * level2) * VL_GlobalConfigs.c_shamanShell;
+								sE_Shell.m_icon = ZNetScene.instance.GetPrefab("ShieldSerpentscale").GetComponent<ItemDrop>().m_itemData.GetIcon();
+								sE_Shell.doOnce = false;
+								if (!BaseAI.IsEnemy(player, item2))
 								{
 									item2.GetSEMan().AddStatusEffect(sE_Shell, resetTime: true);
+									if (item2 == Player.m_localPlayer)
+									{
+										item2.GetSEMan().AddStatusEffect(sE_Shell, resetTime: true);
+									}
+									else if (item2.IsPlayer())
+									{
+										item2.GetSEMan().AddStatusEffect(sE_Shell.name.GetStableHashCode(), resetTime: true);
+									}
+									else
+									{
+										item2.GetSEMan().AddStatusEffect(sE_Shell, resetTime: true);
+									}
+									Object.Instantiate(prefab, item2.GetCenterPoint(), UnityEngine.Quaternion.identity);
 								}
 								else if (item2.IsPlayer())
 								{
@@ -311,6 +374,7 @@ public class Class_Shaman
 				return;
 			}
 			if (!player.GetSEMan().HaveStatusEffect("SE_VL_Ability1_CD".GetStableHashCode()))
+			if (!player.GetSEMan().HaveStatusEffect(VL_Hashes.Ability1_CD))
 			{
 				if (player.GetStamina() > VL_Utility.GetEnrageCost(player))
 				{
@@ -321,6 +385,8 @@ public class Class_Shaman
 					float level3 = player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.AlterationSkillDef)
 						.m_level * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddCriticalChance() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 80f), 0f, 0.5f));
 					((ZSyncAnimation)typeof(Player).GetField("m_zanim", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(Player.m_localPlayer)).SetTrigger("challenge");
+					float level3 = VL_SkillHelper.GetSkillLevel(player, ValheimLegends.AlterationSkillDef) * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddCriticalChance() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 80f), 0f, 0.5f));
+					VL_ReflectCache.GetZAnim(Player.m_localPlayer).SetTrigger("challenge");
 					GameObject prefab2 = ZNetScene.instance.GetPrefab("fx_guardstone_permitted_removed");
 					prefab2.transform.localScale = UnityEngine.Vector3.one * 3f;
 					Object.Instantiate(prefab2, player.GetCenterPoint(), UnityEngine.Quaternion.identity);
@@ -334,12 +400,35 @@ public class Class_Shaman
 					sE_Enrage.m_icon = ZNetScene.instance.GetPrefab("TrophyGoblinBrute").GetComponent<ItemDrop>().m_itemData.GetIcon();
 					sE_Enrage.doOnce = false;
 					foreach (Character item3 in list2)
+					using (VL_BufferPool.GetScope(out var list2))
 					{
 						if (!BaseAI.IsEnemy(player, item3))
+						Character.GetCharactersInRange(player.transform.position, 30f, list2);
+						SE_Enrage sE_Enrage = (SE_Enrage)ScriptableObject.CreateInstance(typeof(SE_Enrage));
+						sE_Enrage.m_ttl = 16f + 0.2f * level3;
+						sE_Enrage.staminaModifier = (5f + 0.1f * level3) * VL_GlobalConfigs.g_DamageModifer * VL_GlobalConfigs.c_shamanEnrage;
+						sE_Enrage.speedModifier = 1.2f + 0.0025f * level3;
+						sE_Enrage.m_icon = ZNetScene.instance.GetPrefab("TrophyGoblinBrute").GetComponent<ItemDrop>().m_itemData.GetIcon();
+						sE_Enrage.doOnce = false;
+						foreach (Character item3 in list2)
 						{
 							if (item3 == Player.m_localPlayer)
+							if (!BaseAI.IsEnemy(player, item3))
 							{
 								item3.GetSEMan().AddStatusEffect(sE_Enrage, resetTime: true);
+								if (item3 == Player.m_localPlayer)
+								{
+									item3.GetSEMan().AddStatusEffect(sE_Enrage, resetTime: true);
+								}
+								else if (item3.IsPlayer())
+								{
+									item3.GetSEMan().AddStatusEffect(sE_Enrage.name.GetStableHashCode(), resetTime: true);
+								}
+								else
+								{
+									item3.GetSEMan().AddStatusEffect(sE_Enrage, resetTime: true);
+								}
+								Object.Instantiate(prefab3, item3.GetCenterPoint(), UnityEngine.Quaternion.identity);
 							}
 							else if (item3.IsPlayer())
 							{

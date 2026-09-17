@@ -43,6 +43,8 @@ public class SE_Monk : SE_Stats
 		{
 			float level = m_character.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.DisciplineSkillDef)
 				.m_level * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddPhysicDamage() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddAttackSpeed() / 40f), 0f, 0.5f));
+			float level = VL_SkillHelper.GetSkillLevel(m_character, ValheimLegends.DisciplineSkillDef)
+				* (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddPhysicDamage() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddAttackSpeed() / 40f), 0f, 0.5f));
 			speed *= 1.2f + 0.003f * level;
 		}
 		base.ModifySpeed(baseSpeed, ref speed, character, dir);
@@ -59,6 +61,8 @@ public class SE_Monk : SE_Stats
 		{
 			maxHitCount = 8 + Mathf.RoundToInt(m_character.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.DisciplineSkillDef)
 				.m_level * 0.2f * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddPhysicDamage() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddAttackSpeed() / 40f), 0f, 0.5f)));
+			maxHitCount = 8 + Mathf.RoundToInt(VL_SkillHelper.GetSkillLevel(m_character, ValheimLegends.DisciplineSkillDef)
+				* 0.2f * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddPhysicDamage() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddAttackSpeed() / 40f), 0f, 0.5f)));
 			m_timer = m_interval * VL_GlobalConfigs.c_monkChiDuration;
 			hitCount--;
 			hitCount = Mathf.Clamp(hitCount, 0, maxHitCount);
@@ -71,6 +75,8 @@ public class SE_Monk : SE_Stats
 			m_SurgeTimer = m_SurgeInterval;
 			float level = m_character.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.DisciplineSkillDef)
 				.m_level * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddPhysicDamage() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddAttackSpeed() / 40f), 0f, 0.5f));
+			float level = VL_SkillHelper.GetSkillLevel(m_character, ValheimLegends.DisciplineSkillDef)
+				* (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddPhysicDamage() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddAttackSpeed() / 40f), 0f, 0.5f));
 			m_character.Heal(5f + m_character.GetMaxHealth() * level * VL_GlobalConfigs.c_monkSurge / 2000f);
 			//m_character.AddStamina(0.2f * level * VL_GlobalConfigs.c_monkSurge);
 			if (hitCount <= 0)

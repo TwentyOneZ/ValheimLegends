@@ -1,4 +1,4 @@
-﻿using System.Numerics;
+using System.Numerics;
 using UnityEngine;
 using ValheimLegends;
 
@@ -47,6 +47,7 @@ namespace ValheimLegends
                 {
                     var seman = m_character.GetSEMan();
                     SE_MageArcaneAffinity affinity = seman.GetStatusEffect(Hash_ArcaneAffinity) as SE_MageArcaneAffinity;
+                    SE_MageArcaneAffinity affinity = seman.GetStatusEffect(VL_Hashes.MageArcaneAffinity) as SE_MageArcaneAffinity;
 
                     if (affinity != null && affinity.m_currentCharges >= 1)
                     {
@@ -60,6 +61,7 @@ namespace ValheimLegends
                         if (vfx) UnityEngine.Object.Instantiate(vfx, m_character.GetCenterPoint(), UnityEngine.Quaternion.LookRotation(UnityEngine.Vector3.up));
                         m_character.Message(MessageHud.MessageType.TopLeft, "Elemental Mastery fades (No Charges)");
                         seman.RemoveStatusEffect(this.name.GetStableHashCode());
+                        seman.RemoveStatusEffect(VL_Hashes.ElementalMastery);
                     }
                 }
             }

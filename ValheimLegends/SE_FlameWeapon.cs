@@ -59,7 +59,7 @@ public class SE_FlameWeapon : StatusEffect
 
     public override void UpdateStatusEffect(float dt)
     {
-        // Garante que o nome base nunca fique poluído
+        // Garante que o nome base nunca fique poluÃ­do
         if (string.IsNullOrEmpty(_baseName))
         {
             _baseName = "Flame Weapon";
@@ -75,6 +75,7 @@ public class SE_FlameWeapon : StatusEffect
         float level = m_character.GetSkills().GetSkillList()
             .FirstOrDefault(x => x.m_info == ValheimLegends.EvocationSkillDef)
             .m_level * (1f + Mathf.Clamp(
+        float level = VL_SkillHelper.GetSkillLevel(m_character, ValheimLegends.EvocationSkillDef) * (1f + Mathf.Clamp(
                 (EpicMMOSystem.LevelSystem.Instance.getAddCriticalChance() / 40f) +
                 (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 80f),
                 0f, 0.5f));

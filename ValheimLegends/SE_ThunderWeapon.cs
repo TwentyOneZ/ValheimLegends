@@ -16,7 +16,7 @@ public class SE_ThunderWeapon : StatusEffect
     // -----------------------------
     public const int MaxCharges = 10;
 
-    // Guarda o nome base ("Thunder Weapon") para não ir concatenando infinito
+    // Guarda o nome base ("Thunder Weapon") para nÃ£o ir concatenando infinito
     private string _baseName = "Thunder Weapon";
 
     public int Charges { get; private set; } = 0;
@@ -69,12 +69,13 @@ public class SE_ThunderWeapon : StatusEffect
             _baseName = _baseName.Split(':')[0].Trim();
         }
 
-        // Reaplica o nome com charges (mantém sempre certo)
+        // Reaplica o nome com charges (mantÃ©m sempre certo)
         UpdateName();
 
         float level = m_character.GetSkills().GetSkillList()
             .FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.EvocationSkillDef)
             .m_level * (1f + Mathf.Clamp(
+        float level = VL_SkillHelper.GetSkillLevel(m_character, ValheimLegends.EvocationSkillDef) * (1f + Mathf.Clamp(
                 (EpicMMOSystem.LevelSystem.Instance.getAddCriticalChance() / 40f) +
                 (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 80f),
                 0f, 0.5f));

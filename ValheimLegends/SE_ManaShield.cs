@@ -1,4 +1,4 @@
-﻿using HarmonyLib;
+using HarmonyLib;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -35,6 +35,8 @@ namespace ValheimLegends
     {
         internal static readonly int SE_HASH = "SE_VL_ManaShield".GetStableHashCode();
         internal static readonly int ARCANE_AFFINITY_HASH = "SE_VL_MageArcaneAffinity".GetStableHashCode();
+        internal static readonly int SE_HASH = VL_Hashes.ManaShield;
+        internal static readonly int ARCANE_AFFINITY_HASH = VL_Hashes.MageArcaneAffinity;
 
         internal static void ApplyCooldown(Player p, string abilityName, float duration)
         {
@@ -258,6 +260,7 @@ namespace ValheimLegends
                 if (f != null) perfect = (bool)f.GetValue(__instance);
             }
             catch { }
+            if (!VL_ReflectCache.GetPerfectBlock(__instance)) return;
 
             if (!perfect) return;
 

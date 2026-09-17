@@ -26,10 +26,10 @@ public class Class_Duelist
 	public static void Execute_Slash(Player player)
 	{
 		UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("fx_VL_BlinkStrike"), player.GetCenterPoint() + player.GetLookDir() * 3f, UnityEngine.Quaternion.LookRotation(player.GetLookDir()));
-		float level = player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.DisciplineSkillDef)
-			.m_level * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddPhysicDamage() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddAttackSpeed() / 40f), 0f, 0.5f));
+		float level = VL_SkillHelper.GetSkillLevel(player, ValheimLegends.DisciplineSkillDef)
+			* (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddPhysicDamage() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddAttackSpeed() / 40f), 0f, 0.5f));
 		float num = (2.5f + (level / 150f)) * VL_GlobalConfigs.g_DamageModifer * VL_GlobalConfigs.c_duelistSeismicSlash;
-        // Direção horizontal do jogador
+        // DireÃ§Ã£o horizontal do jogador
         Vector3 forward = player.transform.forward;
         forward.y = 0f;
         forward.Normalize();
@@ -38,10 +38,11 @@ public class Class_Duelist
         float coneAngle = 135f;
         float halfConeDot = Mathf.Cos(coneAngle * 0.5f * Mathf.Deg2Rad);
 
-        List<Character> targets = new List<Character>();
-        Character.GetCharactersInRange(player.transform.position, coneRange, targets);
+        using (VL_BufferPool.GetScope(out var targets))
+        {
+            Character.GetCharactersInRange(player.transform.position, coneRange, targets);
 
-        foreach (Character item in targets)
+            foreach (Character item in targets)
         {
             if (!BaseAI.IsEnemy(player, item))
                 continue;
@@ -95,11 +96,11 @@ public class Class_Duelist
                 );
             }
         }
+        }
     }
 
     public static void Process_Input(Player player, ref Rigidbody playerBody)
 	{
-		System.Random random = new System.Random();
 		if (VL_Utility.Ability3_Input_Down)
 		{
 			if (challengedDeath == null)
@@ -120,11 +121,11 @@ public class Class_Duelist
 			{
 				challengedMastery.Clear();
 			}
-			if (!player.GetSEMan().HaveStatusEffect("SE_VL_Ability3_CD".GetStableHashCode()))
+			if (!player.GetSEMan().HaveStatusEffect(VL_Hashes.Ability3_CD))
 			{
 				if (player.IsBlocking())
 				{
-					ItemDrop.ItemData hasLeftItem = Traverse.Create(player).Field("m_leftItem").GetValue<ItemDrop.ItemData>();
+					ItemDrop.ItemData hasLeftItem = VL_ReflectCache.GetLeftItem(player);
 					if (hasLeftItem == null && player.GetCurrentWeapon() != null && player.GetCurrentWeapon().m_shared.m_itemType != ItemDrop.ItemData.ItemType.TwoHandedWeapon && (player.GetCurrentWeapon().m_shared.m_skillType == Skills.SkillType.Swords || player.GetCurrentWeapon().m_shared.m_skillType == Skills.SkillType.Knives || player.GetCurrentWeapon().m_shared.m_skillType == Skills.SkillType.Axes || player.GetCurrentWeapon().m_shared.m_skillType == Skills.SkillType.Spears))
 					{
 						float maxWeaponRecover = player.GetCurrentWeapon().GetMaxDurability() * (1f - player.GetCurrentWeapon().GetDurabilityPercentage());
@@ -136,15 +137,15 @@ public class Class_Duelist
 							{
 								recoveredWeapon = player.GetStamina() / (4f * (1f - (EpicMMOSystem.LevelSystem.Instance.getStaminaReduction() / 100f)));
 							}
-							float level = player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.DisciplineSkillDef)
-								.m_level * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddPhysicDamage() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddAttackSpeed() / 40f), 0f, 0.5f));
+							float level = VL_SkillHelper.GetSkillLevel(player, ValheimLegends.DisciplineSkillDef)
+								* (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddPhysicDamage() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddAttackSpeed() / 40f), 0f, 0.5f));
 							StatusEffect statusEffect = (SE_Ability3_CD)ScriptableObject.CreateInstance(typeof(SE_Ability3_CD));
 							statusEffect.m_ttl = 60f + (recoveredWeapon * 2f) * (1f - (EpicMMOSystem.LevelSystem.Instance.getAddCriticalChance() / 40f));
 							player.GetSEMan().AddStatusEffect(statusEffect);
 							player.UseStamina(recoveredWeapon * 10f * (1f - (EpicMMOSystem.LevelSystem.Instance.getAddCriticalChance() / 40f)) * (1f - level/300f));
 							player.GetCurrentWeapon().m_durability += recoveredWeapon;
 							UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("fx_VL_BlinkStrike"), player.GetCenterPoint() + player.GetLookDir() * 3f, UnityEngine.Quaternion.LookRotation(player.GetLookDir()));
-							((ZSyncAnimation)typeof(Player).GetField("m_zanim", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(player)).SetTrigger("knife_stab1");
+							VL_ReflectCache.GetZAnim(player)?.SetTrigger("knife_stab1");
 							player.RaiseSkill(ValheimLegends.DisciplineSkill, VL_Utility.GetBlinkStrikeSkillGain);
 						}
 						else
@@ -165,7 +166,7 @@ public class Class_Duelist
 						statusEffect.m_ttl = VL_Utility.GetBlinkStrikeCooldownTime;
 						player.GetSEMan().AddStatusEffect(statusEffect);
 						player.UseStamina(VL_Utility.GetBlinkStrikeCost);
-						((ZSyncAnimation)typeof(Player).GetField("m_zanim", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(player)).SetTrigger("knife_stab1");
+						VL_ReflectCache.GetZAnim(player)?.SetTrigger("knife_stab1");
 						ValheimLegends.isChanneling = true;
 						ValheimLegends.isChargingDash = true;
 						ValheimLegends.dashCounter = 0;
@@ -202,7 +203,7 @@ public class Class_Duelist
 			{
 				challengedMastery.Clear();
 			}
-			if (!player.GetSEMan().HaveStatusEffect("SE_VL_Ability2_CD".GetStableHashCode()))
+			if (!player.GetSEMan().HaveStatusEffect(VL_Hashes.Ability2_CD))
 			{
 				if (player.GetStamina() >= VL_Utility.GetRiposteCost)
 				{
@@ -210,8 +211,8 @@ public class Class_Duelist
 					statusEffect2.m_ttl = VL_Utility.GetRiposteCooldownTime;
 					player.GetSEMan().AddStatusEffect(statusEffect2);
 					player.UseStamina(VL_Utility.GetRiposteCost);
-					float level = player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.DisciplineSkillDef)
-						.m_level * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddPhysicDamage() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddAttackSpeed() / 40f), 0f, 0.5f));
+					float level = VL_SkillHelper.GetSkillLevel(player, ValheimLegends.DisciplineSkillDef)
+						* (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddPhysicDamage() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddAttackSpeed() / 40f), 0f, 0.5f));
 					GO_CastFX = UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("sfx_perfectblock"), player.transform.position, UnityEngine.Quaternion.identity);
 					GO_CastFX = UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("fx_backstab"), player.GetCenterPoint(), UnityEngine.Quaternion.identity);
 					SE_Riposte statusEffect3 = (SE_Riposte)ScriptableObject.CreateInstance(typeof(SE_Riposte));
@@ -249,7 +250,7 @@ public class Class_Duelist
 			{
 				challengedMastery.Clear();
 			}
-			if (!player.GetSEMan().HaveStatusEffect("SE_VL_Ability1_CD".GetStableHashCode()))
+			if (!player.GetSEMan().HaveStatusEffect(VL_Hashes.Ability1_CD))
 			{
 				ValheimLegends.DefineCoins();
 				if (ValheimLegends.coinsItem != null)
@@ -390,7 +391,7 @@ public class Class_Duelist
 					}
 					else
 					{
-						if (!player.GetSEMan().HaveStatusEffect("SE_VL_Ability1_CD".GetStableHashCode()))
+						if (!player.GetSEMan().HaveStatusEffect(VL_Hashes.Ability1_CD))
 						{
 							if (player.GetStamina() >= VL_Utility.GetQuickShotCost)
 							{
@@ -422,13 +423,13 @@ public class Class_Duelist
 										}
 									}
 									Player.m_localPlayer?.GetInventory().RemoveOneItem(coinsItemData);
-									float level2 = player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.DisciplineSkillDef)
-										.m_level * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddPhysicDamage() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddAttackSpeed() / 40f), 0f, 0.5f));
+									float level2 = VL_SkillHelper.GetSkillLevel(player, ValheimLegends.DisciplineSkillDef)
+										* (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddPhysicDamage() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddAttackSpeed() / 40f), 0f, 0.5f));
 									StatusEffect statusEffect4 = (SE_Ability1_CD)ScriptableObject.CreateInstance(typeof(SE_Ability1_CD));
 									statusEffect4.m_ttl = VL_Utility.GetQuickShotCooldownTime;
 									player.GetSEMan().AddStatusEffect(statusEffect4);
 									player.UseStamina(VL_Utility.GetQuickShotCost + 0.5f * level2);
-									((ZSyncAnimation)typeof(Player).GetField("m_zanim", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(player)).SetTrigger("interact");
+									VL_ReflectCache.GetZAnim(player)?.SetTrigger("interact");
 									GO_CastFX = UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("sfx_smelter_add"), player.transform.position, UnityEngine.Quaternion.identity);
 									UnityEngine.Vector3 vector = player.transform.position + player.transform.up * 1.2f + player.GetLookDir() * 0.5f;
 									UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("sfx_coins_destroyed"), player.GetCenterPoint(), UnityEngine.Quaternion.identity);
@@ -453,7 +454,7 @@ public class Class_Duelist
 									hitData.m_skill = ValheimLegends.DisciplineSkill;
 									UnityEngine.Vector3 vector2 = UnityEngine.Vector3.MoveTowards(vector, target, 1f);
 									P_QuickShot.Setup(player, (vector2 - GO_QuickShot.transform.position) * 100f, -1f, hitData, null, null);
-									Traverse.Create(P_QuickShot).Field("m_skill").SetValue(ValheimLegends.DisciplineSkill);
+									VL_ReflectCache.SetProjectileSkill(P_QuickShot, ValheimLegends.DisciplineSkill);
 									GO_QuickShot = null;
 									VL_Utility.RotatePlayerToTarget(player);
 									player.RaiseSkill(ValheimLegends.DisciplineSkill, VL_Utility.GetQuickShotSkillGain);

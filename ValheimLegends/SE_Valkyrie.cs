@@ -48,6 +48,8 @@ public class SE_Valkyrie : SE_Stats
 		{
 			maxHitCount = 8 + Mathf.RoundToInt(Mathf.Sqrt(Player.m_localPlayer.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.DisciplineSkillDef)
 				.m_level * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddPhysicDamage() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddAttackSpeed() / 40f), 0f, 0.5f))));
+			maxHitCount = 8 + Mathf.RoundToInt(Mathf.Sqrt(VL_SkillHelper.GetSkillLevel(Player.m_localPlayer, ValheimLegends.DisciplineSkillDef)
+				* (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddPhysicDamage() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddAttackSpeed() / 40f), 0f, 0.5f))));
 			m_timer = m_interval * VL_GlobalConfigs.c_valkyrieChargeDuration;
 			hitCount--;
 			hitCount = Mathf.Clamp(hitCount, 0, maxHitCount);

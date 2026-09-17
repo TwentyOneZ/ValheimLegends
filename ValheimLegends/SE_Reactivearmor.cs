@@ -37,6 +37,8 @@ public class SE_Reactivearmor : SE_Stats
 			doOnce = false;
 			float level = Player.m_localPlayer.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.AbjurationSkillDef)
 				.m_level * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddHp() / 400f) + (EpicMMOSystem.LevelSystem.Instance.getAddStamina() / 200f), 0f, 0.5f));
+			float level = VL_SkillHelper.GetSkillLevel(Player.m_localPlayer, ValheimLegends.AbjurationSkillDef)
+				* (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddHp() / 400f) + (EpicMMOSystem.LevelSystem.Instance.getAddStamina() / 200f), 0f, 0.5f));
 			staminaModifier = (1f - (level / 300f));
 			hitCount = 3 + Mathf.RoundToInt(Mathf.Sqrt(level * 2));
 		}

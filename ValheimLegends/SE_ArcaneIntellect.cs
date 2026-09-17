@@ -33,7 +33,7 @@ namespace ValheimLegends
         {
             base.UpdateStatusEffect(dt);
 
-            // [CORREÇÃO MULTIPLAYER] 
+            // [CORREÃ‡ÃƒO MULTIPLAYER] 
             // Impede que outros clientes tentem gerenciar as cargas do seu personagem
             if (m_character != Player.m_localPlayer) return;
 
@@ -45,6 +45,7 @@ namespace ValheimLegends
                 {
                     var seman = m_character.GetSEMan();
                     SE_MageArcaneAffinity affinity = seman.GetStatusEffect(Hash_ArcaneAffinity) as SE_MageArcaneAffinity;
+                    SE_MageArcaneAffinity affinity = seman.GetStatusEffect(VL_Hashes.MageArcaneAffinity) as SE_MageArcaneAffinity;
                     if (affinity != null && affinity.m_currentCharges >= 1)
                     {
                         affinity.ConsumeCharges(1);
@@ -57,6 +58,7 @@ namespace ValheimLegends
                         if (vfx) UnityEngine.Object.Instantiate(vfx, m_character.GetCenterPoint(), UnityEngine.Quaternion.LookRotation(UnityEngine.Vector3.up));
                         m_character.Message(MessageHud.MessageType.TopLeft, "Arcane Intellect fades (No Charges)");
                         seman.RemoveStatusEffect(this.name.GetStableHashCode());
+                        seman.RemoveStatusEffect(VL_Hashes.ArcaneIntellect);
                     }
                 }
             }
@@ -66,6 +68,7 @@ namespace ValheimLegends
     internal static class ArcaneIntellectUtil
     {
         internal static readonly int SE_HASH = "SE_VL_ArcaneIntellect".GetStableHashCode();
+        internal static readonly int SE_HASH = VL_Hashes.ArcaneIntellect;
         internal static bool RedirectingEitrCost = false;
 
         internal static bool HasArcane(Player p)

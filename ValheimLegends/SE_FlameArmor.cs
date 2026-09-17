@@ -45,6 +45,8 @@ public class SE_FlameArmor : StatusEffect
 			casterLevel = EpicMMOSystem.LevelSystem.Instance.getLevel();
 			casterPower = m_character.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.AbjurationSkillDef)
 				.m_level * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddHp() / 400f) + (EpicMMOSystem.LevelSystem.Instance.getAddStamina() / 200f), 0f, 0.5f));
+			casterPower = VL_SkillHelper.GetSkillLevel(m_character, ValheimLegends.AbjurationSkillDef)
+				* (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddHp() / 400f) + (EpicMMOSystem.LevelSystem.Instance.getAddStamina() / 200f), 0f, 0.5f));
 			float num = casterLevel * 10f / 6f * (1f + casterPower / 150f);
 			regenBonus = (3f + 0.3f * num) * VL_GlobalConfigs.g_DamageModifer;
 			resistModifier = 0.95f - 0.001f * casterPower;

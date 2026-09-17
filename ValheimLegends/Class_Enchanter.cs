@@ -84,8 +84,8 @@ public class Class_Enchanter
 	{
 		if (QueuedAttack == EnchanterAttackType.Charm)
 		{
-			float level = player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.IllusionSkillDef)
-				.m_level * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddAttackSpeed() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 80f), 0f, 0.5f));
+			float level = VL_SkillHelper.GetSkillLevel(player, ValheimLegends.IllusionSkillDef)
+				* (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddAttackSpeed() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 80f), 0f, 0.5f));
 			UnityEngine.Vector3 vector = player.GetEyePoint() + player.transform.up * 0.1f + player.GetLookDir() * 0.5f + player.transform.right * 0.25f;
 			GameObject prefab = ZNetScene.instance.GetPrefab("VL_Charm");
 			GameObject gameObject = Object.Instantiate(prefab, vector, UnityEngine.Quaternion.identity);
@@ -107,7 +107,7 @@ public class Class_Enchanter
 			hitData.m_skill = ValheimLegends.IllusionSkill;
 			UnityEngine.Vector3 vector2 = UnityEngine.Vector3.MoveTowards(gameObject.transform.position, target, 1f);
 			component.Setup(player, (vector2 - gameObject.transform.position) * 40f, -1f, hitData, null, null);
-			Traverse.Create(component).Field("m_skill").SetValue(ValheimLegends.IllusionSkill);
+			VL_ReflectCache.SetProjectileSkill(component, ValheimLegends.IllusionSkill);
 		}
 		else
 		{
@@ -121,25 +121,26 @@ public class Class_Enchanter
 				return;
 			}
 			Object.Instantiate(ZNetScene.instance.GetPrefab("fx_VL_Shock"), player.GetEyePoint() + player.GetLookDir() * 2.5f + player.transform.right * 0.25f, UnityEngine.Quaternion.LookRotation(player.GetLookDir()));
-			float level2 = player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.AlterationSkillDef)
-				.m_level * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddCriticalChance() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 80f), 0f, 0.5f));
+			float level2 = VL_SkillHelper.GetSkillLevel(player, ValheimLegends.AlterationSkillDef)
+				* (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddCriticalChance() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 80f), 0f, 0.5f));
 			UnityEngine.Vector3 vector3 = player.GetEyePoint() + player.GetLookDir() * 4f;
-			List<Character> list = new List<Character>();
-			list.Clear();
-			Character.GetCharactersInRange(vector3, 4f, list);
-			foreach (Character item in list)
+			using (VL_BufferPool.GetScope(out var list))
 			{
-				if (BaseAI.IsEnemy(player, item) && VL_Utility.LOS_IsValid(item, vector3, vector3))
+				Character.GetCharactersInRange(vector3, 4f, list);
+				foreach (Character item in list)
 				{
-					UnityEngine.Vector3 dir = item.transform.position - player.transform.position;
-					HitData hitData2 = new HitData();
-					hitData2.m_damage.m_lightning = 15f + level2 + statusEffect.m_ttl * Random.Range(0.03f, 0.06f) * (1f + 0.25f * level2) * VL_GlobalConfigs.c_enchanterBiomeShock;
-					hitData2.m_pushForce = 0f;
-					hitData2.m_point = item.GetEyePoint();
-					hitData2.m_dir = dir;
-					hitData2.m_skill = ValheimLegends.AlterationSkill;
-					item.Damage(hitData2);
-					item.Stagger(hitData2.m_dir);
+					if (BaseAI.IsEnemy(player, item) && VL_Utility.LOS_IsValid(item, vector3, vector3))
+					{
+						UnityEngine.Vector3 dir = item.transform.position - player.transform.position;
+						HitData hitData2 = new HitData();
+						hitData2.m_damage.m_lightning = 15f + level2 + statusEffect.m_ttl * Random.Range(0.03f, 0.06f) * (1f + 0.25f * level2) * VL_GlobalConfigs.c_enchanterBiomeShock;
+						hitData2.m_pushForce = 0f;
+						hitData2.m_point = item.GetEyePoint();
+						hitData2.m_dir = dir;
+						hitData2.m_skill = ValheimLegends.AlterationSkill;
+						item.Damage(hitData2);
+						item.Stagger(hitData2.m_dir);
+					}
 				}
 			}
 			if (statusEffect.name == "SE_VL_BiomeAsh")
@@ -167,7 +168,7 @@ public class Class_Enchanter
 					ValheimLegends.isChargingDash = true;
 					ValheimLegends.dashCounter = 0;
 					VL_Utility.RotatePlayerToTarget(player);
-					((ZSyncAnimation)typeof(Player).GetField("m_zanim", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(player)).SetTrigger("unarmed_attack0");
+					VL_ReflectCache.GetZAnim(player)?.SetTrigger("unarmed_attack0");
 				}
 				else
 				{
@@ -178,19 +179,20 @@ public class Class_Enchanter
 					}
 					else
 					{
-						if (player.GetSEMan().HaveStatusEffect("SE_VL_Ability3_CD".GetStableHashCode())) { 
+						if (player.GetSEMan().HaveStatusEffect(VL_Hashes.Ability3_CD)) { 
 							player.GetInventory().RemoveOneItem(player.GetInventory().GetItem("$item_thunderstone"));
                             player.Message(MessageHud.MessageType.TopLeft, "Consumed one Thunderstone.");
                             UnityEngine.Vector3 Vector3 = player.GetEyePoint();
-                            List<Character> list = new List<Character>();
-                            list.Clear();
-                            Character.GetCharactersInRange(Vector3, 60f, list);
-                            foreach (Character item in list)
+                            using (VL_BufferPool.GetScope(out var list))
                             {
-                                if (item.IsPlayer())
+                                Character.GetCharactersInRange(Vector3, 60f, list);
+                                foreach (Character item in list)
                                 {
-                                    UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("fx_VL_ParticleLightburst"), item.GetEyePoint(), UnityEngine.Quaternion.LookRotation(item.GetLookDir()));
-                                    ValheimLegends.ReduceAllCooldowns(item, 0.01f);
+                                    if (item.IsPlayer())
+                                    {
+                                        UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("fx_VL_ParticleLightburst"), item.GetEyePoint(), UnityEngine.Quaternion.LookRotation(item.GetLookDir()));
+                                        ValheimLegends.ReduceAllCooldowns(item, 0.01f);
+                                    }
                                 }
                             }
                             UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("fx_VL_Shock"), player.GetEyePoint() + player.GetLookDir() * 2.5f + player.transform.right * 0.25f, UnityEngine.Quaternion.LookRotation(player.GetLookDir()));
@@ -206,7 +208,7 @@ public class Class_Enchanter
 			}
             else if (player.IsSitting())
 			{
-                ItemDrop.ItemData hasLeftItem = Traverse.Create(player).Field("m_leftItem").GetValue<ItemDrop.ItemData>();
+                ItemDrop.ItemData hasLeftItem = VL_ReflectCache.GetLeftItem(player);
                 if (hasLeftItem == null && (player.GetCurrentWeapon() != null && (player.GetCurrentWeapon().m_shared.m_skillType == Skills.SkillType.ElementalMagic || player.GetCurrentWeapon().m_shared.m_skillType == Skills.SkillType.BloodMagic)) || (player.LeftItem != null && (player.LeftItem.m_shared.m_skillType == Skills.SkillType.ElementalMagic || player.LeftItem.m_shared.m_skillType == Skills.SkillType.BloodMagic)))
                 {
 					ItemDrop.ItemData weapon = player.GetCurrentWeapon();
@@ -217,7 +219,7 @@ public class Class_Enchanter
                     float maxWeaponRecover = weapon.GetMaxDurability() * (1f - weapon.GetDurabilityPercentage());
 					if (maxWeaponRecover > 0f)
 					{
-						if (!player.GetSEMan().HaveStatusEffect("SE_VL_Ability3_CD".GetStableHashCode()))
+						if (!player.GetSEMan().HaveStatusEffect(VL_Hashes.Ability3_CD))
 						{
 							float maxStaminaCost = maxWeaponRecover * 4f * (1f - (EpicMMOSystem.LevelSystem.Instance.getStaminaReduction() / 100f));
 							float recoveredWeapon = maxWeaponRecover;
@@ -225,8 +227,8 @@ public class Class_Enchanter
 							{
 								recoveredWeapon = player.GetStamina() / (4f * (1f - (EpicMMOSystem.LevelSystem.Instance.getStaminaReduction() / 100f)));
 							}
-							float level = player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.AlterationSkillDef)
-								.m_level * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddCriticalChance() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 80f), 0f, 0.5f));
+							float level = VL_SkillHelper.GetSkillLevel(player, ValheimLegends.AlterationSkillDef)
+								* (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddCriticalChance() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 80f), 0f, 0.5f));
 							StatusEffect statusEffect = (SE_Ability3_CD)ScriptableObject.CreateInstance(typeof(SE_Ability3_CD));
 							statusEffect.m_ttl = 60f + (recoveredWeapon * 2f) * (1f - (EpicMMOSystem.LevelSystem.Instance.getAddCriticalChance() / 40f));
 							player.GetSEMan().AddStatusEffect(statusEffect);
@@ -252,12 +254,12 @@ public class Class_Enchanter
                     player.Message(MessageHud.MessageType.TopLeft, "You can only restore an equipped Magic Staff, Wand, Totem or Scepter.");
                 }
             }
-            else if (!player.GetSEMan().HaveStatusEffect("SE_VL_Ability3_CD".GetStableHashCode()) && !zonechargeCharging)
+            else if (!player.GetSEMan().HaveStatusEffect(VL_Hashes.Ability3_CD) && !zonechargeCharging)
 			{
 				if (player.GetStamina() >= VL_Utility.GetZoneChargeCost)
 				{
-					float level = player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.AbjurationSkillDef)
-						.m_level * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddHp() / 400f) + (EpicMMOSystem.LevelSystem.Instance.getAddStamina() / 200f), 0f, 0.5f));
+					float level = VL_SkillHelper.GetSkillLevel(player, ValheimLegends.AbjurationSkillDef)
+						* (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddHp() / 400f) + (EpicMMOSystem.LevelSystem.Instance.getAddStamina() / 200f), 0f, 0.5f));
 					player.StartEmote("challenge");
 					ValheimLegends.isChanneling = true;
 					ValheimLegends.shouldUseGuardianPower = false;
@@ -298,13 +300,13 @@ public class Class_Enchanter
 		}
 		else if ((VL_Utility.Ability3_Input_Up || player.GetStamina() <= 1f || player.GetStamina() <= VL_Utility.GetZoneChargeCostPerUpdate || Mathf.Max(0f, altitude - player.transform.position.y) >= 1f) && zonechargeCharging && ValheimLegends.isChanneling)
 		{
-			float level2 = player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.AbjurationSkillDef)
-				.m_level * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddHp() / 400f) + (EpicMMOSystem.LevelSystem.Instance.getAddStamina() / 200f), 0f, 0.5f));
+			float level2 = VL_SkillHelper.GetSkillLevel(player, ValheimLegends.AbjurationSkillDef)
+				* (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddHp() / 400f) + (EpicMMOSystem.LevelSystem.Instance.getAddStamina() / 200f), 0f, 0.5f));
 			Object.Instantiate(ZNetScene.instance.GetPrefab("fx_VL_ParticleFieldBurst"), player.transform.position, UnityEngine.Quaternion.identity);
-			List<Character> list = new List<Character>();
-			list.Clear();
-			Character.GetCharactersInRange(player.transform.position, 30f + 0.2f * level2, list);
-			float num = (3f * (EpicMMOSystem.LevelSystem.Instance.getLevel() * 10f / 6f * (1f + level2 / 300f)) + 2f * zonechargeCount) * VL_GlobalConfigs.c_enchanterBiome;
+			using (VL_BufferPool.GetScope(out var list))
+			{
+				Character.GetCharactersInRange(player.transform.position, 30f + 0.2f * level2, list);
+				float num = (3f * (EpicMMOSystem.LevelSystem.Instance.getLevel() * 10f / 6f * (1f + level2 / 300f)) + 2f * zonechargeCount) * VL_GlobalConfigs.c_enchanterBiome;
 			if (player.GetCurrentBiome() == Heightmap.Biome.Meadows)
 			{
 				GameObject prefab = ZNetScene.instance.GetPrefab("vfx_Potion_stamina_medium");
@@ -323,7 +325,7 @@ public class Class_Enchanter
 						}
 						else if (item.IsPlayer())
 						{
-							item.GetSEMan().AddStatusEffect(sE_BiomeMeadows.name.GetStableHashCode(), resetTime: true);
+							item.GetSEMan().AddStatusEffect(VL_Hashes.BiomeMeadows, resetTime: true);
 						}
 						else
 						{
@@ -351,7 +353,7 @@ public class Class_Enchanter
 						}
 						else if (item2.IsPlayer())
 						{
-							item2.GetSEMan().AddStatusEffect(sE_BiomeBlackForest.name.GetStableHashCode(), resetTime: true);
+							item2.GetSEMan().AddStatusEffect(VL_Hashes.BiomeBlackForest, resetTime: true);
 						}
 						else
 						{
@@ -379,7 +381,7 @@ public class Class_Enchanter
 						}
 						else if (item3.IsPlayer())
 						{
-							item3.GetSEMan().AddStatusEffect(sE_BiomeSwamp.name.GetStableHashCode(), resetTime: true);
+							item3.GetSEMan().AddStatusEffect(VL_Hashes.BiomeSwamp, resetTime: true);
 						}
 						else
 						{
@@ -407,7 +409,7 @@ public class Class_Enchanter
 						}
 						else if (item4.IsPlayer())
 						{
-							item4.GetSEMan().AddStatusEffect(sE_BiomeMountain.name.GetStableHashCode(), resetTime: true);
+							item4.GetSEMan().AddStatusEffect(VL_Hashes.BiomeMountain, resetTime: true);
 						}
 						else
 						{
@@ -435,7 +437,7 @@ public class Class_Enchanter
 						}
 						else if (item5.IsPlayer())
 						{
-							item5.GetSEMan().AddStatusEffect(sE_BiomePlains.name.GetStableHashCode(), resetTime: true);
+							item5.GetSEMan().AddStatusEffect(VL_Hashes.BiomePlains, resetTime: true);
 						}
 						else
 						{
@@ -463,7 +465,7 @@ public class Class_Enchanter
 						}
 						else if (item6.IsPlayer())
 						{
-							item6.GetSEMan().AddStatusEffect(sE_BiomeOcean.name.GetStableHashCode(), resetTime: true);
+							item6.GetSEMan().AddStatusEffect(VL_Hashes.BiomeOcean, resetTime: true);
 						}
 						else
 						{
@@ -491,7 +493,7 @@ public class Class_Enchanter
 						}
 						else if (item7.IsPlayer())
 						{
-							item7.GetSEMan().AddStatusEffect(sE_BiomeMist.name.GetStableHashCode(), resetTime: true);
+							item7.GetSEMan().AddStatusEffect(VL_Hashes.BiomeMist, resetTime: true);
 						}
 						else
 						{
@@ -519,7 +521,7 @@ public class Class_Enchanter
 						}
 						else if (item8.IsPlayer())
 						{
-							item8.GetSEMan().AddStatusEffect(sE_BiomeAsh.name.GetStableHashCode(), resetTime: true);
+							item8.GetSEMan().AddStatusEffect(VL_Hashes.BiomeAsh, resetTime: true);
 						}
 						else
 						{
@@ -533,6 +535,7 @@ public class Class_Enchanter
 			{
 				ZLog.Log("Biome invalid.");
 			}
+			}
 			zonechargeCharging = false;
 			zonechargeCount = 0f;
 			zonechargeChargeAmount = 0;
@@ -544,36 +547,36 @@ public class Class_Enchanter
 		}
 		else if (VL_Utility.Ability2_Input_Down)
 		{
-			if (player.IsBlocking() && !player.GetSEMan().HaveStatusEffect("SE_VL_Ability2_CD".GetStableHashCode()))
+			if (player.IsBlocking() && !player.GetSEMan().HaveStatusEffect(VL_Hashes.Ability2_CD))
 			{
-				if (player.GetSEMan().HaveStatusEffect("SE_VL_FlameWeapon".GetStableHashCode())) 
+				if (player.GetSEMan().HaveStatusEffect(VL_Hashes.FlameWeapon)) 
 				{
 					StatusEffect statusEffect3 = (SE_Ability2_CD)ScriptableObject.CreateInstance(typeof(SE_Ability2_CD));
 					statusEffect3.m_ttl = 0.1f;
 					player.GetSEMan().AddStatusEffect(statusEffect3);
-					StatusEffect statusEffect = player.GetSEMan().GetStatusEffect("SE_VL_FlameWeapon".GetStableHashCode());
+					StatusEffect statusEffect = player.GetSEMan().GetStatusEffect(VL_Hashes.FlameWeapon);
 					player.GetSEMan().RemoveStatusEffect(statusEffect, quiet: true);
 					StatusEffect statusEffect2 = (SE_IceWeapon)ScriptableObject.CreateInstance(typeof(SE_IceWeapon));
 					Object.Instantiate(ZNetScene.instance.GetPrefab("fx_Potion_frostresist"), player.GetCenterPoint(), UnityEngine.Quaternion.identity); 
 					player.GetSEMan().AddStatusEffect(statusEffect2);
 				}
-				else if (player.GetSEMan().HaveStatusEffect("SE_VL_IceWeapon".GetStableHashCode()))
+				else if (player.GetSEMan().HaveStatusEffect(VL_Hashes.IceWeapon))
 				{
 					StatusEffect statusEffect3 = (SE_Ability2_CD)ScriptableObject.CreateInstance(typeof(SE_Ability2_CD));
 					statusEffect3.m_ttl = 0.1f;
 					player.GetSEMan().AddStatusEffect(statusEffect3);
-					StatusEffect statusEffect = player.GetSEMan().GetStatusEffect("SE_VL_IceWeapon".GetStableHashCode());
+					StatusEffect statusEffect = player.GetSEMan().GetStatusEffect(VL_Hashes.IceWeapon);
 					player.GetSEMan().RemoveStatusEffect(statusEffect, quiet: true);
 					StatusEffect statusEffect2 = (SE_ThunderWeapon)ScriptableObject.CreateInstance(typeof(SE_ThunderWeapon));
 					Object.Instantiate(ZNetScene.instance.GetPrefab("vfx_Potion_stamina_medium"), player.GetCenterPoint(), UnityEngine.Quaternion.identity);
 					player.GetSEMan().AddStatusEffect(statusEffect2);
 				}
-				else if (player.GetSEMan().HaveStatusEffect("SE_VL_ThunderWeapon".GetStableHashCode()))
+				else if (player.GetSEMan().HaveStatusEffect(VL_Hashes.ThunderWeapon))
 				{
 					StatusEffect statusEffect3 = (SE_Ability2_CD)ScriptableObject.CreateInstance(typeof(SE_Ability2_CD));
 					statusEffect3.m_ttl = 0.1f;
 					player.GetSEMan().AddStatusEffect(statusEffect3);
-					StatusEffect statusEffect = player.GetSEMan().GetStatusEffect("SE_VL_ThunderWeapon".GetStableHashCode());
+					StatusEffect statusEffect = player.GetSEMan().GetStatusEffect(VL_Hashes.ThunderWeapon);
 					player.GetSEMan().RemoveStatusEffect(statusEffect, quiet: true);
 				}
 				else 
@@ -586,7 +589,7 @@ public class Class_Enchanter
 					player.GetSEMan().AddStatusEffect(statusEffect2);
 				}
 			}
-			else if (!player.GetSEMan().HaveStatusEffect("SE_VL_Ability2_CD".GetStableHashCode()))
+			else if (!player.GetSEMan().HaveStatusEffect(VL_Hashes.Ability2_CD))
 			{
 				if (player.GetStamina() >= VL_Utility.GetCharmCost)
 				{
@@ -600,7 +603,7 @@ public class Class_Enchanter
 					ValheimLegends.isChargingDash = true;
 					ValheimLegends.dashCounter = 0;
 					QueuedAttack = EnchanterAttackType.Charm;
-					((ZSyncAnimation)typeof(Player).GetField("m_zanim", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(player)).SetTrigger("knife_stab0");
+					VL_ReflectCache.GetZAnim(player)?.SetTrigger("knife_stab0");
 					VL_Utility.RotatePlayerToTarget(player);
 					player.RaiseSkill(ValheimLegends.AlterationSkill, VL_Utility.GetCharmSkillGain);
 				}
@@ -616,41 +619,41 @@ public class Class_Enchanter
 		}
 		else if (VL_Utility.Ability1_Input_Down)
 		{
-			if (player.IsBlocking() && !player.GetSEMan().HaveStatusEffect("SE_VL_Ability1_CD".GetStableHashCode()))
+			if (player.IsBlocking() && !player.GetSEMan().HaveStatusEffect(VL_Hashes.Ability1_CD))
 			{
-				if (player.GetSEMan().HaveStatusEffect("SE_VL_FlameArmor".GetStableHashCode()))
+				if (player.GetSEMan().HaveStatusEffect(VL_Hashes.FlameArmor))
 				{
 					StatusEffect statusEffect3 = (SE_Ability1_CD)ScriptableObject.CreateInstance(typeof(SE_Ability1_CD));
 					statusEffect3.m_ttl = 0.1f;
 					player.GetSEMan().AddStatusEffect(statusEffect3);
-					StatusEffect statusEffect = player.GetSEMan().GetStatusEffect("SE_VL_FlameArmor".GetStableHashCode());
+					StatusEffect statusEffect = player.GetSEMan().GetStatusEffect(VL_Hashes.FlameArmor);
 					player.GetSEMan().RemoveStatusEffect(statusEffect, quiet: true);
 					StatusEffect statusEffect2 = (SE_IceArmor)ScriptableObject.CreateInstance(typeof(SE_IceArmor));
 					ValheimLegends.shouldUseGuardianPower = false;
-					((ZSyncAnimation)typeof(Player).GetField("m_zanim", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(player)).SetTrigger("gpower");
+					VL_ReflectCache.GetZAnim(player)?.SetTrigger("gpower");
 					UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("fx_guardstone_activate"), player.transform.position, UnityEngine.Quaternion.identity);
 					player.GetSEMan().AddStatusEffect(statusEffect2);
 				}
-				else if (player.GetSEMan().HaveStatusEffect("SE_VL_IceArmor".GetStableHashCode()))
+				else if (player.GetSEMan().HaveStatusEffect(VL_Hashes.IceArmor))
 				{
 					StatusEffect statusEffect3 = (SE_Ability1_CD)ScriptableObject.CreateInstance(typeof(SE_Ability1_CD));
 					statusEffect3.m_ttl = 0.1f;
 					player.GetSEMan().AddStatusEffect(statusEffect3);
-					StatusEffect statusEffect = player.GetSEMan().GetStatusEffect("SE_VL_IceArmor".GetStableHashCode());
+					StatusEffect statusEffect = player.GetSEMan().GetStatusEffect(VL_Hashes.IceArmor);
 					player.GetSEMan().RemoveStatusEffect(statusEffect, quiet: true);
 					StatusEffect statusEffect2 = (SE_ThunderArmor)ScriptableObject.CreateInstance(typeof(SE_ThunderArmor));
 					ValheimLegends.shouldUseGuardianPower = false;
-					((ZSyncAnimation)typeof(Player).GetField("m_zanim", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(player)).SetTrigger("gpower");
+					VL_ReflectCache.GetZAnim(player)?.SetTrigger("gpower");
 					UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("fx_VL_ParticleLightburst"), player.GetEyePoint(), UnityEngine.Quaternion.LookRotation(player.GetLookDir()));
 					UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("fx_VL_Shock"), player.GetEyePoint() + player.GetLookDir() * 2.5f + player.transform.right * 0.25f, UnityEngine.Quaternion.LookRotation(player.GetLookDir()));
 					player.GetSEMan().AddStatusEffect(statusEffect2);
 				}
-				else if (player.GetSEMan().HaveStatusEffect("SE_VL_ThunderArmor".GetStableHashCode()))
+				else if (player.GetSEMan().HaveStatusEffect(VL_Hashes.ThunderArmor))
 				{
 					StatusEffect statusEffect3 = (SE_Ability1_CD)ScriptableObject.CreateInstance(typeof(SE_Ability1_CD));
 					statusEffect3.m_ttl = 0.1f;
 					player.GetSEMan().AddStatusEffect(statusEffect3);
-					StatusEffect statusEffect = player.GetSEMan().GetStatusEffect("SE_VL_ThunderArmor".GetStableHashCode());
+					StatusEffect statusEffect = player.GetSEMan().GetStatusEffect(VL_Hashes.ThunderArmor);
 					player.GetSEMan().RemoveStatusEffect(statusEffect, quiet: true);
 				}
 				else
@@ -660,21 +663,21 @@ public class Class_Enchanter
 					player.GetSEMan().AddStatusEffect(statusEffect3);
 					StatusEffect statusEffect2 = (SE_FlameArmor)ScriptableObject.CreateInstance(typeof(SE_FlameArmor));
 					ValheimLegends.shouldUseGuardianPower = false;
-					((ZSyncAnimation)typeof(Player).GetField("m_zanim", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(player)).SetTrigger("gpower");
+					VL_ReflectCache.GetZAnim(player)?.SetTrigger("gpower");
 					UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("fx_VL_Flames"), player.transform.position, UnityEngine.Quaternion.identity);
 					player.GetSEMan().AddStatusEffect(statusEffect2);
 				}
 			}
-			else if (!player.GetSEMan().HaveStatusEffect("SE_VL_Ability1_CD".GetStableHashCode()) && player.GetStamina() >= VL_Utility.GetWeakenCost)
+			else if (!player.GetSEMan().HaveStatusEffect(VL_Hashes.Ability1_CD) && player.GetStamina() >= VL_Utility.GetWeakenCost)
 			{
 				ValheimLegends.shouldUseGuardianPower = false;
-				float level3 = player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.AlterationSkillDef)
-					.m_level * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddCriticalChance() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 80f), 0f, 0.5f));
+				float level3 = VL_SkillHelper.GetSkillLevel(player, ValheimLegends.AlterationSkillDef)
+					* (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddCriticalChance() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 80f), 0f, 0.5f));
 				StatusEffect statusEffect4 = (SE_Ability1_CD)ScriptableObject.CreateInstance(typeof(SE_Ability1_CD));
 				statusEffect4.m_ttl = VL_Utility.GetWeakenCooldownTime;
 				player.GetSEMan().AddStatusEffect(statusEffect4);
 				player.UseStamina(VL_Utility.GetWeakenCost + 0.5f * level3);
-				((ZSyncAnimation)typeof(Player).GetField("m_zanim", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(player)).SetTrigger("gpower");
+				VL_ReflectCache.GetZAnim(player)?.SetTrigger("gpower");
 				RaycastHit hitInfo = default(RaycastHit);
 				UnityEngine.Vector3 position = player.transform.position;
 				UnityEngine.Vector3 vector = ((!Physics.Raycast(player.GetEyePoint(), player.GetLookDir(), out hitInfo, float.PositiveInfinity, ScriptChar_Layermask) || !hitInfo.collider) ? (position + player.GetLookDir() * 1000f) : hitInfo.point);
@@ -688,18 +691,21 @@ public class Class_Enchanter
 				sE_Weaken.damageReduction = (0.15f + 0.0015f * level3 * (1f + (EpicMMOSystem.LevelSystem.Instance.getLevel() / 60f))) * VL_GlobalConfigs.c_enchanterWeaken;
 				sE_Weaken.speedReduction = 0.8f - 0.001f * level3 * (1f + (EpicMMOSystem.LevelSystem.Instance.getLevel() / 40f));
 				sE_Weaken.staminaDrain = (0.1f + 0.001f * level3) * VL_GlobalConfigs.c_enchanterWeaken * (1f + (EpicMMOSystem.LevelSystem.Instance.getLevel() / 40f));
-				List<Character> allCharacters = Character.GetAllCharacters();
-				foreach (Character item9 in allCharacters)
+				using (VL_BufferPool.GetScope(out var allCharacters))
 				{
-					if (BaseAI.IsEnemy(player, item9) && (item9.transform.position - vector).magnitude <= 5f + 0.01f * level3)
+					Character.GetCharactersInRange(vector, 5f + 0.01f * level3, allCharacters);
+					foreach (Character item9 in allCharacters)
 					{
-						if (item9.IsPlayer())
+						if (BaseAI.IsEnemy(player, item9))
 						{
-							item9.GetSEMan().AddStatusEffect(sE_Weaken.name.GetStableHashCode(), resetTime: true);
-						}
-						else
-						{
-							item9.GetSEMan().AddStatusEffect(sE_Weaken, resetTime: true);
+							if (item9.IsPlayer())
+							{
+								item9.GetSEMan().AddStatusEffect(VL_Hashes.Weaken, resetTime: true);
+							}
+							else
+							{
+								item9.GetSEMan().AddStatusEffect(sE_Weaken, resetTime: true);
+							}
 						}
 					}
 				}

@@ -40,6 +40,11 @@ public class SE_Charmcontrol : StatusEffect
 				foreach (Character allCharacter in Character.GetAllCharacters())
 				{
 					if (!(allCharacter != null) || allCharacter.GetSEMan() == null)
+					if (allCharacter == null) continue;
+					SEMan seMan = allCharacter.GetSEMan();
+					if (seMan == null) continue;
+
+					if (seMan.GetStatusEffect(VL_Hashes.Charm) is SE_Charm sE_Charm)
 					{
 						continue;
 					}
@@ -51,6 +56,7 @@ public class SE_Charmcontrol : StatusEffect
 						StatusEffect statusEffect = (SE_CharmImmunity)ScriptableObject.CreateInstance(typeof(SE_CharmImmunity));
 						statusEffect.m_ttl = Mathf.Clamp(allCharacter.GetHealthPercentage() * VL_GlobalConfigs.g_CooldownModifer * 60f, 5f, 300f);
 						allCharacter.GetSEMan().AddStatusEffect(statusEffect);
+						seMan.AddStatusEffect(statusEffect);
 						UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("fx_VL_Lightburst"), allCharacter.GetEyePoint(), UnityEngine.Quaternion.identity);
 					}
 				}

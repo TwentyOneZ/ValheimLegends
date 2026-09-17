@@ -36,10 +36,10 @@ public class Class_Necromancer
 
 	public static void Process_Input(Player player)
 	{
-		System.Random random = new System.Random();
 		if (VL_Utility.Ability3_Input_Down && !meteorCharging)
 		{
 			if (!player.GetSEMan().HaveStatusEffect("SE_VL_Ability3_CD".GetStableHashCode()))
+			if (!player.GetSEMan().HaveStatusEffect(VL_Hashes.Ability3_CD))
 			{
 				if (player.GetStamina() >= VL_Utility.GetMeteorCost)
 				{
@@ -67,6 +67,7 @@ public class Class_Necromancer
 			if (VL_Utility.Ability2_Input_Down)
 			{
 				if (!player.GetSEMan().HaveStatusEffect("SE_VL_Ability2_CD".GetStableHashCode()))
+				if (!player.GetSEMan().HaveStatusEffect(VL_Hashes.Ability2_CD))
 				{
 					if (player.GetStamina() >= VL_Utility.GetFrostNovaCost)
 					{
@@ -76,6 +77,7 @@ public class Class_Necromancer
 						player.UseStamina(VL_Utility.GetFrostNovaCost);
 						float level = player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.EvocationSkillDef)
 							.m_level * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddCriticalChance() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 80f), 0f, 0.5f));
+						float level = VL_SkillHelper.GetSkillLevel(player, ValheimLegends.EvocationSkillDef) * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddCriticalChance() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 80f), 0f, 0.5f));
 						player.RaiseSkill(ValheimLegends.EvocationSkill, VL_Utility.GetFrostNovaSkillGain);
 					}
 					else
@@ -91,11 +93,13 @@ public class Class_Necromancer
 			else if (VL_Utility.Ability1_Input_Down)
 			{
 				if (!player.GetSEMan().HaveStatusEffect("SE_VL_Ability1_CD".GetStableHashCode()))
+				if (!player.GetSEMan().HaveStatusEffect(VL_Hashes.Ability1_CD))
 				{
 					if (player.GetStamina() >= VL_Utility.GetFireballCost)
 					{
 						float level2 = player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.EvocationSkillDef)
 							.m_level * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddCriticalChance() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 80f), 0f, 0.5f));
+						float level2 = VL_SkillHelper.GetSkillLevel(player, ValheimLegends.EvocationSkillDef) * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddCriticalChance() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 80f), 0f, 0.5f));
 						StatusEffect statusEffect3 = (SE_Ability1_CD)ScriptableObject.CreateInstance(typeof(SE_Ability1_CD));
 						statusEffect3.m_ttl = VL_Utility.GetFireballCooldownTime - 0.02f * level2;
 						player.GetSEMan().AddStatusEffect(statusEffect3);

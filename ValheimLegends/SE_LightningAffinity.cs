@@ -28,6 +28,8 @@ public class SE_Lightningaffinity : StatusEffect
 			{
 				float level = m_character.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.EvocationSkillDef)
 					.m_level * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddCriticalChance() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 80f), 0f, 0.5f));
+				float level = VL_SkillHelper.GetSkillLevel(m_character, ValheimLegends.EvocationSkillDef)
+					* (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddCriticalChance() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 80f), 0f, 0.5f));
 				m_tooltip = "Attacks are imbued with Lightning" +
 					"\n" + ((0.1f + (level / 300f)) * 100f).ToString("#.#") + "% chance to hit for extra " + (0.1f * (EpicMMOSystem.LevelSystem.Instance.getLevel() / 4f) * (1f + (level / 150f))).ToString("#.#") + "-" + (1.9f * (EpicMMOSystem.LevelSystem.Instance.getLevel() / 4f) * (1f + (level / 150f))).ToString("#.#") + " Lightning damage that jumps for nearby targets";
 			}

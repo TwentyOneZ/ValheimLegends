@@ -37,6 +37,8 @@ public class SE_ShadowStalk : SE_Stats
 		{
 			speed *= (1.5f + 0.01f * m_character.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.DisciplineSkillDef)
 				.m_level) * VL_GlobalConfigs.c_rangerShadowStalk * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddPhysicDamage() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddAttackSpeed() / 40f), 0f, 0.5f));
+			speed *= (1.5f + 0.01f * VL_SkillHelper.GetSkillLevel(m_character, ValheimLegends.DisciplineSkillDef))
+				* VL_GlobalConfigs.c_rangerShadowStalk * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddPhysicDamage() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddAttackSpeed() / 40f), 0f, 0.5f));
 		}
 		else if (speedDuration > 0f)
 		{

@@ -29,6 +29,8 @@ public class SE_IceArmor : StatusEffect
 			doOnce = false;
 			float level = m_character.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.AbjurationSkillDef)
 				.m_level * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddHp() / 400f) + (EpicMMOSystem.LevelSystem.Instance.getAddStamina() / 200f), 0f, 0.5f));
+			float level = VL_SkillHelper.GetSkillLevel(m_character, ValheimLegends.AbjurationSkillDef)
+				* (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddHp() / 400f) + (EpicMMOSystem.LevelSystem.Instance.getAddStamina() / 200f), 0f, 0.5f));
 			resistModifier = 0.95f - 0.001f * level;
 			m_tooltip = "Ice Armor will reduce physical damage and have a chance to slow attackers" +
                 "\n Physical damage resist increased by " + ((1f - resistModifier) * 100f).ToString("#.#") + "% " +

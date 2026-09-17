@@ -27,6 +27,8 @@ public class SE_ThunderArmor : StatusEffect
 			doOnce = false;
 			float level = m_character.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.AbjurationSkillDef)
 				.m_level * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddHp() / 400f) + (EpicMMOSystem.LevelSystem.Instance.getAddStamina() / 200f), 0f, 0.5f));
+			float level = VL_SkillHelper.GetSkillLevel(m_character, ValheimLegends.AbjurationSkillDef)
+				* (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddHp() / 400f) + (EpicMMOSystem.LevelSystem.Instance.getAddStamina() / 200f), 0f, 0.5f));
 			speedBonus = 1.05f + 0.001f * level;
 			m_tooltip = "Chance to burst a chain lightning back at attackers. Increases movement speed." +
 				"\n" + ((0.1f + (level / 300f)) * 100f).ToString("#.#") + "% chance to cast a chain lightning of " + Mathf.Max((0.1f * (EpicMMOSystem.LevelSystem.Instance.getLevel() / 4f) * (1f + (level / 150f))),0.1f).ToString("#.#") + "-" + Mathf.Max((1.9f * (EpicMMOSystem.LevelSystem.Instance.getLevel() / 4f) * (1f + (level / 150f))),0.1f).ToString("#.#") + " Lightning damage that jumps for nearby targets" +

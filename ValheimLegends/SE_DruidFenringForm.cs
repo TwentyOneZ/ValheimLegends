@@ -1,4 +1,4 @@
-﻿using HarmonyLib;
+using HarmonyLib;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -67,6 +67,29 @@ namespace ValheimLegends
         private static readonly string[] F_SHOULDER_VAR = { "m_shoulderItemVariant", "m_currentShoulderVariant", "m_shoulderVariant" };
         private static readonly string[] F_UTILITY_VAR = { "m_utilityItemVariant", "m_currentUtilityVariant", "m_utilityVariant" };
 
+        private static FieldInfo FindField(Type t, string[] candidates, Type expectedType)
+        {
+            foreach (string name in candidates)
+            {
+                FieldInfo fi = AccessTools.Field(t, name);
+                if (fi != null && fi.FieldType == expectedType)
+                    return fi;
+            }
+            return null;
+        }
+
+        private static readonly FieldInfo FI_Helmet = FindField(typeof(VisEquipment), F_HELMET, typeof(string));
+        private static readonly FieldInfo FI_Chest = FindField(typeof(VisEquipment), F_CHEST, typeof(string));
+        private static readonly FieldInfo FI_Legs = FindField(typeof(VisEquipment), F_LEGS, typeof(string));
+        private static readonly FieldInfo FI_Shoulder = FindField(typeof(VisEquipment), F_SHOULDER, typeof(string));
+        private static readonly FieldInfo FI_Utility = FindField(typeof(VisEquipment), F_UTILITY, typeof(string));
+
+        private static readonly FieldInfo FI_HelmetVar = FindField(typeof(VisEquipment), F_HELMET_VAR, typeof(int));
+        private static readonly FieldInfo FI_ChestVar = FindField(typeof(VisEquipment), F_CHEST_VAR, typeof(int));
+        private static readonly FieldInfo FI_LegsVar = FindField(typeof(VisEquipment), F_LEGS_VAR, typeof(int));
+        private static readonly FieldInfo FI_ShoulderVar = FindField(typeof(VisEquipment), F_SHOULDER_VAR, typeof(int));
+        private static readonly FieldInfo FI_UtilityVar = FindField(typeof(VisEquipment), F_UTILITY_VAR, typeof(int));
+
         private static readonly MethodInfo MI_SetHelmet_1 = AccessTools.Method(typeof(VisEquipment), "SetHelmetItem", new[] { typeof(string) });
         private static readonly MethodInfo MI_SetHelmet_2 = AccessTools.Method(typeof(VisEquipment), "SetHelmetItem", new[] { typeof(string), typeof(int) });
 
@@ -85,6 +108,8 @@ namespace ValheimLegends
         // ✅ CHAVE: força o jogo recalcular o visual real dos slots equipados
         private static readonly MethodInfo MI_UpdateEquipmentVisuals =
             AccessTools.Method(typeof(Humanoid), "UpdateEquipmentVisuals");
+
+        private int _lastDisplayedSeconds = -1;
 
         public SE_DruidFenringForm()
         {
@@ -121,6 +146,7 @@ namespace ValheimLegends
             casterPower = m_character.GetSkills().GetSkillList()
                 .FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.AlterationSkillDef)
                 .m_level * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddCriticalChance() / 40f) +
+            casterPower = VL_SkillHelper.GetSkillLevel(m_character as Player, ValheimLegends.AlterationSkillDef) * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddCriticalChance() / 40f) +
                                     (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 80f), 0f, 0.5f));
             if (doOnce)
             {
@@ -168,10 +194,19 @@ namespace ValheimLegends
             if (m_sustainTimer > 1f)
             {
                 m_name = $"Fenring Form:\n{Math.Round(m_sustainTimer)}s to Eitr drain";
+                int sec = (int)Math.Round(m_sustainTimer);
+                if (sec != _lastDisplayedSeconds)
+                {
+                    _lastDisplayedSeconds = sec;
+                    m_name = $"Fenring Form:\n{sec}s to Eitr drain";
+                }
             }
             else
+            else if (_lastDisplayedSeconds != 0)
             {
                 m_name = $"Shapeshift: Eitr drained";
+                _lastDisplayedSeconds = 0;
+                m_name = "Shapeshift: Eitr drained";
             }
             
         }
@@ -203,6 +238,10 @@ namespace ValheimLegends
         private bool IsFenrisStillApplied(VisEquipment ve)
         {
             var cur = ReadVisSnapshot(ve);
+            string helmet = FI_Helmet?.GetValue(ve) as string;
+            string chest = FI_Chest?.GetValue(ve) as string;
+            string legs = FI_Legs?.GetValue(ve) as string;
+            string shoulder = FI_Shoulder?.GetValue(ve) as string;
 
             bool okHelmet = string.Equals(cur.helmet ?? "", VIS_HELMET, StringComparison.Ordinal);
             bool okChest = string.Equals(cur.chest ?? "", VIS_CHEST, StringComparison.Ordinal);
@@ -210,6 +249,10 @@ namespace ValheimLegends
             bool okShoulder = string.Equals(cur.shoulder ?? "", VIS_SHOULDER, StringComparison.Ordinal);
 
             return okHelmet && okChest && okLegs && okShoulder;
+            return string.Equals(helmet ?? "", VIS_HELMET, StringComparison.Ordinal)
+                && string.Equals(chest ?? "", VIS_CHEST, StringComparison.Ordinal)
+                && string.Equals(legs ?? "", VIS_LEGS, StringComparison.Ordinal)
+                && string.Equals(shoulder ?? "", VIS_SHOULDER, StringComparison.Ordinal);
         }
 
         private void ApplyFenrisVisual(VisEquipment ve)
@@ -306,18 +349,29 @@ namespace ValheimLegends
         private static VisSnapshot ReadVisSnapshot(VisEquipment ve)
         {
             var s = new VisSnapshot
+            return new VisSnapshot
             {
                 helmet = ReadStringField(ve, F_HELMET),
                 chest = ReadStringField(ve, F_CHEST),
                 legs = ReadStringField(ve, F_LEGS),
                 shoulder = ReadStringField(ve, F_SHOULDER),
                 utility = ReadStringField(ve, F_UTILITY),
+                helmet = FI_Helmet?.GetValue(ve) as string,
+                chest = FI_Chest?.GetValue(ve) as string,
+                legs = FI_Legs?.GetValue(ve) as string,
+                shoulder = FI_Shoulder?.GetValue(ve) as string,
+                utility = FI_Utility?.GetValue(ve) as string,
 
                 helmetVar = ReadIntField(ve, F_HELMET_VAR),
                 chestVar = ReadIntField(ve, F_CHEST_VAR),
                 legsVar = ReadIntField(ve, F_LEGS_VAR),
                 shoulderVar = ReadIntField(ve, F_SHOULDER_VAR),
                 utilityVar = ReadIntField(ve, F_UTILITY_VAR)
+                helmetVar = FI_HelmetVar != null ? (int)FI_HelmetVar.GetValue(ve) : 0,
+                chestVar = FI_ChestVar != null ? (int)FI_ChestVar.GetValue(ve) : 0,
+                legsVar = FI_LegsVar != null ? (int)FI_LegsVar.GetValue(ve) : 0,
+                shoulderVar = FI_ShoulderVar != null ? (int)FI_ShoulderVar.GetValue(ve) : 0,
+                utilityVar = FI_UtilityVar != null ? (int)FI_UtilityVar.GetValue(ve) : 0
             };
             return s;
         }

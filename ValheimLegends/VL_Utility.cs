@@ -208,23 +208,67 @@ public static class VL_Utility
 
 	public static bool ReadyTime => Time.time > 0.01f + vl_timer;
 
+    private static string _cachedKey1, _cachedKey1Lower;
+    private static string _cachedCombo1, _cachedCombo1Lower;
+    private static string _cachedKey2, _cachedKey2Lower;
+    private static string _cachedCombo2, _cachedCombo2Lower;
+    private static string _cachedKey3, _cachedKey3Lower;
+    private static string _cachedCombo3, _cachedCombo3Lower;
+
+    private static string GetKey1Lower()
+    {
+        string v = ValheimLegends.Ability1_Hotkey.Value;
+        if (v != _cachedKey1) { _cachedKey1 = v; _cachedKey1Lower = string.IsNullOrEmpty(v) ? "" : v.ToLower(); }
+        return _cachedKey1Lower;
+    }
+
+    private static string GetCombo1Lower()
+    {
+        string v = ValheimLegends.Ability1_Hotkey_Combo.Value;
+        if (v != _cachedCombo1) { _cachedCombo1 = v; _cachedCombo1Lower = string.IsNullOrEmpty(v) ? "" : v.ToLower(); }
+        return _cachedCombo1Lower;
+    }
+
+    private static string GetKey2Lower()
+    {
+        string v = ValheimLegends.Ability2_Hotkey.Value;
+        if (v != _cachedKey2) { _cachedKey2 = v; _cachedKey2Lower = string.IsNullOrEmpty(v) ? "" : v.ToLower(); }
+        return _cachedKey2Lower;
+    }
+
+    private static string GetCombo2Lower()
+    {
+        string v = ValheimLegends.Ability2_Hotkey_Combo.Value;
+        if (v != _cachedCombo2) { _cachedCombo2 = v; _cachedCombo2Lower = string.IsNullOrEmpty(v) ? "" : v.ToLower(); }
+        return _cachedCombo2Lower;
+    }
+
+    private static string GetKey3Lower()
+    {
+        string v = ValheimLegends.Ability3_Hotkey.Value;
+        if (v != _cachedKey3) { _cachedKey3 = v; _cachedKey3Lower = string.IsNullOrEmpty(v) ? "" : v.ToLower(); }
+        return _cachedKey3Lower;
+    }
+
+    private static string GetCombo3Lower()
+    {
+        string v = ValheimLegends.Ability3_Hotkey_Combo.Value;
+        if (v != _cachedCombo3) { _cachedCombo3 = v; _cachedCombo3Lower = string.IsNullOrEmpty(v) ? "" : v.ToLower(); }
+        return _cachedCombo3Lower;
+    }
+
 	public static bool Ability1_Input_Down
 	{
 		get
 		{
-			if (ValheimLegends.Ability1_Hotkey.Value == "")
+			string key = GetKey1Lower();
+			if (string.IsNullOrEmpty(key)) return false;
+			string combo = GetCombo1Lower();
+			if (string.IsNullOrEmpty(combo))
 			{
-				return false;
+				return Input.GetKeyDown(key) || Input.GetButtonDown(key);
 			}
-			if (ValheimLegends.Ability1_Hotkey_Combo.Value == "")
-			{
-				return Input.GetKeyDown(ValheimLegends.Ability1_Hotkey.Value.ToLower()) || Input.GetButtonDown(ValheimLegends.Ability1_Hotkey.Value.ToLower());
-			}
-			if ((Input.GetKeyDown(ValheimLegends.Ability1_Hotkey.Value.ToLower()) && Input.GetKey(ValheimLegends.Ability1_Hotkey_Combo.Value.ToLower())) || (Input.GetKey(ValheimLegends.Ability1_Hotkey.Value.ToLower()) && Input.GetKeyDown(ValheimLegends.Ability1_Hotkey_Combo.Value.ToLower())) || (Input.GetButtonDown(ValheimLegends.Ability1_Hotkey.Value.ToLower()) && Input.GetButton(ValheimLegends.Ability1_Hotkey_Combo.Value.ToLower())) || (Input.GetButton(ValheimLegends.Ability1_Hotkey.Value.ToLower()) && Input.GetButtonDown(ValheimLegends.Ability1_Hotkey_Combo.Value.ToLower())))
-			{
-				return true;
-			}
-			return false;
+			return (Input.GetKeyDown(key) && Input.GetKey(combo)) || (Input.GetKey(key) && Input.GetKeyDown(combo)) || (Input.GetButtonDown(key) && Input.GetButton(combo)) || (Input.GetButton(key) && Input.GetButtonDown(combo));
 		}
 	}
 
@@ -232,19 +276,14 @@ public static class VL_Utility
     {
         get
         {
-            if (ValheimLegends.Ability1_Hotkey.Value == "")
-            {
-                return false;
-            }
-            if (ValheimLegends.Ability1_Hotkey_Combo.Value == "")
-            {
-                return Input.GetKey(ValheimLegends.Ability1_Hotkey.Value.ToLower()) || Input.GetButton(ValheimLegends.Ability1_Hotkey.Value.ToLower());
-            }
-            if ((Input.GetKey(ValheimLegends.Ability1_Hotkey.Value.ToLower()) && Input.GetKey(ValheimLegends.Ability1_Hotkey_Combo.Value.ToLower())) || (Input.GetButton(ValheimLegends.Ability1_Hotkey.Value.ToLower()) && Input.GetButton(ValheimLegends.Ability1_Hotkey_Combo.Value.ToLower())))
-            {
-                return true;
-            }
-            return false;
+			string key = GetKey1Lower();
+			if (string.IsNullOrEmpty(key)) return false;
+			string combo = GetCombo1Lower();
+			if (string.IsNullOrEmpty(combo))
+			{
+				return Input.GetKey(key) || Input.GetButton(key);
+			}
+			return (Input.GetKey(key) && Input.GetKey(combo)) || (Input.GetButton(key) && Input.GetButton(combo));
         }
     }
 
@@ -252,19 +291,14 @@ public static class VL_Utility
     {
         get
         {
-            if (ValheimLegends.Ability1_Hotkey.Value == "")
-            {
-                return false;
-            }
-            if (ValheimLegends.Ability1_Hotkey_Combo.Value == "")
-            {
-                return Input.GetKeyUp(ValheimLegends.Ability1_Hotkey.Value.ToLower()) || Input.GetButtonUp(ValheimLegends.Ability1_Hotkey.Value.ToLower());
-            }
-            if (Input.GetKeyUp(ValheimLegends.Ability1_Hotkey.Value.ToLower()) || Input.GetKeyUp(ValheimLegends.Ability1_Hotkey_Combo.Value.ToLower()) || Input.GetButtonUp(ValheimLegends.Ability1_Hotkey.Value.ToLower()) || Input.GetButtonUp(ValheimLegends.Ability1_Hotkey_Combo.Value.ToLower()))
-            {
-                return true;
-            }
-            return false;
+			string key = GetKey1Lower();
+			if (string.IsNullOrEmpty(key)) return false;
+			string combo = GetCombo1Lower();
+			if (string.IsNullOrEmpty(combo))
+			{
+				return Input.GetKeyUp(key) || Input.GetButtonUp(key);
+			}
+			return Input.GetKeyUp(key) || Input.GetKeyUp(combo) || Input.GetButtonUp(key) || Input.GetButtonUp(combo);
         }
     }
 
@@ -272,19 +306,14 @@ public static class VL_Utility
 	{
 		get
 		{
-			if (ValheimLegends.Ability2_Hotkey.Value == "")
+			string key = GetKey2Lower();
+			if (string.IsNullOrEmpty(key)) return false;
+			string combo = GetCombo2Lower();
+			if (string.IsNullOrEmpty(combo))
 			{
-				return false;
+				return Input.GetKeyDown(key) || Input.GetButtonDown(key);
 			}
-			if (ValheimLegends.Ability2_Hotkey_Combo.Value == "")
-			{
-				return Input.GetKeyDown(ValheimLegends.Ability2_Hotkey.Value.ToLower()) || Input.GetButtonDown(ValheimLegends.Ability2_Hotkey.Value.ToLower());
-			}
-			if ((Input.GetKeyDown(ValheimLegends.Ability2_Hotkey.Value.ToLower()) && Input.GetKey(ValheimLegends.Ability2_Hotkey_Combo.Value.ToLower())) || (Input.GetKey(ValheimLegends.Ability2_Hotkey.Value.ToLower()) && Input.GetKeyDown(ValheimLegends.Ability2_Hotkey_Combo.Value.ToLower())) || (Input.GetButtonDown(ValheimLegends.Ability2_Hotkey.Value.ToLower()) && Input.GetButton(ValheimLegends.Ability2_Hotkey_Combo.Value.ToLower())) || (Input.GetButton(ValheimLegends.Ability2_Hotkey.Value.ToLower()) && Input.GetButtonDown(ValheimLegends.Ability2_Hotkey_Combo.Value.ToLower())))
-			{
-				return true;
-			}
-			return false;
+			return (Input.GetKeyDown(key) && Input.GetKey(combo)) || (Input.GetKey(key) && Input.GetKeyDown(combo)) || (Input.GetButtonDown(key) && Input.GetButton(combo)) || (Input.GetButton(key) && Input.GetButtonDown(combo));
 		}
 	}
 
@@ -292,19 +321,14 @@ public static class VL_Utility
     {
         get
         {
-            if (ValheimLegends.Ability2_Hotkey.Value == "")
-            {
-                return false;
-            }
-            if (ValheimLegends.Ability2_Hotkey_Combo.Value == "")
-            {
-                return Input.GetKey(ValheimLegends.Ability2_Hotkey.Value.ToLower()) || Input.GetButton(ValheimLegends.Ability2_Hotkey.Value.ToLower());
-            }
-            if ((Input.GetKey(ValheimLegends.Ability2_Hotkey.Value.ToLower()) && Input.GetKey(ValheimLegends.Ability2_Hotkey_Combo.Value.ToLower())) || (Input.GetButton(ValheimLegends.Ability2_Hotkey.Value.ToLower()) && Input.GetButton(ValheimLegends.Ability2_Hotkey_Combo.Value.ToLower())))
-            {
-                return true;
-            }
-            return false;
+			string key = GetKey2Lower();
+			if (string.IsNullOrEmpty(key)) return false;
+			string combo = GetCombo2Lower();
+			if (string.IsNullOrEmpty(combo))
+			{
+				return Input.GetKey(key) || Input.GetButton(key);
+			}
+			return (Input.GetKey(key) && Input.GetKey(combo)) || (Input.GetButton(key) && Input.GetButton(combo));
         }
     }
 
@@ -312,19 +336,14 @@ public static class VL_Utility
     {
         get
         {
-            if (ValheimLegends.Ability2_Hotkey.Value == "")
-            {
-                return false;
-            }
-            if (ValheimLegends.Ability2_Hotkey_Combo.Value == "")
-            {
-                return Input.GetKeyUp(ValheimLegends.Ability2_Hotkey.Value.ToLower()) || Input.GetButtonUp(ValheimLegends.Ability2_Hotkey.Value.ToLower());
-            }
-            if (Input.GetKeyUp(ValheimLegends.Ability2_Hotkey.Value.ToLower()) || Input.GetKeyUp(ValheimLegends.Ability2_Hotkey_Combo.Value.ToLower()) || Input.GetButtonUp(ValheimLegends.Ability2_Hotkey.Value.ToLower()) || Input.GetButtonUp(ValheimLegends.Ability2_Hotkey_Combo.Value.ToLower()))
-            {
-                return true;
-            }
-            return false;
+			string key = GetKey2Lower();
+			if (string.IsNullOrEmpty(key)) return false;
+			string combo = GetCombo2Lower();
+			if (string.IsNullOrEmpty(combo))
+			{
+				return Input.GetKeyUp(key) || Input.GetButtonUp(key);
+			}
+			return Input.GetKeyUp(key) || Input.GetKeyUp(combo) || Input.GetButtonUp(key) || Input.GetButtonUp(combo);
         }
     }
 
@@ -332,19 +351,14 @@ public static class VL_Utility
 	{
 		get
 		{
-			if (ValheimLegends.Ability3_Hotkey.Value == "")
+			string key = GetKey3Lower();
+			if (string.IsNullOrEmpty(key)) return false;
+			string combo = GetCombo3Lower();
+			if (string.IsNullOrEmpty(combo))
 			{
-				return false;
+				return Input.GetKeyDown(key) || Input.GetButtonDown(key);
 			}
-			if (ValheimLegends.Ability3_Hotkey_Combo.Value == "")
-			{
-				return Input.GetKeyDown(ValheimLegends.Ability3_Hotkey.Value.ToLower()) || Input.GetButtonDown(ValheimLegends.Ability3_Hotkey.Value.ToLower());
-			}
-			if ((Input.GetKeyDown(ValheimLegends.Ability3_Hotkey.Value.ToLower()) && Input.GetKey(ValheimLegends.Ability3_Hotkey_Combo.Value.ToLower())) || (Input.GetKey(ValheimLegends.Ability3_Hotkey.Value.ToLower()) && Input.GetKeyDown(ValheimLegends.Ability3_Hotkey_Combo.Value.ToLower())) || (Input.GetButtonDown(ValheimLegends.Ability3_Hotkey.Value.ToLower()) && Input.GetButton(ValheimLegends.Ability3_Hotkey_Combo.Value.ToLower())) || (Input.GetButton(ValheimLegends.Ability3_Hotkey.Value.ToLower()) && Input.GetButtonDown(ValheimLegends.Ability3_Hotkey_Combo.Value.ToLower())))
-			{
-				return true;
-			}
-			return false;
+			return (Input.GetKeyDown(key) && Input.GetKey(combo)) || (Input.GetKey(key) && Input.GetKeyDown(combo)) || (Input.GetButtonDown(key) && Input.GetButton(combo)) || (Input.GetButton(key) && Input.GetButtonDown(combo));
 		}
 	}
 
@@ -352,19 +366,14 @@ public static class VL_Utility
 	{
 		get
 		{
-			if (ValheimLegends.Ability3_Hotkey.Value == "")
+			string key = GetKey3Lower();
+			if (string.IsNullOrEmpty(key)) return false;
+			string combo = GetCombo3Lower();
+			if (string.IsNullOrEmpty(combo))
 			{
-				return false;
+				return Input.GetKey(key) || Input.GetButton(key);
 			}
-			if (ValheimLegends.Ability3_Hotkey_Combo.Value == "")
-			{
-				return Input.GetKey(ValheimLegends.Ability3_Hotkey.Value.ToLower()) || Input.GetButton(ValheimLegends.Ability3_Hotkey.Value.ToLower());
-			}
-			if ((Input.GetKey(ValheimLegends.Ability3_Hotkey.Value.ToLower()) && Input.GetKey(ValheimLegends.Ability3_Hotkey_Combo.Value.ToLower())) || (Input.GetButton(ValheimLegends.Ability3_Hotkey.Value.ToLower()) && Input.GetButton(ValheimLegends.Ability3_Hotkey_Combo.Value.ToLower())))
-			{
-				return true;
-			}
-			return false;
+			return (Input.GetKey(key) && Input.GetKey(combo)) || (Input.GetButton(key) && Input.GetButton(combo));
 		}
 	}
 
@@ -372,19 +381,14 @@ public static class VL_Utility
 	{
 		get
 		{
-			if (ValheimLegends.Ability3_Hotkey.Value == "")
+			string key = GetKey3Lower();
+			if (string.IsNullOrEmpty(key)) return false;
+			string combo = GetCombo3Lower();
+			if (string.IsNullOrEmpty(combo))
 			{
-				return false;
+				return Input.GetKeyUp(key) || Input.GetButtonUp(key);
 			}
-			if (ValheimLegends.Ability3_Hotkey_Combo.Value == "")
-			{
-				return Input.GetKeyUp(ValheimLegends.Ability3_Hotkey.Value.ToLower()) || Input.GetButtonUp(ValheimLegends.Ability3_Hotkey.Value.ToLower());
-			}
-			if (Input.GetKeyUp(ValheimLegends.Ability3_Hotkey.Value.ToLower()) || Input.GetKeyUp(ValheimLegends.Ability3_Hotkey_Combo.Value.ToLower()) || Input.GetButtonUp(ValheimLegends.Ability3_Hotkey.Value.ToLower()) || Input.GetButtonUp(ValheimLegends.Ability3_Hotkey_Combo.Value.ToLower()))
-			{
-				return true;
-			}
-			return false;
+			return Input.GetKeyUp(key) || Input.GetKeyUp(combo) || Input.GetButtonUp(key) || Input.GetButtonUp(combo);
 		}
 	}
 
@@ -406,7 +410,7 @@ public static class VL_Utility
             if (rt == null) continue;
 
             // No template existe "TimeText" (hotkey/cooldown) e existe o text do nome.
-            // Ent„o pegamos o TMP_Text que N√O È o TimeText.
+            // Ent√£o pegamos o TMP_Text que N√ÉO √© o TimeText.
             TMP_Text label = null;
             var texts = rt.GetComponentsInChildren<TMP_Text>(true);
             foreach (var t in texts)
@@ -419,7 +423,7 @@ public static class VL_Utility
 
             if (label == null) continue;
 
-            // Localize se possÌvel, sen„o escreve raw
+            // Localize se poss√≠vel, sen√£o escreve raw
             if (Localization.instance != null)
                 label.text = Localization.instance.Localize(names[i]);
             else
@@ -491,7 +495,7 @@ public static class VL_Utility
 			float num4 = 0f;
 			float num5 = 106f * num2 + ValheimLegends.icon_Y_Offset.Value;
 			float num6 = 209f * num + ValheimLegends.icon_X_Offset.Value;
-			if (ValheimLegends.iconAlignment.Value.ToLower() == "vertical")
+			if (string.Equals(ValheimLegends.iconAlignment.Value, "vertical", System.StringComparison.OrdinalIgnoreCase))
 			{
 				num3 = 0f;
 				num4 = 100f * num2;
@@ -837,7 +841,7 @@ public static class VL_Utility
                 if (item == null) continue;
 
                 if (item.m_shared?.m_name != null &&
-                    item.m_shared.m_name.ToLower() == lowerName &&
+                    string.Equals(item.m_shared.m_name, lowerName, System.StringComparison.OrdinalIgnoreCase) &&
                     item.m_stack >= minStack)
                 {
                     return item;
@@ -847,4 +851,42 @@ public static class VL_Utility
         return null;
     }
 
+    private static readonly int[] BiomeHashes = new int[]
+    {
+        VL_Hashes.BiomeAsh,
+        VL_Hashes.BiomeBlackForest,
+        VL_Hashes.BiomeMeadows,
+        VL_Hashes.BiomeMist,
+        VL_Hashes.BiomeMountain,
+        VL_Hashes.BiomeOcean,
+        VL_Hashes.BiomePlains,
+        VL_Hashes.BiomeSwamp
+    };
+
+    public static void RemoveConflictingBiomes(SEMan seMan, Player caster, int currentBiomeHash)
+    {
+        if (seMan == null) return;
+        for (int i = 0; i < BiomeHashes.Length; i++)
+        {
+            int h = BiomeHashes[i];
+            if (h == currentBiomeHash) continue;
+            var se = seMan.GetStatusEffect(h);
+            if (se == null) continue;
+
+            Player c = null;
+            if (se is SE_BiomeMeadows b1) c = b1.caster;
+            else if (se is SE_BiomeBlackForest b2) c = b2.caster;
+            else if (se is SE_BiomeSwamp b3) c = b3.caster;
+            else if (se is SE_BiomeMountain b4) c = b4.caster;
+            else if (se is SE_BiomePlains b5) c = b5.caster;
+            else if (se is SE_BiomeOcean b6) c = b6.caster;
+            else if (se is SE_BiomeMist b7) c = b7.caster;
+            else if (se is SE_BiomeAsh b8) c = b8.caster;
+
+            if (c == caster)
+            {
+                seMan.RemoveStatusEffect(se);
+            }
+        }
+    }
 }
