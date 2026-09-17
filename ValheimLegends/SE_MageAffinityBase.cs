@@ -1,4 +1,4 @@
-﻿using HarmonyLib;
+using HarmonyLib;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -106,18 +106,22 @@ namespace ValheimLegends
 
         private static bool IsResting(Player p)
         {
+            if (p == null) return false;
             try
             {
-                string[] candidates = { "InRestingArea", "InComfortZone", "InShelter", "InSafeZone" };
-                foreach (var name in candidates)
-                {
-                    var mi = AccessTools.Method(p.GetType(), name);
-                    if (mi != null && mi.ReturnType == typeof(bool) && mi.GetParameters().Length == 0)
-                        return (bool)mi.Invoke(p, null);
-                }
-                return true;
+                if (p.InShelter() || p.IsSafeInHome())
+                    return true;
+
+                var seMan = p.GetSEMan();
+                if (seMan != null && seMan.HaveStatusEffect(SEMan.s_statusEffectResting))
+                    return true;
+
+                return p.GetComfortLevel() > 0;
             }
-            catch { return true; }
+            catch
+            {
+                return false;
+            }
         }
     }
 
