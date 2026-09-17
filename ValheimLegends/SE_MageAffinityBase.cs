@@ -109,14 +109,8 @@ namespace ValheimLegends
             if (p == null) return false;
             try
             {
-                if (p.InShelter() || p.IsSafeInHome())
-                    return true;
-
                 var seMan = p.GetSEMan();
-                if (seMan != null && seMan.HaveStatusEffect(SEMan.s_statusEffectResting))
-                    return true;
-
-                return p.GetComfortLevel() > 0;
+                return seMan != null && seMan.HaveStatusEffect(SEMan.s_statusEffectResting);
             }
             catch
             {
