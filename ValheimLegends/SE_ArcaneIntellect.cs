@@ -105,13 +105,9 @@ namespace ValheimLegends
     [HarmonyPatch]
     public static class ArcaneIntellect_EitrCostRedirect_Patch
     {
-        private static IEnumerable<MethodBase> TargetMethods()
+        private static MethodBase TargetMethod()
         {
-            var t = typeof(Player);
-            var mUse = AccessTools.Method(t, "UseEitr", new[] { typeof(float) });
-            if (mUse != null) yield return mUse;
-            var mConsume = AccessTools.Method(t, "ConsumeEitr", new[] { typeof(float) });
-            if (mConsume != null && mConsume != mUse) yield return mConsume;
+            return AccessTools.Method(typeof(Player), "UseEitr", new[] { typeof(float) });
         }
 
         private static bool Prefix(Player __instance, ref float v)

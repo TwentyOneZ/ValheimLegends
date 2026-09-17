@@ -1,10 +1,9 @@
-﻿using HarmonyLib;
+using HarmonyLib;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using UnityEngine;
-using static UnityEngine.UIElements.UIR.Allocator2D;
 
 namespace ValheimLegends;
 

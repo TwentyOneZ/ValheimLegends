@@ -12,7 +12,6 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 using static Attack;
-using static UnityEngine.GraphicsBuffer;
 using static ValheimLegends.Class_Mage;
 
 namespace ValheimLegends;
@@ -1720,7 +1719,7 @@ public class ValheimLegends : BaseUnityPlugin
 
 		se.m_name = $"{baseName}: {procChance} %";
 
-		if (UnityEngine.Random.RandomRangeInt(0, 100) <= procChance)
+		if (UnityEngine.Random.Range(0, 100) <= procChance)
 		{
 			if (element == EnchanterWeaponElement.Flame)
 			{
