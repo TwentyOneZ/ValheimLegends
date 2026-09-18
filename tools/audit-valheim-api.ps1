@@ -104,3 +104,4 @@ if ($violations.Count -gt 0) {
     Write-Host "Assembly is 100% compliant with Valheim 1.0.14 native APIs." -ForegroundColor Green
     exit 0
 }
+

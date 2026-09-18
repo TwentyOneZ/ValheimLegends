@@ -29,6 +29,20 @@ namespace ValheimLegends
         {
             base.UpdateStatusEffect(dt);
         }
+
+        public override bool IsDone()
+        {
+            if (ValheimLegends.vl_player == null || ValheimLegends.vl_player.vl_class != ValheimLegends.PlayerClass.Mage)
+            {
+                return true;
+            }
+            return base.IsDone();
+        }
+
+        public override bool CanAdd(Character character)
+        {
+            return base.CanAdd(character) && character.IsPlayer() && ValheimLegends.vl_player != null && ValheimLegends.vl_player.vl_class == ValheimLegends.PlayerClass.Mage;
+        }
     }
 
     internal static class ManaShieldUtil
@@ -44,6 +58,8 @@ namespace ValheimLegends
 
         internal static bool HasManaShield(Player p)
         {
+            if (ValheimLegends.vl_player == null || ValheimLegends.vl_player.vl_class != ValheimLegends.PlayerClass.Mage)
+                return false;
             return p != null && p.GetSEMan() != null && p.GetSEMan().HaveStatusEffect(SE_HASH);
         }
 

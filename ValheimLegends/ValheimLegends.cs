@@ -2919,6 +2919,8 @@ public class ValheimLegends : BaseUnityPlugin
 				}
 				if (flag)
 				{
+					Player targetPlayer = user as Player ?? Player.m_localPlayer;
+					RemoveAllClassBuffs(targetPlayer);
 					user.GetInventory().RemoveItem(item.m_shared.m_name, 1);
 					user.ShowRemovedMessage(item, 1);
 					user.RaiseSkill(ValheimLegends.DisciplineSkill, 0.0001f);
@@ -4934,7 +4936,194 @@ public class ValheimLegends : BaseUnityPlugin
 					break;
 				}
 			}
+			RemoveIncompatibleClassBuffs(p, ValheimLegends.vl_player.vl_class);
 			NameCooldowns();
+		}
+	}
+
+	public static readonly Dictionary<PlayerClass, int[]> ClassStatusEffectHashes = new Dictionary<PlayerClass, int[]>
+	{
+		{
+			PlayerClass.Mage, new int[]
+			{
+				"SE_VL_MageFireAffinity".GetStableHashCode(),
+				"SE_VL_MageFrostAffinity".GetStableHashCode(),
+				"SE_VL_MageArcaneAffinity".GetStableHashCode(),
+				"SE_VL_MageLightningAffinity".GetStableHashCode(),
+				"SE_VL_ManaShield".GetStableHashCode(),
+				"SE_VL_ElementalMastery".GetStableHashCode(),
+				"SE_VL_ArcaneIntellect".GetStableHashCode()
+			}
+		},
+		{
+			PlayerClass.Berserker, new int[]
+			{
+				"SE_VL_Berserk".GetStableHashCode(),
+				"SE_VL_Execute".GetStableHashCode()
+			}
+		},
+		{
+			PlayerClass.Druid, new int[]
+			{
+				"SE_VL_Regeneration".GetStableHashCode(),
+				"SE_VL_SeedRegeneration".GetStableHashCode(),
+				"SE_VL_RootsBuff".GetStableHashCode(),
+				"SE_VL_Companion".GetStableHashCode(),
+				"SE_VL_DruidFenringForm".GetStableHashCode(),
+				"SE_VL_DruidCultistForm".GetStableHashCode(),
+				"SE_VL_Shapeshift_CD".GetStableHashCode()
+			}
+		},
+		{
+			PlayerClass.Valkyrie, new int[]
+			{
+				"SE_VL_Bulwark".GetStableHashCode(),
+				"SE_VL_Valkyrie".GetStableHashCode()
+			}
+		},
+		{
+			PlayerClass.Shaman, new int[]
+			{
+				"SE_VL_Enrage".GetStableHashCode(),
+				"SE_VL_Shell".GetStableHashCode(),
+				"SE_VL_SpiritDrain".GetStableHashCode(),
+				"SE_VL_Windfury_CD".GetStableHashCode()
+			}
+		},
+		{
+			PlayerClass.Ranger, new int[]
+			{
+				"SE_VL_PowerShot".GetStableHashCode(),
+				"SE_VL_ShadowStalk".GetStableHashCode(),
+				"SE_VL_Ranger".GetStableHashCode()
+			}
+		},
+		{
+			PlayerClass.Rogue, new int[]
+			{
+				"SE_VL_Riposte".GetStableHashCode(),
+				"SE_VL_Rogue".GetStableHashCode()
+			}
+		},
+		{
+			PlayerClass.Monk, new int[]
+			{
+				"SE_VL_Monk".GetStableHashCode()
+			}
+		},
+		{
+			PlayerClass.Enchanter, new int[]
+			{
+				"SE_VL_BiomeMeadows".GetStableHashCode(),
+				"SE_VL_BiomeBlackForest".GetStableHashCode(),
+				"SE_VL_BiomeMountain".GetStableHashCode(),
+				"SE_VL_BiomeSwamp".GetStableHashCode(),
+				"SE_VL_BiomePlains".GetStableHashCode(),
+				"SE_VL_BiomeOcean".GetStableHashCode(),
+				"SE_VL_BiomeMist".GetStableHashCode(),
+				"SE_VL_BiomeAsh".GetStableHashCode(),
+				"SE_VL_FlameArmor".GetStableHashCode(),
+				"SE_VL_FlameWeapon".GetStableHashCode(),
+				"SE_VL_IceArmor".GetStableHashCode(),
+				"SE_VL_IceWeapon".GetStableHashCode(),
+				"SE_VL_ThunderArmor".GetStableHashCode(),
+				"SE_VL_ThunderWeapon".GetStableHashCode(),
+				"SE_VL_Charm".GetStableHashCode(),
+				"SE_VL_Charmcontrol".GetStableHashCode(),
+				"SE_VL_CharmImmunity".GetStableHashCode(),
+				"SE_VL_Weaken".GetStableHashCode()
+			}
+		},
+		{
+			PlayerClass.Metavoker, new int[]
+			{
+				"SE_VL_Reactivearmor".GetStableHashCode(),
+				"SE_VL_CDReactivearmor".GetStableHashCode()
+			}
+		},
+		{
+			PlayerClass.Priest, new int[]
+			{
+				"SE_VL_DyingLight_CD".GetStableHashCode()
+			}
+		}
+	};
+
+	public static readonly int[] GenericCooldownHashes = new int[]
+	{
+		"SE_VL_Ability1_CD".GetStableHashCode(),
+		"SE_VL_Ability2_CD".GetStableHashCode(),
+		"SE_VL_Ability3_CD".GetStableHashCode()
+	};
+
+	public static void RemoveAllClassBuffs(Player player)
+	{
+		if (player == null) return;
+		var seMan = player.GetSEMan();
+		if (seMan == null) return;
+
+		try { Class_Druid.TryActivate_HumanForm(player, true); } catch { }
+		try { Class_Mage.ResetState(player); } catch { }
+		Class_Valkyrie.isBlocking = false;
+		Class_Shaman.isWaterWalking = false;
+		Class_Shaman.gotWindfuryCooldown = false;
+
+		foreach (var kvp in ClassStatusEffectHashes)
+		{
+			foreach (int hash in kvp.Value)
+			{
+				if (seMan.HaveStatusEffect(hash))
+				{
+					seMan.RemoveStatusEffect(hash, true);
+				}
+			}
+		}
+
+		foreach (int hash in GenericCooldownHashes)
+		{
+			if (seMan.HaveStatusEffect(hash))
+			{
+				seMan.RemoveStatusEffect(hash, true);
+			}
+		}
+	}
+
+	public static void RemoveIncompatibleClassBuffs(Player player, PlayerClass targetClass)
+	{
+		if (player == null) return;
+		var seMan = player.GetSEMan();
+		if (seMan == null) return;
+
+		if (targetClass != PlayerClass.Druid)
+		{
+			try { Class_Druid.TryActivate_HumanForm(player, true); } catch { }
+		}
+		if (targetClass != PlayerClass.Mage)
+		{
+			try { Class_Mage.ResetState(player); } catch { }
+		}
+		if (targetClass != PlayerClass.Valkyrie)
+		{
+			Class_Valkyrie.isBlocking = false;
+		}
+		if (targetClass != PlayerClass.Shaman)
+		{
+			Class_Shaman.isWaterWalking = false;
+			Class_Shaman.gotWindfuryCooldown = false;
+		}
+
+		foreach (var kvp in ClassStatusEffectHashes)
+		{
+			if (kvp.Key != targetClass)
+			{
+				foreach (int hash in kvp.Value)
+				{
+					if (seMan.HaveStatusEffect(hash))
+					{
+						seMan.RemoveStatusEffect(hash, true);
+					}
+				}
+			}
 		}
 	}
 

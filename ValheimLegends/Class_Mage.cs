@@ -1,4 +1,4 @@
-﻿using HarmonyLib;
+using HarmonyLib;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -105,6 +105,28 @@ namespace ValheimLegends
             if (cooldowns == null) return 0f;
 
             return cooldowns.ContainsKey(id) ? cooldowns[id] : 0f;
+        }
+
+        public static void ResetState(Player p)
+        {
+            isMeditating = false;
+            meditationTimer = 0f;
+            meditatonFocus = MageAffinity.None;
+            meteorCharging = false;
+            meteorCount = 0;
+            meteorTimer = 0f;
+            blizzardCharging = false;
+            blizzardChargeTimer = 0f;
+            blizzardSpawnTimer = 0f;
+            blizzardTickCount = 0;
+            if (p != null)
+            {
+                long id = p.GetPlayerID();
+                if (CooldownRegistry.ContainsKey(id))
+                {
+                    CooldownRegistry.Remove(id);
+                }
+            }
         }
 
         // --- LOGICA DE ACUMULO DE DANO (FROZEN) ---

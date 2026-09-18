@@ -72,6 +72,11 @@ public class SE_Berserk : SE_Stats
 
 	public override bool IsDone()
 	{
+		if (ValheimLegends.vl_player == null || ValheimLegends.vl_player.vl_class != ValheimLegends.PlayerClass.Berserker)
+		{
+			Traverse.Create((Player)m_character).Field("m_staminaRegenDelay").SetValue(savedStaminaRegenDelay);
+			return true;
+		}
 		if (m_ttl > 0f && m_time > m_ttl)
 		{
 			Traverse.Create((Player)m_character).Field("m_staminaRegenDelay").SetValue(savedStaminaRegenDelay);
@@ -82,5 +87,6 @@ public class SE_Berserk : SE_Stats
 	public override bool CanAdd(Character character)
 	{
 		return character.IsPlayer();
+		return base.CanAdd(character) && character.IsPlayer() && ValheimLegends.vl_player != null && ValheimLegends.vl_player.vl_class == ValheimLegends.PlayerClass.Berserker;
 	}
 }

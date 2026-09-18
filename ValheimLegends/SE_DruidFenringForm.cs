@@ -180,6 +180,7 @@ namespace ValheimLegends
         }
 
         public override bool CanAdd(Character character) => character.IsPlayer();
+        public override bool CanAdd(Character character) => character.IsPlayer() && ValheimLegends.vl_player != null && ValheimLegends.vl_player.vl_class == ValheimLegends.PlayerClass.Druid;
 
         private void TryApplyFenrisVisual()
         {
@@ -230,6 +231,10 @@ namespace ValheimLegends
 
         public override bool IsDone()
         {
+            if (ValheimLegends.vl_player == null || ValheimLegends.vl_player.vl_class != ValheimLegends.PlayerClass.Druid)
+            {
+                return true;
+            }
             return false;
         }
     }

@@ -33,8 +33,18 @@ public class SE_Execute : StatusEffect
 		base.UpdateStatusEffect(dt);
 	}
 
+	public override bool IsDone()
+	{
+		if (ValheimLegends.vl_player == null || ValheimLegends.vl_player.vl_class != ValheimLegends.PlayerClass.Berserker)
+		{
+			return true;
+		}
+		return base.IsDone();
+	}
+
 	public override bool CanAdd(Character character)
 	{
 		return character.IsPlayer();
+		return base.CanAdd(character) && character.IsPlayer() && ValheimLegends.vl_player != null && ValheimLegends.vl_player.vl_class == ValheimLegends.PlayerClass.Berserker;
 	}
 }

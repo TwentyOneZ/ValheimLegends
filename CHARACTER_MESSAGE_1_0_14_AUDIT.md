@@ -202,3 +202,4 @@ O script retorna código `0` em caso de conformidade total ou código `1` com li
   Está **100% livre** de referências legadas para `Character.Message(4-arg)`. Todas as 204 instruções compiladas chamam a assinatura nativa de 5 parâmetros do Valheim 1.0.14. Nenhuma alteração cosmética ou mudança de versão para 0.5.2 foi realizada, conforme determinado pelo **PASSO 17** e **Critério de Aceite B**.
 - **Resolução do erro remanescente no modpack**:  
   Para eliminar definitivamente as 28 ocorrências de `MissingMethodException: Method not found: void .Character.Message(MessageHud/MessageType,string,int,UnityEngine.Sprite)`, os mods listados na tabela da Seção 7 (especialmente `Hearthstone.dll`, `CreatureLevelControl.dll`, `Sailing.dll`, `Resurrection.dll`, `Mining.dll`, `PotionsPlus.dll` e os mods de skills da Smoothbrain) devem ser atualizados para versões compatíveis com Valheim 1.0 ou desativados.
+
