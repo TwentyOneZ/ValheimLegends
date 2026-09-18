@@ -19,7 +19,6 @@ public class SE_Companion : SE_Stats
     private float m_interval = 5f;
 
     private const float MAX_DISTANCE_FROM_SUMMONER = 60f;
-    private const float MAX_DISTANCE_FROM_SUMMONER_SQR = 3600f;
     private float m_distanceCheckTimer = 0f;
     private const float DISTANCE_CHECK_INTERVAL = 0.5f;
 
@@ -27,7 +26,6 @@ public class SE_Companion : SE_Stats
 
     private const string ZDO_SCALE_KEY = "VL_Companion_Scale";
     private float m_appliedScale = -1f; // cache para evitar re-aplicar toda hora
-    private ZNetView m_nview;
 
     // cache (opcional)
     public Player summoner;
@@ -41,25 +39,6 @@ public class SE_Companion : SE_Stats
         m_ttl = m_baseTTL;
     }
 
-    public override void Setup(Character character)
-    {
-        base.Setup(character);
-        if (m_character != null)
-        {
-            m_nview = m_character.GetComponent<ZNetView>();
-            ApplyScaleFromZDO();
-        }
-    }
-
-    private ZNetView GetZNetView()
-    {
-        if (m_nview == null && m_character != null)
-        {
-            m_nview = m_character.GetComponent<ZNetView>();
-        }
-        return m_nview;
-    }
-
     public override void ModifySpeed(float baseSpeed, ref float speed, Character character, Vector3 dir)
     {
         speed *= speedModifier;
@@ -71,12 +50,8 @@ public class SE_Companion : SE_Stats
 
         // aplica scale antes de qualquer coisa (para multiplayer)
         ApplyScaleFromZDO();
-        if (m_appliedScale < 0f)
-        {
-            ApplyScaleFromZDO();
-        }
 
-        // checagem de dist√¢ncia
+        // checagem de dist‚ncia
         m_distanceCheckTimer -= dt;
         if (m_distanceCheckTimer <= 0f)
         {
@@ -96,10 +71,8 @@ public class SE_Companion : SE_Stats
     private void ApplyScaleFromZDO()
     {
         if (m_character == null) return;
-        if (m_appliedScale >= 0f || m_character == null) return;
 
         var nview = m_character.GetComponent<ZNetView>();
-        var nview = GetZNetView();
         if (nview == null || !nview.IsValid()) return;
 
         var zdo = nview.GetZDO();
@@ -123,7 +96,6 @@ public class SE_Companion : SE_Stats
 
         float dist = Vector3.Distance(m_character.transform.position, owner.transform.position);
         if (dist <= MAX_DISTANCE_FROM_SUMMONER) return;
-        if ((m_character.transform.position - owner.transform.position).sqrMagnitude <= MAX_DISTANCE_FROM_SUMMONER_SQR) return;
 
         m_character.transform.SetPositionAndRotation(owner.transform.position + Vector3.up * 2f, Quaternion.identity);
 
@@ -141,8 +113,8 @@ public class SE_Companion : SE_Stats
     {
         if (owner == null || m_character == null) return;
 
-        // IMPORTANT√çSSIMO: cooldown √© "do jogador".
-        // S√≥ o cliente do pr√≥prio jogador deve mexer nisso (mesmo padr√£o do seu Block+Ability2).
+        // IMPORTANTÕSSIMO: cooldown È "do jogador".
+        // SÛ o cliente do prÛprio jogador deve mexer nisso (mesmo padr„o do seu Block+Ability2).
         if (Player.m_localPlayer == null || owner != Player.m_localPlayer) return;
 
         var seMan = owner.GetSEMan();
@@ -150,16 +122,14 @@ public class SE_Companion : SE_Stats
 
         int cdHash = "SE_VL_Ability2_CD".GetStableHashCode();
         if (!seMan.HaveStatusEffect(cdHash)) return;
-        if (!(seMan.GetStatusEffect(VL_Hashes.Ability2_CD) is SE_Ability2_CD cd)) return;
 
         var cd = seMan.GetStatusEffect(cdHash) as SE_Ability2_CD;
         if (cd == null) return;
 
         float hpPct = Mathf.Clamp01(m_character.GetHealthPercentage());
 
-        // m_time √© protected -> reflection via Harmony Traverse
+        // m_time È protected -> reflection via Harmony Traverse
         float time = Traverse.Create(cd).Field("m_time").GetValue<float>();
-        float time = VL_ReflectCache.GetStatusEffectTime(cd);
         float ttl = cd.m_ttl;
 
         float remaining = ttl - time;
@@ -170,7 +140,6 @@ public class SE_Companion : SE_Stats
         
         float previousttl = owner.GetSEMan().GetStatusEffect("SE_VL_Ability2_CD".GetStableHashCode()).m_ttl;
         owner.GetSEMan().GetStatusEffect("SE_VL_Ability2_CD".GetStableHashCode()).m_ttl = newTime; 
-        cd.m_ttl = newTime; 
 
 
     }
@@ -180,13 +149,12 @@ public class SE_Companion : SE_Stats
         if (m_character == null) return;
 
         var nview = m_character.GetComponent<ZNetView>();
-        var nview = GetZNetView();
         if (nview == null || !nview.IsValid()) return;
 
-        // s√≥ o owner deve "matar" o character; evita NullRef em SyncVelocity causado por Destroy no meio do FixedUpdate
+        // sÛ o owner deve "matar" o character; evita NullRef em SyncVelocity causado por Destroy no meio do FixedUpdate
         if (!nview.IsOwner())
         {
-            // fallback: expira r√°pido e o owner vai executar IsDone e matar
+            // fallback: expira r·pido e o owner vai executar IsDone e matar
             m_ttl = 0.01f;
             m_time = m_ttl + 1f;
             return;
@@ -225,7 +193,6 @@ public class SE_Companion : SE_Stats
         if (m_character == null) return null;
 
         var nview = m_character.GetComponent<ZNetView>();
-        var nview = GetZNetView();
         if (nview == null || !nview.IsValid()) return null;
 
         var zdo = nview.GetZDO();

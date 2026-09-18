@@ -16,11 +16,11 @@ public class Class_Ranger
 
 	public static void Process_Input(Player player)
 	{
+		System.Random random = new System.Random();
 		UnityEngine.Vector3 vector = default(Vector3);
 		if (VL_Utility.Ability3_Input_Down)
 		{
 			if (!player.GetSEMan().HaveStatusEffect("SE_VL_Ability3_CD".GetStableHashCode()))
-			if (!player.GetSEMan().HaveStatusEffect(VL_Hashes.Ability3_CD))
 			{
                 if (player.IsBlocking())
                 {
@@ -49,7 +49,7 @@ public class Class_Ranger
                         return;
                     }
 
-                    // 3) cooldown/skill etc (seu cÃ³digo)
+                    // 3) cooldown/skill etc (seu código)
                     StatusEffect statusEffect = (SE_Ability3_CD)ScriptableObject.CreateInstance(typeof(SE_Ability3_CD));
                     statusEffect.m_ttl = 0.5f;
                     player.GetSEMan().AddStatusEffect(statusEffect);
@@ -58,7 +58,7 @@ public class Class_Ranger
                     // 4) consumir 1 Ancient Seed
                     inv.RemoveItem(foundItem, requiredItems);
 
-                    // 5) criar o item do prefab e adicionar no inventÃ¡rio
+                    // 5) criar o item do prefab e adicionar no inventário
                     const string arrowPrefabName = "ArrowWood";
 
                     if (ZNetScene.instance == null)
@@ -84,11 +84,11 @@ public class Class_Ranger
                     ItemDrop.ItemData arrowItem = arrowDrop.m_itemData.Clone();
                     arrowItem.m_stack = 20;
 
-                    // adiciona no inventÃ¡rio (retorna false se inventÃ¡rio cheio)
+                    // adiciona no inventário (retorna false se inventário cheio)
                     bool added = inv.AddItem(arrowItem);
                     if (!added)
                     {
-                        // fallback: se inventÃ¡rio cheio, dropa no chÃ£o
+                        // fallback: se inventário cheio, dropa no chão
                         ItemDrop.DropItem(arrowItem, arrowItem.m_stack, player.transform.position + player.transform.forward, Quaternion.identity);
                         player.Message(MessageHud.MessageType.TopLeft, "Inventory full. Dropped arrows on the ground.");
                     }
@@ -117,13 +117,8 @@ public class Class_Ranger
 						sE_PowerShot.hitCount = Mathf.RoundToInt(3f + 0.05f * player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.DisciplineSkillDef)
 							.m_level * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddPhysicDamage() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddAttackSpeed() / 40f), 0f, 0.5f)));
 						if (player.GetSEMan().HaveStatusEffect("SE_VL_PowerShot".GetStableHashCode()))
-						float discLevel = VL_SkillHelper.GetSkillLevel(player, ValheimLegends.DisciplineSkillDef) * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddPhysicDamage() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddAttackSpeed() / 40f), 0f, 0.5f));
-						sE_PowerShot.m_ttl = SE_PowerShot.m_baseTTL + (float)Mathf.RoundToInt(0.05f * discLevel);
-						sE_PowerShot.hitCount = Mathf.RoundToInt(3f + 0.05f * discLevel);
-						if (player.GetSEMan().HaveStatusEffect(VL_Hashes.PowerShot))
 						{
 							StatusEffect statusEffect2 = player.GetSEMan().GetStatusEffect("SE_VL_PowerShot".GetStableHashCode());
-							StatusEffect statusEffect2 = player.GetSEMan().GetStatusEffect(VL_Hashes.PowerShot);
 							player.GetSEMan().RemoveStatusEffect(statusEffect2);
 						}
 						player.GetSEMan().AddStatusEffect(sE_PowerShot);
@@ -143,7 +138,6 @@ public class Class_Ranger
 		else if (VL_Utility.Ability2_Input_Down)
 		{
 			if (!player.GetSEMan().HaveStatusEffect("SE_VL_Ability2_CD".GetStableHashCode()))
-			if (!player.GetSEMan().HaveStatusEffect(VL_Hashes.Ability2_CD))
 			{
 				if (player.GetStamina() >= VL_Utility.GetSummonWolfCost(player))
 				{
@@ -152,7 +146,6 @@ public class Class_Ranger
 					player.GetSEMan().AddStatusEffect(statusEffect3);
 					float level = player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.ConjurationSkillDef)
 						.m_level * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddStamina() / 200f) + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 80f), 0f, 0.5f));
-					float level = VL_SkillHelper.GetSkillLevel(player, ValheimLegends.ConjurationSkillDef) * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddStamina() / 200f) + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 80f), 0f, 0.5f));
 					player.UseStamina(VL_Utility.GetSummonWolfCost(player));
 					player.StartEmote("cheer");
 					vector = player.transform.position + player.transform.forward * 4f;
@@ -217,14 +210,10 @@ public class Class_Ranger
 					list.Clear();
 					Character.GetCharactersInRange(player.transform.position, 25f, list);
 					foreach (Character characterInArea in list)
-					using (VL_BufferPool.GetScope(out var list))
 					{
 						if (characterInArea.gameObject.name.ToLower().Contains(companionName))
-						Character.GetCharactersInRange(player.transform.position, 25f, list);
-						foreach (Character characterInArea in list)
 						{
 							if (characterInArea.GetSEMan().HaveStatusEffect("SE_VL_Companion".GetStableHashCode()))
-							if (characterInArea.gameObject.name.IndexOf(companionName, StringComparison.OrdinalIgnoreCase) >= 0)
 							{
 								SE_Ability2_CD sE_Ability2_CD = Player.m_localPlayer.GetSEMan().GetStatusEffect("SE_VL_Ability2_CD".GetStableHashCode()) as SE_Ability2_CD;
 								float new_mTTL = Mathf.Min(sE_Ability2_CD.m_ttl, Mathf.Sqrt(sE_Ability2_CD.m_ttl / characterInArea.GetHealthPercentage()));
@@ -234,35 +223,16 @@ public class Class_Ranger
 								player.GetSEMan().AddStatusEffect(statusEffect3);
 								SE_Companion sE_Companion = characterInArea.GetSEMan().GetStatusEffect("SE_VL_Companion".GetStableHashCode()) as SE_Companion;
 								if (sE_Companion.summoner == Player.m_localPlayer)
-								if (characterInArea.GetSEMan().HaveStatusEffect(VL_Hashes.Companion))
 								{
 									MonsterAI component = characterInArea.GetComponent<MonsterAI>();
 									if (component != null)
-									SE_Ability2_CD sE_Ability2_CD = Player.m_localPlayer.GetSEMan().GetStatusEffect(VL_Hashes.Ability2_CD) as SE_Ability2_CD;
-									float new_mTTL = Mathf.Min(sE_Ability2_CD.m_ttl, Mathf.Sqrt(sE_Ability2_CD.m_ttl / characterInArea.GetHealthPercentage()));
-									player.GetSEMan().RemoveStatusEffect(sE_Ability2_CD);
-									StatusEffect statusEffect3 = (SE_Ability2_CD)ScriptableObject.CreateInstance(typeof(SE_Ability2_CD));
-									statusEffect3.m_ttl = new_mTTL;
-									player.GetSEMan().AddStatusEffect(statusEffect3);
-									SE_Companion sE_Companion = characterInArea.GetSEMan().GetStatusEffect(VL_Hashes.Companion) as SE_Companion;
-									if (sE_Companion.summoner == Player.m_localPlayer)
 									{
 										component.SetFollowTarget(null);
-										MonsterAI component = characterInArea.GetComponent<MonsterAI>();
-										if (component != null)
-										{
-											component.SetFollowTarget(null);
-										}
-										characterInArea.m_faction = Character.Faction.MountainMonsters;
-										HitData hitData = new HitData();
-										hitData.m_damage.m_slash = 9999f;
-										characterInArea.Damage(hitData);
 									}
 									characterInArea.m_faction = Character.Faction.MountainMonsters;
 									HitData hitData = new HitData();
 									hitData.m_damage.m_slash = 9999f;
 									characterInArea.Damage(hitData);
-									break;
 								}
 								break;
 							}
@@ -340,43 +310,12 @@ public class Class_Ranger
 							list.Clear();
 							Character.GetCharactersInRange(player.transform.position, 25f, list);
 							foreach (Character characterInArea in list)
-							using (VL_BufferPool.GetScope(out var list))
 							{
 								if (characterInArea.gameObject.name.ToLower().Contains(companionName))
-								Character.GetCharactersInRange(player.transform.position, 25f, list);
-								foreach (Character characterInArea in list)
 								{
 									if (characterInArea.GetHealthPercentage().Equals(1f))
-									if (characterInArea.gameObject.name.IndexOf(companionName, StringComparison.OrdinalIgnoreCase) >= 0)
 									{
 										continue;
-										if (characterInArea.GetHealthPercentage().Equals(1f))
-										{
-											continue;
-										}
-										// Found a wolf to heal! Time to check if trainer has stamina.
-										noOneToHeal = false;
-										if (player.GetStamina() >= (VL_Utility.GetSummonWolfCost(player) * (2 * healingPower)))
-										{
-											player.UseStamina(VL_Utility.GetSummonWolfCost(player) * (2 * healingPower));
-											Player.m_localPlayer?.GetInventory().RemoveOneItem(wolfFoodItem);
-											player.StartEmote("cheer");
-											player.Message(MessageHud.MessageType.TopLeft, "Consumed 1 " + wolfFoodItem.m_shared.m_name + " to heal your companion by " + (characterInArea.GetMaxHealth() * healingPower).ToString("#") + " health.");
-											characterInArea.Heal(Mathf.Max(characterInArea.GetMaxHealth() * healingPower, healingPower * 10f));
-											float level = VL_SkillHelper.GetSkillLevel(player, ValheimLegends.ConjurationSkillDef) * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddStamina() / 200f) + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 80f), 0f, 0.5f));
-											SE_Regeneration sE_Regeneration = (SE_Regeneration)ScriptableObject.CreateInstance(typeof(SE_Regeneration));
-											sE_Regeneration.m_ttl = SE_Regeneration.m_baseTTL * (1f + level / 300f);
-											sE_Regeneration.m_HealAmount = 0.5f + level * VL_GlobalConfigs.g_DamageModifer * VL_GlobalConfigs.c_druidRegen;
-											sE_Regeneration.doOnce = false;
-											characterInArea.GetSEMan().AddStatusEffect(sE_Regeneration, resetTime: true);
-											UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("vfx_Potion_stamina_medium"), characterInArea.transform.position, UnityEngine.Quaternion.identity);
-											UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("vfx_WishbonePing"), characterInArea.transform.position, UnityEngine.Quaternion.identity);
-											player.RaiseSkill(global::ValheimLegends.ValheimLegends.ConjurationSkill, VL_Utility.GetSummonWolfSkillGain(player) * (healingPower));
-										}
-										else
-										{
-											player.Message(MessageHud.MessageType.TopLeft, "Not enough stamina to Heal Wolf: (" + player.GetStamina().ToString("#.#") + "/" + (VL_Utility.GetSummonWolfCost(player) * (4 * healingPower)) + ")");
-										}
 									}
 									// Found a wolf to heal! Time to check if trainer has stamina.
 									noOneToHeal = false;
@@ -421,13 +360,11 @@ public class Class_Ranger
 				return;
 			}
 			if (!player.GetSEMan().HaveStatusEffect("SE_VL_Ability1_CD".GetStableHashCode()))
-			if (!player.GetSEMan().HaveStatusEffect(VL_Hashes.Ability1_CD))
 			{
 				if (player.GetStamina() >= VL_Utility.GetShadowStalkCost(player))
 				{
 					float level2 = player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.DisciplineSkillDef)
 						.m_level * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddPhysicDamage() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddAttackSpeed() / 40f), 0f, 0.5f));
-					float level2 = VL_SkillHelper.GetSkillLevel(player, ValheimLegends.DisciplineSkillDef) * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddPhysicDamage() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddAttackSpeed() / 40f), 0f, 0.5f));
 					StatusEffect statusEffect4 = (SE_Ability1_CD)ScriptableObject.CreateInstance(typeof(SE_Ability1_CD));
 					statusEffect4.m_ttl = VL_Utility.GetShadowStalkCooldown(player);
 					player.GetSEMan().AddStatusEffect(statusEffect4);
@@ -444,23 +381,14 @@ public class Class_Ranger
 					list.Clear();
 					Character.GetCharactersInRange(player.GetCenterPoint(), 500f, list);
 					foreach (Character item in list)
-					using (VL_BufferPool.GetScope(out var list))
 					{
 						if (item.GetBaseAI() != null && item.GetBaseAI() is MonsterAI && item.GetBaseAI().IsEnemy(player))
-						Character.GetCharactersInRange(player.GetCenterPoint(), 500f, list);
-						foreach (Character item in list)
 						{
 							MonsterAI monsterAI2 = item.GetBaseAI() as MonsterAI;
 							if (monsterAI2 != null && monsterAI2.GetTargetCreature() == player)
-							if (item.GetBaseAI() != null && item.GetBaseAI() is MonsterAI && item.GetBaseAI().IsEnemy(player))
 							{
 								Traverse.Create(monsterAI2).Field("m_alerted").SetValue(false);
 								Traverse.Create(monsterAI2).Field("m_targetCreature").SetValue(null);
-								MonsterAI monsterAI2 = item.GetBaseAI() as MonsterAI;
-								if (monsterAI2 != null && monsterAI2.GetTargetCreature() == player)
-								{
-									VL_ReflectCache.ResetMonsterAggro(monsterAI2);
-								}
 							}
 						}
 					}

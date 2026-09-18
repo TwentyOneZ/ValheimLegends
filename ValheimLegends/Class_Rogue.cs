@@ -32,8 +32,6 @@ public class Class_Rogue
 				ItemDrop.ItemData.SharedData shared = localPlayer.GetCurrentWeapon().m_shared;
 				ItemDrop.ItemData value = Traverse.Create(localPlayer).Field("m_leftItem").GetValue<ItemDrop.ItemData>();
 				if (shared != null && (shared.m_name.ToLower().Contains("knife") || shared.m_name.Contains("dagger")) && value == null)
-				ItemDrop.ItemData value = VL_ReflectCache.GetLeftItem(localPlayer);
-				if (shared != null && (shared.m_name.IndexOf("knife", System.StringComparison.OrdinalIgnoreCase) >= 0 || shared.m_name.IndexOf("dagger", System.StringComparison.OrdinalIgnoreCase) >= 0) && value == null)
 				{
 					return true;
 				}
@@ -48,7 +46,6 @@ public class Class_Rogue
 		{
 			float level = player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.AlterationSkillDef)
 				.m_level * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddCriticalChance() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 80f), 0f, 0.5f));
-			float level = VL_SkillHelper.GetSkillLevel(player, ValheimLegends.AlterationSkillDef) * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddCriticalChance() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 80f), 0f, 0.5f));
 			UnityEngine.Vector3 vector = player.GetEyePoint() + player.GetLookDir() * 0.2f + player.transform.up * 0.3f + player.transform.right * 0.28f;
 			GameObject prefab = ZNetScene.instance.GetPrefab("VL_PoisonBomb");
 			GameObject gameObject = Object.Instantiate(prefab, vector, UnityEngine.Quaternion.identity);
@@ -74,14 +71,12 @@ public class Class_Rogue
 			UnityEngine.Vector3 vector2 = UnityEngine.Vector3.MoveTowards(gameObject.transform.position, target, 1f);
 			component.Setup(player, (vector2 - gameObject.transform.position) * 25f, -1f, hitData, null, null);
 			Traverse.Create(component).Field("m_skill").SetValue(ValheimLegends.AlterationSkill);
-			VL_ReflectCache.SetProjectileSkill(component, ValheimLegends.AlterationSkill);
 			gameObject = null;
 		}
 		else
 		{
 			float level2 = player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.DisciplineSkillDef)
 				.m_level * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddPhysicDamage() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddAttackSpeed() / 40f), 0f, 0.5f));
-			float level2 = VL_SkillHelper.GetSkillLevel(player, ValheimLegends.DisciplineSkillDef) * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddPhysicDamage() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddAttackSpeed() / 40f), 0f, 0.5f));
 			UnityEngine.Vector3 vector3 = player.GetEyePoint() + player.GetLookDir() * 0.2f + player.transform.up * 0.3f + player.transform.right * 0.28f;
 			GameObject prefab3 = ZNetScene.instance.GetPrefab("VL_ThrowingKnife");
 			GameObject gameObject2 = Object.Instantiate(prefab3, vector3, UnityEngine.Quaternion.identity);
@@ -102,7 +97,6 @@ public class Class_Rogue
 			UnityEngine.Vector3 vector4 = UnityEngine.Vector3.MoveTowards(gameObject2.transform.position, target2, 1f);
 			component2.Setup(player, (vector4 - gameObject2.transform.position) * 30f, -1f, hitData2, null, null);
 			Traverse.Create(component2).Field("m_skill").SetValue(ValheimLegends.AlterationSkill);
-			VL_ReflectCache.SetProjectileSkill(component2, ValheimLegends.AlterationSkill);
 			gameObject2 = null;
 		}
 	}
@@ -112,7 +106,6 @@ public class Class_Rogue
 		if (ZInput.GetButtonDown("Jump") && !player.IsDead() && !player.InAttack() && !player.IsEncumbered() && !player.InDodge() && !player.IsKnockedBack())
 		{
 			SE_Rogue sE_Rogue = (SE_Rogue)player.GetSEMan().GetStatusEffect("SE_VL_Rogue".GetStableHashCode());
-			SE_Rogue sE_Rogue = (SE_Rogue)player.GetSEMan().GetStatusEffect(VL_Hashes.Rogue);
 			if (!player.IsOnGround() && canDoubleJump && sE_Rogue != null && sE_Rogue.hitCount > 0)
 			{
 				UnityEngine.Vector3 velocity = player.GetVelocity();
@@ -122,7 +115,6 @@ public class Class_Rogue
 				canDoubleJump = false;
 				altitude = 0f;
 				((ZSyncAnimation)typeof(Player).GetField("m_zanim", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(player)).SetTrigger("jump");
-				VL_ReflectCache.GetZAnim(player).SetTrigger("jump");
 			}
 			else if (player.IsOnGround())
 			{
@@ -132,12 +124,10 @@ public class Class_Rogue
 		if (player.IsBlocking() && ZInput.GetButtonDown("Attack"))
 		{
 			SE_Rogue sE_Rogue2 = (SE_Rogue)player.GetSEMan().GetStatusEffect("SE_VL_Rogue".GetStableHashCode());
-			SE_Rogue sE_Rogue2 = (SE_Rogue)player.GetSEMan().GetStatusEffect(VL_Hashes.Rogue);
 			if (sE_Rogue2 != null && sE_Rogue2.hitCount > 0)
 			{
 				sE_Rogue2.hitCount--;
 				((ZSyncAnimation)typeof(Player).GetField("m_zanim", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(player)).SetTrigger("throw_bomb");
-				VL_ReflectCache.GetZAnim(player).SetTrigger("throw_bomb");
 				ValheimLegends.isChargingDash = true;
 				ValheimLegends.dashCounter = 0;
 				throwDagger = true;
@@ -171,7 +161,6 @@ public class Class_Rogue
 				if (flag && !component.IsPlayer())
 				{
 					if (!player.GetSEMan().HaveStatusEffect("SE_VL_Ability3_CD".GetStableHashCode()))
-					if (!player.GetSEMan().HaveStatusEffect(VL_Hashes.Ability3_CD))
 					{
 						if (player.GetStamina() >= VL_Utility.GetBackstabCost)
 						{
@@ -181,7 +170,6 @@ public class Class_Rogue
 							player.UseStamina(VL_Utility.GetBackstabCost);
 							float level = player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.DisciplineSkillDef)
 								.m_level * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddPhysicDamage() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddAttackSpeed() / 40f), 0f, 0.5f));
-							float level = VL_SkillHelper.GetSkillLevel(player, ValheimLegends.DisciplineSkillDef) * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddPhysicDamage() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddAttackSpeed() / 40f), 0f, 0.5f));
 							Object.Instantiate(ZNetScene.instance.GetPrefab("fx_VL_Smokeburst"), player.GetEyePoint(), UnityEngine.Quaternion.identity);
 							backstabVector = (component.transform.position - player.transform.position) / UnityEngine.Vector3.Distance(component.transform.position, player.transform.position);
 							float num = -1.5f;
@@ -198,7 +186,6 @@ public class Class_Rogue
 							playerBody.position = backstabPoint;
 							player.transform.rotation = component.transform.rotation;
 							((ZSyncAnimation)typeof(Player).GetField("m_zanim", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(player)).SetTrigger("knife_stab2");
-							VL_ReflectCache.GetZAnim(player).SetTrigger("knife_stab2");
 							if (BaseAI.IsEnemy(player, component))
 							{
 								UnityEngine.Vector3 dir = component.transform.position - player.transform.position;
@@ -239,7 +226,6 @@ public class Class_Rogue
 		else if (VL_Utility.Ability2_Input_Down)
 		{
 			if (!player.GetSEMan().HaveStatusEffect("SE_VL_Ability2_CD".GetStableHashCode()))
-			if (!player.GetSEMan().HaveStatusEffect(VL_Hashes.Ability2_CD))
 			{
 				if (player.GetStamina() >= VL_Utility.GetFadeCost)
 				{
@@ -249,7 +235,6 @@ public class Class_Rogue
 					player.UseStamina(VL_Utility.GetFadeCost);
 					float level2 = player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.IllusionSkillDef)
 						.m_level * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddAttackSpeed() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 80f), 0f, 0.5f));
-					float level2 = VL_SkillHelper.GetSkillLevel(player, ValheimLegends.IllusionSkillDef) * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddAttackSpeed() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 80f), 0f, 0.5f));
 					GameObject prefab = ZNetScene.instance.GetPrefab("vfx_odin_despawn");
 					Object.Instantiate(prefab, player.GetCenterPoint(), UnityEngine.Quaternion.identity);
 					Object.Instantiate(ZNetScene.instance.GetPrefab("sfx_wraith_death"), player.transform.position, UnityEngine.Quaternion.identity);
@@ -263,10 +248,8 @@ public class Class_Rogue
 				}
 			}
 			else if (player.GetSEMan().HaveStatusEffect("SE_VL_Ability2_CD".GetStableHashCode()))
-			else if (player.GetSEMan().HaveStatusEffect(VL_Hashes.Ability2_CD))
 			{
 				if ((fadePoint - player.transform.position).magnitude < 100f)
-				if ((fadePoint - player.transform.position).sqrMagnitude < 10000f)
 				{
 					GameObject prefab2 = ZNetScene.instance.GetPrefab("vfx_odin_despawn");
 					Object.Instantiate(prefab2, player.GetCenterPoint(), UnityEngine.Quaternion.identity);
@@ -275,7 +258,6 @@ public class Class_Rogue
 					if (canGainTrick)
 					{
 						SE_Rogue sE_Rogue3 = (SE_Rogue)player.GetSEMan().GetStatusEffect("SE_VL_Rogue".GetStableHashCode());
-						SE_Rogue sE_Rogue3 = (SE_Rogue)player.GetSEMan().GetStatusEffect(VL_Hashes.Rogue);
 						sE_Rogue3.hitCount++;
 						canGainTrick = false;
 					}
@@ -293,7 +275,6 @@ public class Class_Rogue
 		else if (VL_Utility.Ability1_Input_Down)
 		{
 			if (!player.GetSEMan().HaveStatusEffect("SE_VL_Ability1_CD".GetStableHashCode()))
-			if (!player.GetSEMan().HaveStatusEffect(VL_Hashes.Ability1_CD))
 			{
 				if (player.GetStamina() >= VL_Utility.GetPoisonBombCost)
 				{
@@ -309,23 +290,14 @@ public class Class_Rogue
 						list.Clear();
 						Character.GetCharactersInRange(player.GetCenterPoint(), 500f, list);
 						foreach (Character item in list)
-						using (VL_BufferPool.GetScope(out var list))
 						{
 							if (item.GetBaseAI() != null && item.GetBaseAI() is MonsterAI && item.GetBaseAI().IsEnemy((Character)player))
-							Character.GetCharactersInRange(player.GetCenterPoint(), 500f, list);
-							foreach (Character item in list)
 							{
 								MonsterAI monsterAI2 = item.GetBaseAI() as MonsterAI;
 								if (monsterAI2 != null && monsterAI2.GetTargetCreature() == player)
-								if (item.GetBaseAI() != null && item.GetBaseAI() is MonsterAI && item.GetBaseAI().IsEnemy((Character)player))
 								{
 									Traverse.Create(monsterAI2).Field("m_alerted").SetValue(false);
 									Traverse.Create(monsterAI2).Field("m_targetCreature").SetValue(null);
-									MonsterAI monsterAI2 = item.GetBaseAI() as MonsterAI;
-									if (monsterAI2 != null && monsterAI2.GetTargetCreature() == player)
-									{
-										VL_ReflectCache.ResetMonsterAggro(monsterAI2);
-									}
 								}
 							}
 						}
@@ -339,7 +311,6 @@ public class Class_Rogue
 						player.GetSEMan().AddStatusEffect(statusEffect3);
 						player.UseStamina(VL_Utility.GetPoisonBombCost);
 						((ZSyncAnimation)typeof(Player).GetField("m_zanim", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(player)).SetTrigger("throw_bomb");
-						VL_ReflectCache.GetZAnim(player).SetTrigger("throw_bomb");
 						ValheimLegends.isChargingDash = true;
 						ValheimLegends.dashCounter = 0;
 						throwDagger = false;

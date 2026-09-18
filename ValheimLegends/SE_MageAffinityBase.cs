@@ -1,6 +1,8 @@
 using HarmonyLib;
 using System;
-using System.Reflection;
+using System.Collections.Generic;
+using System.Linq;
+using System.Numerics;
 using UnityEngine;
 using static ValheimLegends.Class_Mage;
 
@@ -14,16 +16,8 @@ namespace ValheimLegends
 
         // Configurações de Regeneração
         protected float regenIntervalFocused = 10f;
-        protected float regenIntervalUnfocused = 30f;
+        protected float regenIntervalUnfocused = 30f; // Nova regra
         protected float regenIntervalResting = 1.0f;
-
-        protected virtual string BaseDisplayName => "Mage Affinity";
-        private int _lastDisplayedCharges = -1;
-        private int _lastDisplayedMax = -1;
-        private bool _lastDisplayedFocused = false;
-
-        private static MethodInfo _restingMethod;
-        private static bool _restingMethodResolved;
 
         public override void Setup(Character character)
         {
@@ -43,7 +37,9 @@ namespace ValheimLegends
             if (!m_character.IsPlayer()) return;
             Player player = m_character as Player;
 
-            float evocationLevel = VL_SkillHelper.GetSkillLevel(player, ValheimLegends.EvocationSkillDef);
+            float evocationLevel = 0f;
+            Skills.Skill skill = player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.EvocationSkillDef);
+            if (skill != null) evocationLevel = skill.m_level;
 
             int maxCharges = 10 + Mathf.FloorToInt(evocationLevel * 0.2f);
             if (maxCharges > 30) maxCharges = 30;
@@ -66,26 +62,19 @@ namespace ValheimLegends
                 }
                 else
                 {
-                    interval = regenIntervalUnfocused;
+                    interval = regenIntervalUnfocused; // 30s para não focados
                 }
 
                 // Verifica se atingiu o tempo
                 if (m_chargeTimer >= interval)
                 {
                     m_currentCharges++;
-                    m_chargeTimer = 0f;
+                    m_chargeTimer = 0f; // Reinicia o timer ao ganhar a carga
                 }
             }
 
-            // Só atualiza a string de m_name se houve alteração nas cargas, max ou foco
-            if (_lastDisplayedCharges != m_currentCharges || _lastDisplayedMax != maxCharges || _lastDisplayedFocused != isFocused)
-            {
-                _lastDisplayedCharges = m_currentCharges;
-                _lastDisplayedMax = maxCharges;
-                _lastDisplayedFocused = isFocused;
-                string focusIcon = isFocused ? " <color=yellow>👁️</color>" : "";
-                m_name = $"{BaseDisplayName}: <color=orange>{m_currentCharges}</color>/{maxCharges}{focusIcon}";
-            }
+            string focusIcon = isFocused ? " <color=yellow>👁️</color>" : "";
+            m_name = $"{m_name.Split(':')[0]}: <color=orange>{m_currentCharges}</color>/{maxCharges}{focusIcon}";
         }
 
         public void ConsumeCharges(int amount)
@@ -111,85 +100,71 @@ namespace ValheimLegends
         public void SetFocus(bool focused)
         {
             isFocused = focused;
+            // Opcional: Reiniciar o timer ao mudar o foco para evitar abusos ou manter para continuidade
+            // m_chargeTimer = 0f; 
         }
 
         private static bool IsResting(Player p)
         {
             if (p == null) return false;
-            if (!_restingMethodResolved)
+            try
             {
-                string[] candidates = { "InRestingArea", "InComfortZone", "InShelter", "InSafeZone" };
-                foreach (var name in candidates)
-                {
-                    var mi = AccessTools.Method(typeof(Player), name);
-                    if (mi != null && mi.ReturnType == typeof(bool) && mi.GetParameters().Length == 0)
-                    {
-                        _restingMethod = mi;
-                        break;
-                    }
-                }
-                _restingMethodResolved = true;
+                var seMan = p.GetSEMan();
+                return seMan != null && seMan.HaveStatusEffect(SEMan.s_statusEffectResting);
             }
+            catch
+            {
+                return false;
+            }
+        }
 
-            if (_restingMethod != null)
+        public override bool IsDone()
+        {
+            if (ValheimLegends.vl_player == null || ValheimLegends.vl_player.vl_class != ValheimLegends.PlayerClass.Mage)
             {
-                try { return (bool)_restingMethod.Invoke(p, null); }
-                catch { return true; }
+                return true;
             }
-            return p.InShelter();
+            return base.IsDone();
+        }
+
+        public override bool CanAdd(Character character)
+        {
+            return base.CanAdd(character) && character.IsPlayer() && ValheimLegends.vl_player != null && ValheimLegends.vl_player.vl_class == ValheimLegends.PlayerClass.Mage;
         }
     }
 
-    // --- Subclasses ---
+    // --- Subclasses (Mantidas iguais) ---
 
     public class SE_MageFireAffinity : SE_MageAffinityBase
     {
-        protected override string BaseDisplayName => "Flame Affinity";
-
         public SE_MageFireAffinity()
         {
             base.name = "SE_VL_MageFireAffinity";
             m_name = "Flame Affinity";
             m_tooltip = "Concentration on Fire magic.\nPassive: Generates Fire Charges.";
-            if (ZNetScene.instance)
-            {
-                var prefab = ZNetScene.instance.GetPrefab("StaffFireball");
-                if (prefab) m_icon = prefab.GetComponent<ItemDrop>()?.m_itemData?.GetIcon();
-            }
+            m_icon = ZNetScene.instance.GetPrefab("StaffFireball").GetComponent<ItemDrop>().m_itemData.GetIcon();
         }
     }
 
     public class SE_MageFrostAffinity : SE_MageAffinityBase
     {
-        protected override string BaseDisplayName => "Frost Affinity";
-
         public SE_MageFrostAffinity()
         {
             base.name = "SE_VL_MageFrostAffinity";
             m_name = "Frost Affinity";
             m_tooltip = "Concentration on Frost magic.\nPassive: Generates Frost Charges.";
-            if (ZNetScene.instance)
-            {
-                var prefab = ZNetScene.instance.GetPrefab("StaffIceShards");
-                if (prefab) m_icon = prefab.GetComponent<ItemDrop>()?.m_itemData?.GetIcon();
-            }
+            m_icon = ZNetScene.instance.GetPrefab("StaffIceShards").GetComponent<ItemDrop>().m_itemData.GetIcon();
         }
     }
 
     public class SE_MageArcaneAffinity : SE_MageAffinityBase
     {
-        protected override string BaseDisplayName => "Arcane Affinity";
-
         public SE_MageArcaneAffinity()
         {
             base.name = "SE_VL_MageArcaneAffinity";
             m_name = "Arcane Affinity";
             m_tooltip = "Concentration on Arcane magic.\nPassive: Generates Arcane Charges.";
-            if (ZNetScene.instance)
-            {
-                var prefab = ZNetScene.instance.GetPrefab("StaffShield");
-                if (prefab) m_icon = prefab.GetComponent<ItemDrop>()?.m_itemData?.GetIcon();
-            }
+            m_icon = ZNetScene.instance.GetPrefab("StaffShield").GetComponent<ItemDrop>().m_itemData.GetIcon();
         }
     }
 }

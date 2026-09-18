@@ -33,7 +33,6 @@ public class Class_Valkyrie
 		{
 			Player localPlayer = Player.m_localPlayer;
 			ItemDrop.ItemData value = Traverse.Create(localPlayer).Field("m_leftItem").GetValue<ItemDrop.ItemData>();
-			ItemDrop.ItemData value = VL_ReflectCache.GetLeftItem(localPlayer);
 			if (value != null)
 			{
 				ItemDrop.ItemData.SharedData shared = value.m_shared;
@@ -49,7 +48,6 @@ public class Class_Valkyrie
 	public static void Execute_Attack(Player player, ref Rigidbody playerBody, ref float altitude)
 	{
 		SE_Valkyrie sE_Valkyrie = (SE_Valkyrie)player.GetSEMan().GetStatusEffect("SE_VL_Valkyrie".GetStableHashCode());
-		SE_Valkyrie sE_Valkyrie = (SE_Valkyrie)player.GetSEMan().GetStatusEffect(VL_Hashes.Valkyrie);
 		if (QueuedAttack == ValkyrieAttackType.ShieldRelease)
 		{
 			UnityEngine.Vector3 vector = player.GetEyePoint() + player.GetLookDir() * 0.2f + player.transform.up * -0.4f + player.transform.right * -0.4f;
@@ -71,59 +69,23 @@ public class Class_Valkyrie
 			UnityEngine.Vector3 vector2 = ((!Physics.Raycast(player.GetEyePoint(), player.GetLookDir(), out hitInfo, float.PositiveInfinity, ScriptChar_Layermask) || !hitInfo.collider) ? (position + player.GetLookDir() * 1000f) : hitInfo.point);
 			Physics.SphereCast(player.GetEyePoint(), 0.1f, player.GetLookDir(), out hitInfo, 4f, ScriptChar_Layermask);
 			if (hitInfo.collider != null && hitInfo.collider.gameObject != null)
-			float level = VL_SkillHelper.GetSkillLevel(player, ValheimLegends.AbjurationSkillDef) * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddHp() / 400f) + (EpicMMOSystem.LevelSystem.Instance.getAddStamina() / 200f), 0f, 0.5f));
-			using (VL_BufferPool.GetScope(out var list))
-			using (VL_BufferPool.GetScope(out var list2))
 			{
 				Character component = null;
 				hitInfo.collider.gameObject.TryGetComponent<Character>(out component);
 				bool flag = component != null;
 				if (component == null)
-				Character.GetCharactersInRange(vector + player.transform.forward * 2f, 2.5f, list);
-				Character.GetCharactersInRange(vector + player.transform.forward * 6f, 3f, list2);
-				list.AddRange(list2);
-				RaycastHit hitInfo = default(RaycastHit);
-				UnityEngine.Vector3 position = player.transform.position;
-				UnityEngine.Vector3 vector2 = ((!Physics.Raycast(player.GetEyePoint(), player.GetLookDir(), out hitInfo, float.PositiveInfinity, ScriptChar_Layermask) || !hitInfo.collider) ? (position + player.GetLookDir() * 1000f) : hitInfo.point);
-				Physics.SphereCast(player.GetEyePoint(), 0.1f, player.GetLookDir(), out hitInfo, 4f, ScriptChar_Layermask);
-				if (hitInfo.collider != null && hitInfo.collider.gameObject != null)
 				{
 					component = (Character)hitInfo.collider.GetComponentInParent(typeof(Character));
 					flag = component != null;
-					Character component = null;
-					hitInfo.collider.gameObject.TryGetComponent<Character>(out component);
-					bool flag = component != null;
 					if (component == null)
 					{
 						component = hitInfo.collider.GetComponentInChildren<Character>();
-						component = (Character)hitInfo.collider.GetComponentInParent(typeof(Character));
 						flag = component != null;
-						if (component == null)
-						{
-							component = hitInfo.collider.GetComponentInChildren<Character>();
-							flag = component != null;
-						}
-					}
-					if (flag && BaseAI.IsEnemy(component, player) && !list.Contains(component))
-					{
-						list.Add(component);
 					}
 				}
 				if (flag && BaseAI.IsEnemy(component, player) && !list.Contains(component))
-				foreach (Character item in list)
 				{
 					list.Add(component);
-					if (BaseAI.IsEnemy(player, item))
-					{
-						UnityEngine.Vector3 dir = item.transform.position - player.transform.position;
-						HitData hitData = new HitData();
-						hitData.m_damage.m_frost = UnityEngine.Random.Range(Mathf.Max((1f + 0.2f * level) * VL_GlobalConfigs.g_DamageModifer, 0.5f * player.GetCurrentWeapon().GetDamage().m_damage * (1f + level / 300f)), Mathf.Max((4f + 0.4f * level) * VL_GlobalConfigs.g_DamageModifer, player.GetCurrentWeapon().GetDamage().m_damage * (1f + level / 300f))) * (float)sE_Valkyrie.hitCount * VL_GlobalConfigs.c_valkyrieBonusChillWave;
-						hitData.m_damage.m_spirit = UnityEngine.Random.Range(Mathf.Max((1f + 0.2f * level) * VL_GlobalConfigs.g_DamageModifer, 0.5f * player.GetCurrentWeapon().GetDamage().m_damage * (1f + level / 300f)), Mathf.Max((4f + 0.4f * level) * VL_GlobalConfigs.g_DamageModifer, player.GetCurrentWeapon().GetDamage().m_damage * (1f + level / 300f))) * (float)sE_Valkyrie.hitCount * VL_GlobalConfigs.c_valkyrieBonusChillWave;
-						hitData.m_point = item.GetEyePoint();
-						hitData.m_dir = dir;
-						hitData.m_skill = ValheimLegends.AbjurationSkill;
-						item.Damage(hitData);
-					}
 				}
 			}
 			foreach (Character item in list)
@@ -148,7 +110,6 @@ public class Class_Valkyrie
 		{
 			float level2 = player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.DisciplineSkillDef)
 				.m_level * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddPhysicDamage() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddAttackSpeed() / 40f), 0f, 0.5f));
-			float level2 = VL_SkillHelper.GetSkillLevel(player, ValheimLegends.DisciplineSkillDef) * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddPhysicDamage() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddAttackSpeed() / 40f), 0f, 0.5f));
 			UnityEngine.Vector3 vector3 = player.GetEyePoint() + player.GetLookDir() * 0.2f + player.transform.up * 0.1f + player.transform.right * 0.28f;
 			GameObject prefab = ZNetScene.instance.GetPrefab("VL_ValkyrieSpear");
 			GameObject gameObject = UnityEngine.Object.Instantiate(prefab, vector3, UnityEngine.Quaternion.identity);
@@ -175,7 +136,6 @@ public class Class_Valkyrie
 			UnityEngine.Vector3 vector4 = UnityEngine.Vector3.MoveTowards(gameObject.transform.position, target, 1f);
 			component2.Setup(player, (vector4 - gameObject.transform.position) * 40f, -1f, hitData2, null, null);
 			Traverse.Create(component2).Field("m_skill").SetValue(ValheimLegends.DisciplineSkill);
-			VL_ReflectCache.SetProjectileSkill(component2, ValheimLegends.DisciplineSkill);
 			gameObject = null;
 		}
 	}
@@ -186,18 +146,10 @@ public class Class_Valkyrie
 		inFlight = false;
 		ValheimLegends.shouldValkyrieImpact = false;
 		foreach (Character item in allCharacters)
-		float level = VL_SkillHelper.GetSkillLevel(player, ValheimLegends.DisciplineSkillDef) * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddPhysicDamage() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddAttackSpeed() / 40f), 0f, 0.5f));
-		float impactRadius = 6f + 0.03f * level;
-		float impactRadiusSqr = impactRadius * impactRadius;
-		using (VL_BufferPool.GetScope(out var list))
 		{
 			float level = player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.DisciplineSkillDef)
 				.m_level * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddPhysicDamage() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddAttackSpeed() / 40f), 0f, 0.5f));
 			if (BaseAI.IsEnemy(player, item) && (item.transform.position - player.transform.position).magnitude <= 6f + 0.03f * level && VL_Utility.LOS_IsValid(item, player.transform.position, player.GetCenterPoint()))
-			Character.GetCharactersInRange(player.transform.position, impactRadius, list);
-			Vector3 pPos = player.transform.position;
-			Vector3 pCenter = player.GetCenterPoint();
-			foreach (Character item in list)
 			{
 				UnityEngine.Vector3 dir = item.transform.position - player.transform.position;
 				HitData hitData = new HitData();
@@ -207,32 +159,20 @@ public class Class_Valkyrie
 				hitData.m_dir = dir;
 				hitData.m_skill = ValheimLegends.DisciplineSkill;
 				item.Damage(hitData);
-				if (BaseAI.IsEnemy(player, item) && (item.transform.position - pPos).sqrMagnitude <= impactRadiusSqr && VL_Utility.LOS_IsValid(item, pPos, pCenter))
-				{
-					UnityEngine.Vector3 dir = item.transform.position - pPos;
-					HitData hitData = new HitData();
-					hitData.m_damage.m_blunt = 5f + 3f * altitude + UnityEngine.Random.Range(Mathf.Max(1.5f * level, player.GetCurrentWeapon().GetDamage().m_damage * (1f + level / 300f)), Mathf.Max(2.5f * level, 2f * player.GetCurrentWeapon().GetDamage().m_damage * (1f + level / 300f))) * VL_GlobalConfigs.g_DamageModifer * VL_GlobalConfigs.c_valkyrieLeap;
-					hitData.m_pushForce = 20f * VL_GlobalConfigs.g_DamageModifer * VL_GlobalConfigs.c_valkyrieLeap;
-					hitData.m_point = item.GetEyePoint();
-					hitData.m_dir = dir;
-					hitData.m_skill = ValheimLegends.DisciplineSkill;
-					item.Damage(hitData);
-				}
 			}
 		}
 		((ZSyncAnimation)typeof(Player).GetField("m_zanim", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(Player.m_localPlayer)).StopAllCoroutines();
 		((ZSyncAnimation)typeof(Player).GetField("m_zanim", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(Player.m_localPlayer)).SetTrigger("battleaxe_attack2");
-		VL_ReflectCache.GetZAnim(Player.m_localPlayer).StopAllCoroutines();
-		VL_ReflectCache.GetZAnim(Player.m_localPlayer).SetTrigger("battleaxe_attack2");
 		GO_CastFX = UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("vfx_gdking_stomp"), player.transform.position, UnityEngine.Quaternion.identity);
 	}
 
 	public static void Process_Input(Player player)
 	{
+		System.Random random = new System.Random();
+		UnityEngine.Vector3 vector = default(Vector3);
 		if (player.IsBlocking() && ZInput.GetButtonDown("Attack"))
 		{
 			SE_Valkyrie sE_Valkyrie = (SE_Valkyrie)player.GetSEMan().GetStatusEffect("SE_VL_Valkyrie".GetStableHashCode());
-			SE_Valkyrie sE_Valkyrie = (SE_Valkyrie)player.GetSEMan().GetStatusEffect(VL_Hashes.Valkyrie);
 			if ((float)sE_Valkyrie.hitCount >= VL_Utility.GetHarpoonPullCost)
 			{
 				sE_Valkyrie.hitCount -= (int)VL_Utility.GetHarpoonPullCost;
@@ -240,8 +180,6 @@ public class Class_Valkyrie
 				VL_Utility.RotatePlayerToTarget(player);
 				((ZSyncAnimation)typeof(Player).GetField("m_zanim", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(Player.m_localPlayer)).StopAllCoroutines();
 				((ZSyncAnimation)typeof(Player).GetField("m_zanim", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(Player.m_localPlayer)).SetTrigger("spear_throw");
-				VL_ReflectCache.GetZAnim(Player.m_localPlayer).StopAllCoroutines();
-				VL_ReflectCache.GetZAnim(Player.m_localPlayer).SetTrigger("spear_throw");
 				ValheimLegends.isChargingDash = true;
 				ValheimLegends.dashCounter = 0;
 				QueuedAttack = ValkyrieAttackType.HarpoonPull;
@@ -251,7 +189,6 @@ public class Class_Valkyrie
 		if (VL_Utility.Ability3_Input_Down)
 		{
 			SE_Valkyrie sE_Valkyrie2 = (SE_Valkyrie)player.GetSEMan().GetStatusEffect("SE_VL_Valkyrie".GetStableHashCode());
-			SE_Valkyrie sE_Valkyrie2 = (SE_Valkyrie)player.GetSEMan().GetStatusEffect(VL_Hashes.Valkyrie);
 			if (player.IsBlocking())
 			{
 				if (PlayerUsingShield && sE_Valkyrie2 != null && sE_Valkyrie2.hitCount > 0)
@@ -259,8 +196,6 @@ public class Class_Valkyrie
 					VL_Utility.RotatePlayerToTarget(player);
 					((ZSyncAnimation)typeof(Player).GetField("m_zanim", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(Player.m_localPlayer)).StopAllCoroutines();
 					((ZSyncAnimation)typeof(Player).GetField("m_zanim", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(Player.m_localPlayer)).SetTrigger("unarmed_attack1");
-					VL_ReflectCache.GetZAnim(Player.m_localPlayer).StopAllCoroutines();
-					VL_ReflectCache.GetZAnim(Player.m_localPlayer).SetTrigger("unarmed_attack1");
 					ValheimLegends.isChargingDash = true;
 					ValheimLegends.dashCounter = 0;
 					QueuedAttack = ValkyrieAttackType.ShieldRelease;
@@ -268,7 +203,6 @@ public class Class_Valkyrie
 				}
 			}
 			else if (!player.GetSEMan().HaveStatusEffect("SE_VL_Ability3_CD".GetStableHashCode()))
-			else if (!player.GetSEMan().HaveStatusEffect(VL_Hashes.Ability3_CD))
 			{
 				if (player.GetStamina() >= VL_Utility.GetLeapCost)
 				{
@@ -278,11 +212,8 @@ public class Class_Valkyrie
 					player.UseStamina(VL_Utility.GetLeapCost);
 					((ZSyncAnimation)typeof(Player).GetField("m_zanim", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(Player.m_localPlayer)).SetTrigger("knife_secondary");
 					((ZSyncAnimation)typeof(Player).GetField("m_zanim", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(Player.m_localPlayer)).SetSpeed(0.3f);
-					VL_ReflectCache.GetZAnim(Player.m_localPlayer).SetTrigger("knife_secondary");
-					VL_ReflectCache.GetZAnim(Player.m_localPlayer).SetSpeed(0.3f);
 					UnityEngine.Vector3 velocity = player.GetVelocity();
 					Rigidbody value = Traverse.Create(player).Field("m_body").GetValue<Rigidbody>();
-					Rigidbody value = VL_ReflectCache.GetBody(player);
 					inFlight = true;
 					UnityEngine.Vector3 zero = UnityEngine.Vector3.zero;
 					zero.z = value.linearVelocity.z;
@@ -290,7 +221,6 @@ public class Class_Valkyrie
 					value.linearVelocity = velocity * 2f + new UnityEngine.Vector3(0f, 15f, 0f) + zero * 3f;
 					value.linearVelocity *= 0.8f + player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.DisciplineSkillDef)
 						.m_level * 0.005f * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddPhysicDamage() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddAttackSpeed() / 40f), 0f, 0.5f));
-					value.linearVelocity *= 0.8f + VL_SkillHelper.GetSkillLevel(player, ValheimLegends.DisciplineSkillDef) * 0.005f * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddPhysicDamage() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddAttackSpeed() / 40f), 0f, 0.5f));
 					GO_CastFX = UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("sfx_perfectblock"), player.transform.position, UnityEngine.Quaternion.identity);
 					GO_CastFX = UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("vfx_perfectblock"), player.transform.position, UnityEngine.Quaternion.identity);
 					player.RaiseSkill(ValheimLegends.DisciplineSkill, VL_Utility.GetLeapSkillGain);
@@ -308,7 +238,6 @@ public class Class_Valkyrie
 		else if (VL_Utility.Ability2_Input_Down)
 		{
 			if (!player.GetSEMan().HaveStatusEffect("SE_VL_Ability2_CD".GetStableHashCode()))
-			if (!player.GetSEMan().HaveStatusEffect(VL_Hashes.Ability2_CD))
 			{
 				if (player.GetStamina() >= VL_Utility.GetStaggerCost)
 				{
@@ -317,26 +246,15 @@ public class Class_Valkyrie
 					player.GetSEMan().AddStatusEffect(statusEffect2);
 					player.UseStamina(VL_Utility.GetStaggerCost);
 					((ZSyncAnimation)typeof(Player).GetField("m_zanim", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(Player.m_localPlayer)).SetTrigger("battleaxe_attack1");
-					VL_ReflectCache.GetZAnim(Player.m_localPlayer).SetTrigger("battleaxe_attack1");
 					GO_CastFX = UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("sfx_troll_rock_destroyed"), player.transform.position, UnityEngine.Quaternion.identity);
 					GO_CastFX = UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("vfx_sledge_iron_hit"), player.transform.position, UnityEngine.Quaternion.identity);
 					List<Character> allCharacters = Character.GetAllCharacters();
 					foreach (Character item in allCharacters)
-					using (VL_BufferPool.GetScope(out var list))
 					{
 						if (BaseAI.IsEnemy(player, item) && (item.transform.position - player.transform.position).magnitude <= 6f && VL_Utility.LOS_IsValid(item, player.transform.position, player.GetCenterPoint()))
-						Character.GetCharactersInRange(player.transform.position, 6f, list);
-						Vector3 pPos = player.transform.position;
-						Vector3 pCenter = player.GetCenterPoint();
-						foreach (Character item in list)
 						{
 							UnityEngine.Vector3 forceDirection = item.transform.position - player.transform.position;
 							item.Stagger(forceDirection);
-							if (BaseAI.IsEnemy(player, item) && (item.transform.position - pPos).sqrMagnitude <= 36f && VL_Utility.LOS_IsValid(item, pPos, pCenter))
-							{
-								UnityEngine.Vector3 forceDirection = item.transform.position - pPos;
-								item.Stagger(forceDirection);
-							}
 						}
 					}
 					player.RaiseSkill(ValheimLegends.DisciplineSkill, VL_Utility.GetStaggerSkillGain);
@@ -358,7 +276,6 @@ public class Class_Valkyrie
 				return;
 			}
 			if (!player.GetSEMan().HaveStatusEffect("SE_VL_Ability1_CD".GetStableHashCode()))
-			if (!player.GetSEMan().HaveStatusEffect(VL_Hashes.Ability1_CD))
 			{
 				if (player.GetStamina() >= VL_Utility.GetBulwarkCost)
 				{
@@ -373,7 +290,6 @@ public class Class_Valkyrie
 					SE_Bulwark sE_Bulwark = (SE_Bulwark)ScriptableObject.CreateInstance(typeof(SE_Bulwark));
 					sE_Bulwark.m_ttl = SE_Bulwark.m_baseTTL + (float)Mathf.RoundToInt(player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.AbjurationSkillDef)
 						.m_level * 0.2f * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddHp() / 400f) + (EpicMMOSystem.LevelSystem.Instance.getAddStamina() / 200f), 0f, 0.5f)));
-					sE_Bulwark.m_ttl = SE_Bulwark.m_baseTTL + (float)Mathf.RoundToInt(VL_SkillHelper.GetSkillLevel(player, ValheimLegends.AbjurationSkillDef) * 0.2f * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddHp() / 400f) + (EpicMMOSystem.LevelSystem.Instance.getAddStamina() / 200f), 0f, 0.5f)));
 					player.GetSEMan().AddStatusEffect(sE_Bulwark);
 					player.RaiseSkill(ValheimLegends.AbjurationSkill, VL_Utility.GetBulwarkSkillGain);
 				}

@@ -18,13 +18,12 @@ public class Class_Berserker
 	{
 		UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("sfx_perfectblock"), player.transform.position, UnityEngine.Quaternion.identity);
 		UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("vfx_stonegolem_attack_hit"), player.transform.position, UnityEngine.Quaternion.identity);
-		float level = VL_SkillHelper.GetSkillLevel(player, ValheimLegends.DisciplineSkillDef)
-			* (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddPhysicDamage() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddAttackSpeed() / 40f), 0f, 0.5f));
+		float level = player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.DisciplineSkillDef)
+			.m_level * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddPhysicDamage() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddAttackSpeed() / 40f), 0f, 0.5f));
 		float num = 0.6f + level * 0.015f * VL_GlobalConfigs.g_DamageModifer * VL_GlobalConfigs.c_berserkerDash;
-		var seMan = player.GetSEMan();
-		if (seMan != null && (seMan.HaveStatusEffect(VL_Hashes.Berserk) || seMan.HaveStatusEffect(VL_Hashes.Execute)))
+		if (player.GetSEMan().HaveStatusEffect("SE_VL_Berserk".GetStableHashCode()) || player.GetSEMan().HaveStatusEffect("SE_VL_Execute".GetStableHashCode()))
 		{
-			SE_Berserk sE_Berserk = (SE_Berserk)seMan.GetStatusEffect(VL_Hashes.Berserk);
+			SE_Berserk sE_Berserk = (SE_Berserk)player.GetSEMan().GetStatusEffect("SE_VL_Berserk".GetStableHashCode());
 			if (sE_Berserk != null)
 			{
 				num *= sE_Berserk.damageModifier;
@@ -75,11 +74,11 @@ public class Class_Berserker
 			{
 				HitData hitData = new HitData();
 				hitData.m_damage = player.GetCurrentWeapon().GetDamage();
-                bool playerIsWerewolf = player.GetSEMan().HaveStatusEffect(VL_Hashes.DruidFenringForm);
+                bool playerIsWerewolf = player.GetSEMan().HaveStatusEffect("SE_VL_DruidFenringForm".GetStableHashCode());
                 if (playerIsWerewolf && Class_Monk.PlayerIsBareHanded && (hitData.m_damage.m_blunt > 0f))
                 {
-                    float level2 = VL_SkillHelper.GetSkillLevel(player, ValheimLegends.DisciplineSkillDef)
-                        * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddPhysicDamage() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddAttackSpeed() / 40f), 0f, 0.5f));
+                    float level2 = player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.DisciplineSkillDef)
+                        .m_level * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddPhysicDamage() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddAttackSpeed() / 40f), 0f, 0.5f));
                     float clawDamage = (EpicMMOSystem.LevelSystem.Instance.getLevel() * (1f + (level2 / 80f))) * 0.25f;
                     hitData.m_damage.m_blunt += clawDamage;
                     hitData.m_damage.m_slash += clawDamage;
@@ -93,7 +92,7 @@ public class Class_Berserker
 				{
 					continue;
 				}
-				SE_Execute sE_Execute = (SE_Execute)player.GetSEMan().GetStatusEffect(VL_Hashes.Execute);
+				SE_Execute sE_Execute = (SE_Execute)player.GetSEMan().GetStatusEffect("SE_VL_Execute".GetStableHashCode());
 				if (sE_Execute != null)
 				{
 					hitData.ApplyModifier(sE_Execute.damageBonus);
@@ -121,9 +120,11 @@ public class Class_Berserker
 
 	public static void Process_Input(Player player, ref float altitude)
 	{
+		System.Random random = new System.Random();
+		UnityEngine.Vector3 vector = default(Vector3);
 		if (VL_Utility.Ability3_Input_Down)
 		{
-			if (!player.GetSEMan().HaveStatusEffect(VL_Hashes.Ability3_CD))
+			if (!player.GetSEMan().HaveStatusEffect("SE_VL_Ability3_CD".GetStableHashCode()))
 			{
 				if (player.GetStamina() > VL_Utility.GetDashCost(player))
 				{
@@ -131,7 +132,7 @@ public class Class_Berserker
 					statusEffect.m_ttl = VL_Utility.GetDashCooldown(player);
 					player.GetSEMan().AddStatusEffect(statusEffect);
 					player.UseStamina(VL_Utility.GetDashCost(player));
-					VL_ReflectCache.GetZAnim(player)?.SetTrigger("swing_longsword2");
+					((ZSyncAnimation)typeof(Player).GetField("m_zanim", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(player)).SetTrigger("swing_longsword2");
 					UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("vfx_Potion_stamina_medium"), player.transform.position, UnityEngine.Quaternion.identity);
 					ValheimLegends.isChargingDash = true;
 					ValheimLegends.dashCounter = 0;
@@ -149,7 +150,7 @@ public class Class_Berserker
 		}
 		else if (VL_Utility.Ability2_Input_Down)
 		{
-			if (!player.GetSEMan().HaveStatusEffect(VL_Hashes.Ability2_CD))
+			if (!player.GetSEMan().HaveStatusEffect("SE_VL_Ability2_CD".GetStableHashCode()))
 			{
 				if (player.GetStamina() > VL_Utility.GetBerserkCost(player))
 				{
@@ -160,8 +161,8 @@ public class Class_Berserker
 					ValheimLegends.shouldUseGuardianPower = false;
 					player.StartEmote("challenge");
 					UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("fx_GP_Stone"), player.GetCenterPoint(), UnityEngine.Quaternion.identity);
-					float level = VL_SkillHelper.GetSkillLevel(player, ValheimLegends.AlterationSkillDef)
-						* (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddCriticalChance() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 80f), 0f, 0.5f));
+					float level = player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.AlterationSkillDef)
+						.m_level * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddCriticalChance() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 80f), 0f, 0.5f));
 					SE_Berserk sE_Berserk = (SE_Berserk)ScriptableObject.CreateInstance(typeof(SE_Berserk));
 					sE_Berserk.m_ttl = SE_Berserk.m_baseTTL;
 					sE_Berserk.speedModifier = 1.2f + 0.006f * level;
@@ -186,7 +187,7 @@ public class Class_Berserker
 			{
 				return;
 			}
-			if (!player.GetSEMan().HaveStatusEffect(VL_Hashes.Ability1_CD))
+			if (!player.GetSEMan().HaveStatusEffect("SE_VL_Ability1_CD".GetStableHashCode()))
 			{
 				if (player.GetStamina() > VL_Utility.GetExecuteCost(player))
 				{
@@ -196,15 +197,15 @@ public class Class_Berserker
 					player.UseStamina(VL_Utility.GetExecuteCost(player));
 					player.StartEmote("point");
 					UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("fx_backstab"), player.GetCenterPoint(), UnityEngine.Quaternion.identity);
-					float level2 = VL_SkillHelper.GetSkillLevel(player, ValheimLegends.DisciplineSkillDef)
-						* (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddPhysicDamage() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddAttackSpeed() / 40f), 0f, 0.5f));
+					float level2 = player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.DisciplineSkillDef)
+						.m_level * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddPhysicDamage() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddAttackSpeed() / 40f), 0f, 0.5f));
 					SE_Execute sE_Execute = (SE_Execute)ScriptableObject.CreateInstance(typeof(SE_Execute));
 					sE_Execute.hitCount = Mathf.RoundToInt(3f + 0.04f * level2);
 					sE_Execute.damageBonus = 1.4f + 0.005f * level2 * VL_GlobalConfigs.g_DamageModifer * VL_GlobalConfigs.c_berserkerExecute;
 					sE_Execute.staggerForce = 1.5f + 0.005f * level2;
-					if (player.GetSEMan().HaveStatusEffect(VL_Hashes.Execute))
+					if (player.GetSEMan().HaveStatusEffect("SE_VL_Execute".GetStableHashCode()))
 					{
-						StatusEffect statusEffect4 = player.GetSEMan().GetStatusEffect(VL_Hashes.Execute);
+						StatusEffect statusEffect4 = player.GetSEMan().GetStatusEffect("SE_VL_Execute".GetStableHashCode());
 						player.GetSEMan().RemoveStatusEffect(statusEffect4);
 					}
 					player.GetSEMan().AddStatusEffect(sE_Execute);

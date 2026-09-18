@@ -5,7 +5,7 @@ namespace ValheimLegends;
 
 public class SE_Charmcontrol : StatusEffect
 {
-	public static Sprite AbilityIcon = ZNetScene.instance.GetPrefab("StaffSkeleton").GetComponent<ItemDrop>().m_itemData.GetIcon();
+	public static Sprite AbilityIcon;
 
 	public static GameObject GO_SEFX;
 
@@ -23,7 +23,7 @@ public class SE_Charmcontrol : StatusEffect
 	public SE_Charmcontrol()
 	{
 		base.name = "SE_VL_Charmcontrol";
-		m_icon = ZNetScene.instance.GetPrefab("StaffSkeleton").GetComponent<ItemDrop>().m_itemData.GetIcon();
+		m_icon = AbilityIcon;
 		m_tooltip = "Charm Limit";
 		m_name = "Charm Control";
 		m_ttl = m_baseTTL;
@@ -40,11 +40,6 @@ public class SE_Charmcontrol : StatusEffect
 				foreach (Character allCharacter in Character.GetAllCharacters())
 				{
 					if (!(allCharacter != null) || allCharacter.GetSEMan() == null)
-					if (allCharacter == null) continue;
-					SEMan seMan = allCharacter.GetSEMan();
-					if (seMan == null) continue;
-
-					if (seMan.GetStatusEffect(VL_Hashes.Charm) is SE_Charm sE_Charm)
 					{
 						continue;
 					}
@@ -56,7 +51,6 @@ public class SE_Charmcontrol : StatusEffect
 						StatusEffect statusEffect = (SE_CharmImmunity)ScriptableObject.CreateInstance(typeof(SE_CharmImmunity));
 						statusEffect.m_ttl = Mathf.Clamp(allCharacter.GetHealthPercentage() * VL_GlobalConfigs.g_CooldownModifer * 60f, 5f, 300f);
 						allCharacter.GetSEMan().AddStatusEffect(statusEffect);
-						seMan.AddStatusEffect(statusEffect);
 						UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("fx_VL_Lightburst"), allCharacter.GetEyePoint(), UnityEngine.Quaternion.identity);
 					}
 				}

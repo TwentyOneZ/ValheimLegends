@@ -47,7 +47,6 @@ namespace ValheimLegends
                 {
                     var seman = m_character.GetSEMan();
                     SE_MageArcaneAffinity affinity = seman.GetStatusEffect(Hash_ArcaneAffinity) as SE_MageArcaneAffinity;
-                    SE_MageArcaneAffinity affinity = seman.GetStatusEffect(VL_Hashes.MageArcaneAffinity) as SE_MageArcaneAffinity;
 
                     if (affinity != null && affinity.m_currentCharges >= 1)
                     {
@@ -61,10 +60,23 @@ namespace ValheimLegends
                         if (vfx) UnityEngine.Object.Instantiate(vfx, m_character.GetCenterPoint(), UnityEngine.Quaternion.LookRotation(UnityEngine.Vector3.up));
                         m_character.Message(MessageHud.MessageType.TopLeft, "Elemental Mastery fades (No Charges)");
                         seman.RemoveStatusEffect(this.name.GetStableHashCode());
-                        seman.RemoveStatusEffect(VL_Hashes.ElementalMastery);
                     }
                 }
             }
+        }
+
+        public override bool IsDone()
+        {
+            if (ValheimLegends.vl_player == null || ValheimLegends.vl_player.vl_class != ValheimLegends.PlayerClass.Mage)
+            {
+                return true;
+            }
+            return base.IsDone();
+        }
+
+        public override bool CanAdd(Character character)
+        {
+            return base.CanAdd(character) && character.IsPlayer() && ValheimLegends.vl_player != null && ValheimLegends.vl_player.vl_class == ValheimLegends.PlayerClass.Mage;
         }
     }
 }

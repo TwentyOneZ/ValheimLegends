@@ -41,10 +41,10 @@ public class Class_Monk
 			Player localPlayer = Player.m_localPlayer;
 			if (localPlayer.GetCurrentWeapon() != null)
 			{
-				ItemDrop.ItemData value = VL_ReflectCache.GetLeftItem(localPlayer);
+				ItemDrop.ItemData value = Traverse.Create(localPlayer).Field("m_leftItem").GetValue<ItemDrop.ItemData>();
 				ItemDrop.ItemData.SharedData shared = localPlayer.GetCurrentWeapon().m_shared;
-				if (shared != null && (string.Equals(shared.m_name, "unarmed", StringComparison.OrdinalIgnoreCase) || shared.m_name.IndexOf("fist", StringComparison.OrdinalIgnoreCase) >= 0 || shared.m_attachOverride == ItemDrop.ItemData.ItemType.Hands) && value == null)
-				if (shared != null && (string.Equals(shared.m_name, "unarmed", System.StringComparison.OrdinalIgnoreCase) || shared.m_name.IndexOf("fist", System.StringComparison.OrdinalIgnoreCase) >= 0 || shared.m_attachOverride == ItemDrop.ItemData.ItemType.Hands) && value == null)
+				//Debug.Log("Name:" + shared.m_name.ToLower().ToString());
+				if (shared != null && (shared.m_name.ToLower() == "unarmed" || shared.m_name.ToLower().Contains("fist") || shared.m_attachOverride == ItemDrop.ItemData.ItemType.Hands) && value == null)
 				{
 					return true;
 				}
@@ -60,10 +60,9 @@ public class Class_Monk
             Player localPlayer = Player.m_localPlayer;
             if (localPlayer.GetCurrentWeapon() != null)
             {
-                ItemDrop.ItemData value = VL_ReflectCache.GetLeftItem(localPlayer);
+                ItemDrop.ItemData value = Traverse.Create(localPlayer).Field("m_leftItem").GetValue<ItemDrop.ItemData>();
                 ItemDrop.ItemData.SharedData shared = localPlayer.GetCurrentWeapon().m_shared;
-                if (shared != null && (string.Equals(shared.m_name, "unarmed", StringComparison.OrdinalIgnoreCase) || (shared.m_attachOverride == ItemDrop.ItemData.ItemType.Hands) && value == null))
-                if (shared != null && (string.Equals(shared.m_name, "unarmed", System.StringComparison.OrdinalIgnoreCase) || (shared.m_attachOverride == ItemDrop.ItemData.ItemType.Hands) && value == null))
+                if (shared != null && (shared.m_name.ToLower() == "unarmed" || (shared.m_attachOverride == ItemDrop.ItemData.ItemType.Hands) && value == null))
                 {
                     return true;
                 }
@@ -74,25 +73,22 @@ public class Class_Monk
 
     public static void Impact_Effect(Player player, float altitude)
 	{
+		List<Character> allCharacters = Character.GetAllCharacters();
 		ValheimLegends.shouldValkyrieImpact = false;
-		float level = VL_SkillHelper.GetSkillLevel(player, ValheimLegends.DisciplineSkillDef)
-			* (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddPhysicDamage() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddAttackSpeed() / 40f), 0f, 0.5f));
-		using (VL_BufferPool.GetScope(out var allCharacters))
+		foreach (Character item in allCharacters)
 		{
-			Character.GetCharactersInRange(player.transform.position, 6f + 0.03f * level, allCharacters);
-			foreach (Character item in allCharacters)
+			float level = player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.DisciplineSkillDef)
+				.m_level * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddPhysicDamage() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddAttackSpeed() / 40f), 0f, 0.5f));
+			if (BaseAI.IsEnemy(player, item) && (item.transform.position - player.transform.position).magnitude <= 6f + 0.03f * level && VL_Utility.LOS_IsValid(item, player.transform.position))
 			{
-				if (BaseAI.IsEnemy(player, item) && VL_Utility.LOS_IsValid(item, player.transform.position))
-				{
-					UnityEngine.Vector3 dir = item.transform.position - player.transform.position;
-					HitData hitData = new HitData();
-					hitData.m_damage.m_blunt = 5f + 3f * altitude + Random.Range(Mathf.Min(level * VL_GlobalConfigs.g_DamageModifer, player.GetCurrentWeapon().GetDamage().m_damage * (1f + level / 300f)), Mathf.Min((2f * level) * VL_GlobalConfigs.g_DamageModifer, 2f * player.GetCurrentWeapon().GetDamage().m_damage * (1f + level / 300f))) * VL_GlobalConfigs.c_monkChiSlam;
-					hitData.m_pushForce = 20f * VL_GlobalConfigs.g_DamageModifer;
-					hitData.m_point = item.GetEyePoint();
-					hitData.m_dir = dir;
-					hitData.m_skill = ValheimLegends.DisciplineSkill;
-					item.Damage(hitData);
-				}
+				UnityEngine.Vector3 dir = item.transform.position - player.transform.position;
+				HitData hitData = new HitData();
+				hitData.m_damage.m_blunt = 5f + 3f * altitude + Random.Range(Mathf.Min(level * VL_GlobalConfigs.g_DamageModifer, player.GetCurrentWeapon().GetDamage().m_damage * (1f + level / 300f)), Mathf.Min((2f * level) * VL_GlobalConfigs.g_DamageModifer, 2f * player.GetCurrentWeapon().GetDamage().m_damage * (1f + level / 300f))) * VL_GlobalConfigs.c_monkChiSlam;
+				hitData.m_pushForce = 20f * VL_GlobalConfigs.g_DamageModifer;
+				hitData.m_point = item.GetEyePoint();
+				hitData.m_dir = dir;
+				hitData.m_skill = ValheimLegends.DisciplineSkill;
+				item.Damage(hitData);
 			}
 		}
 		Object.Instantiate(ZNetScene.instance.GetPrefab("fx_VL_MeteorSlam"), player.transform.position + player.transform.up * 0.2f, UnityEngine.Quaternion.identity);
@@ -105,8 +101,8 @@ public class Class_Monk
 			UnityEngine.Vector3 vector = player.GetEyePoint() + player.GetLookDir() * 0.2f + player.transform.up * -0.4f + player.transform.right * -0.4f;
 			Object.Instantiate(ZNetScene.instance.GetPrefab("fx_VL_Shockwave"), vector, UnityEngine.Quaternion.LookRotation(player.transform.forward));
 			Object.Instantiate(ZNetScene.instance.GetPrefab("fx_VL_ReverseLightburst"), vector, UnityEngine.Quaternion.LookRotation(player.transform.forward));
-			float level = VL_SkillHelper.GetSkillLevel(player, ValheimLegends.DisciplineSkillDef)
-				* (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddPhysicDamage() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddAttackSpeed() / 40f), 0f, 0.5f));
+			float level = player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.DisciplineSkillDef)
+				.m_level * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddPhysicDamage() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddAttackSpeed() / 40f), 0f, 0.5f));
 			RaycastHit hitInfo = default(RaycastHit);
 			UnityEngine.Vector3 position = player.transform.position;
 			UnityEngine.Vector3 vector2 = ((!Physics.Raycast(player.GetEyePoint(), player.GetLookDir(), out hitInfo, float.PositiveInfinity, ScriptChar_Layermask) || !hitInfo.collider) ? (position + player.GetLookDir() * 1000f) : hitInfo.point);
@@ -128,13 +124,14 @@ public class Class_Monk
 					flag = component != null;
 				}
 			}
-			using (VL_BufferPool.GetScope(out var list))
+			List<Character> list = new List<Character>();
+			list.Clear();
+			Character.GetCharactersInRange(vector + player.transform.forward * 2f, 2.5f, list);
+			if (flag && !component.IsPlayer())
 			{
-				Character.GetCharactersInRange(vector + player.transform.forward * 2f, 2.5f, list);
-				if (flag && !component.IsPlayer())
-				{
-					list.Add(component);
-				}
+				list.Add(component);
+			}
+			{
 				foreach (Character item in list)
 				{
 					if (BaseAI.IsEnemy(player, item))
@@ -149,8 +146,8 @@ public class Class_Monk
 						item.Damage(hitData);
 					}
 				}
+				return;
 			}
-			return;
 		}
 		if (QueuedAttack == MonkAttackType.MeteorSlam)
 		{
@@ -164,7 +161,7 @@ public class Class_Monk
 		}
 		else if (QueuedAttack == MonkAttackType.Surge)
 		{
-			SE_Monk sE_Monk = (SE_Monk)player.GetSEMan().GetStatusEffect(VL_Hashes.Monk);
+			SE_Monk sE_Monk = (SE_Monk)player.GetSEMan().GetStatusEffect("SE_VL_Monk".GetStableHashCode());
 			sE_Monk.surging = true;
 			Object.Instantiate(ZNetScene.instance.GetPrefab("fx_Potion_frostresist"), player.transform.position, UnityEngine.Quaternion.identity);
 			ValheimLegends.isChanneling = false;
@@ -172,9 +169,9 @@ public class Class_Monk
         }
 		else if (QueuedAttack == MonkAttackType.Psibolt)
 		{
-			float level2 = VL_SkillHelper.GetSkillLevel(player, ValheimLegends.DisciplineSkillDef)
-				* (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddPhysicDamage() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddAttackSpeed() / 40f), 0f, 0.5f));
-			SE_Monk sE_Monk2 = (SE_Monk)player.GetSEMan().GetStatusEffect(VL_Hashes.Monk);
+			float level2 = player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.DisciplineSkillDef)
+				.m_level * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddPhysicDamage() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddAttackSpeed() / 40f), 0f, 0.5f));
+			SE_Monk sE_Monk2 = (SE_Monk)player.GetSEMan().GetStatusEffect("SE_VL_Monk".GetStableHashCode());
 			UnityEngine.Vector3 vector3 = player.GetEyePoint() + player.GetLookDir() * 0.4f + player.transform.up * 0.1f + player.transform.right * 0.22f;
 			GameObject prefab = ZNetScene.instance.GetPrefab("VL_PsiBolt");
 			GameObject gameObject = Object.Instantiate(prefab, vector3, UnityEngine.Quaternion.identity);
@@ -196,7 +193,7 @@ public class Class_Monk
 			hitData2.SetAttacker(player);
 			UnityEngine.Vector3 vector4 = UnityEngine.Vector3.MoveTowards(gameObject.transform.position, target, 1f);
 			component2.Setup(player, (vector4 - gameObject.transform.position) * 60f, -1f, hitData2, null, null);
-			VL_ReflectCache.SetProjectileSkill(component2, ValheimLegends.DisciplineSkill);
+			Traverse.Create(component2).Field("m_skill").SetValue(ValheimLegends.DisciplineSkill);
 			sE_Monk2.hitCount = 0;
 			sE_Monk2.refreshed = true;
 			gameObject = null;
@@ -207,10 +204,10 @@ public class Class_Monk
 			{
 				return;
 			}
-			float level3 = VL_SkillHelper.GetSkillLevel(player, ValheimLegends.DisciplineSkillDef)
-				* (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddPhysicDamage() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddAttackSpeed() / 40f), 0f, 0.5f));
+			float level3 = player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.DisciplineSkillDef)
+				.m_level * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddPhysicDamage() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddAttackSpeed() / 40f), 0f, 0.5f));
 			float num = 0.5f + level3 * 0.005f * VL_GlobalConfigs.g_DamageModifer * VL_GlobalConfigs.c_monkFlyingKick;
-			SE_Monk sE_Monk3 = (SE_Monk)player.GetSEMan().GetStatusEffect(VL_Hashes.Monk);
+			SE_Monk sE_Monk3 = (SE_Monk)player.GetSEMan().GetStatusEffect("SE_VL_Monk".GetStableHashCode());
 			UnityEngine.Vector3 lookDir = player.GetLookDir();
 			lookDir.y = 0f;
 			player.transform.rotation = UnityEngine.Quaternion.AngleAxis(40 * fkickCount, player.transform.up) * UnityEngine.Quaternion.LookRotation(kickDir);
@@ -249,24 +246,21 @@ public class Class_Monk
 					break;
 				}
 				vector7 = new UnityEngine.Vector3(position3.x, vector7.y, position3.z);
-				using (VL_BufferPool.GetScope(out var nearby))
+				foreach (Character allCharacter in Character.GetAllCharacters())
 				{
-					Character.GetCharactersInRange(player.transform.position, 2.5f, nearby);
-					foreach (Character allCharacter in nearby)
+					HitData hitData3 = new HitData();
+					hitData3.m_damage = player.GetCurrentWeapon().GetDamage();
+					hitData3.ApplyModifier(Random.Range(0.8f, 1.2f) * num);
+					hitData3.m_point = allCharacter.GetCenterPoint();
+					hitData3.m_pushForce = 4f;
+					hitData3.m_dir = allCharacter.transform.position - position3;
+					hitData3.m_skill = ValheimLegends.DisciplineSkill;
+					float num2 = UnityEngine.Vector3.Distance(allCharacter.transform.position, player.transform.position);
+					if (BaseAI.IsEnemy(allCharacter, player) && num2 <= 2.5f && !kicklist.Contains(allCharacter.GetInstanceID()))
 					{
-						HitData hitData3 = new HitData();
-						hitData3.m_damage = player.GetCurrentWeapon().GetDamage();
-						hitData3.ApplyModifier(Random.Range(0.8f, 1.2f) * num);
-						hitData3.m_point = allCharacter.GetCenterPoint();
-						hitData3.m_pushForce = 4f;
-						hitData3.m_dir = allCharacter.transform.position - position3;
-						hitData3.m_skill = ValheimLegends.DisciplineSkill;
-						if (BaseAI.IsEnemy(allCharacter, player) && !kicklist.Contains(allCharacter.GetInstanceID()))
-						{
-							allCharacter.Damage(hitData3);
-							Object.Instantiate(ZNetScene.instance.GetPrefab("fx_VL_HeavyCrit"), allCharacter.GetCenterPoint(), UnityEngine.Quaternion.identity);
-							kicklist.Add(allCharacter.GetInstanceID());
-						}
+						allCharacter.Damage(hitData3);
+						Object.Instantiate(ZNetScene.instance.GetPrefab("fx_VL_HeavyCrit"), allCharacter.GetCenterPoint(), UnityEngine.Quaternion.identity);
+						kicklist.Add(allCharacter.GetInstanceID());
 					}
 				}
 			}
@@ -338,12 +332,12 @@ public class Class_Monk
 			if (flag3)
 			{
 				VL_Utility.RotatePlayerToTarget(player);
-				VL_ReflectCache.GetZAnim(player)?.SetTrigger("jump");
+				((ZSyncAnimation)typeof(Player).GetField("m_zanim", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(player)).SetTrigger("jump");
 				vector6.y = 0f;
 				playerBody.linearVelocity = vector6 * -1.5f + new UnityEngine.Vector3(0f, 10f, 0f);
 				ValheimLegends.isChargingDash = false;
-				sE_Monk3.maxHitCount = 8 + Mathf.RoundToInt(VL_SkillHelper.GetSkillLevel(player, ValheimLegends.DisciplineSkillDef)
-					* 0.2f * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddPhysicDamage() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddAttackSpeed() / 40f), 0f, 0.5f)));
+				sE_Monk3.maxHitCount = 8 + Mathf.RoundToInt(player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.DisciplineSkillDef)
+					.m_level * 0.2f * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddPhysicDamage() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddAttackSpeed() / 40f), 0f, 0.5f)));
 				sE_Monk3.hitCount += 2;
 				sE_Monk3.hitCount = Mathf.Clamp(sE_Monk3.hitCount, 0, sE_Monk3.maxHitCount);
 				sE_Monk3.refreshed = true;
@@ -354,12 +348,12 @@ public class Class_Monk
 
 	public static void Process_Input(Player player, ref Rigidbody playerBody, ref float altitude, ref Animator anim)
 	{
-		SE_Monk sE_Monk = (SE_Monk)player.GetSEMan().GetStatusEffect(VL_Hashes.Monk);
+		SE_Monk sE_Monk = (SE_Monk)player.GetSEMan().GetStatusEffect("SE_VL_Monk".GetStableHashCode());
 		if (VL_Utility.Ability3_Input_Down)
 		{
 			if (PlayerIsUnarmed)
 			{
-				if (!player.GetSEMan().HaveStatusEffect(VL_Hashes.Ability3_CD))
+				if (!player.GetSEMan().HaveStatusEffect("SE_VL_Ability3_CD".GetStableHashCode()))
 				{
 					if (sE_Monk.hitCount >= 1)
 					{
@@ -377,9 +371,9 @@ public class Class_Monk
 						else
 						{
 							VL_Utility.RotatePlayerToTarget(player);
-							float level = VL_SkillHelper.GetSkillLevel(player, ValheimLegends.DisciplineSkillDef)
-								* (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddPhysicDamage() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddAttackSpeed() / 40f), 0f, 0.5f));
-							VL_ReflectCache.GetZAnim(player)?.SetTrigger("swing_axe2");
+							float level = player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.DisciplineSkillDef)
+								.m_level * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddPhysicDamage() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddAttackSpeed() / 40f), 0f, 0.5f));
+							((ZSyncAnimation)typeof(Player).GetField("m_zanim", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(player)).SetTrigger("swing_axe2");
 							QueuedAttack = MonkAttackType.Psibolt;
 							ValheimLegends.isChargingDash = true;
 							ValheimLegends.dashCounter = 0;
@@ -405,7 +399,7 @@ public class Class_Monk
 		{
 			if (PlayerIsUnarmed)
 			{
-				if (!player.GetSEMan().HaveStatusEffect(VL_Hashes.Ability2_CD))
+				if (!player.GetSEMan().HaveStatusEffect("SE_VL_Ability2_CD".GetStableHashCode()))
 				{
 					if (player.GetStamina() >= VL_Utility.GetFlyingKickCost)
 					{
@@ -413,9 +407,9 @@ public class Class_Monk
 						statusEffect2.m_ttl = VL_Utility.GetFlyingKickCooldownTime;
 						player.GetSEMan().AddStatusEffect(statusEffect2);
 						player.UseStamina(VL_Utility.GetFlyingKickCost);
-						float level2 = VL_SkillHelper.GetSkillLevel(player, ValheimLegends.DisciplineSkillDef)
-							* (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddPhysicDamage() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddAttackSpeed() / 40f), 0f, 0.5f));
-						VL_ReflectCache.GetZAnim(player)?.SetTrigger("unarmed_kick");
+						float level2 = player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.DisciplineSkillDef)
+							.m_level * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddPhysicDamage() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddAttackSpeed() / 40f), 0f, 0.5f));
+						((ZSyncAnimation)typeof(Player).GetField("m_zanim", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(player)).SetTrigger("unarmed_kick");
 						QueuedAttack = MonkAttackType.FlyingKickStart;
 						ValheimLegends.isChargingDash = true;
 						ValheimLegends.dashCounter = 0;
@@ -449,14 +443,14 @@ public class Class_Monk
                 {
 					if (player.GetStaminaPercentage() > 0.8f && player.GetStamina() >= 50f)
 					{
-						float level3 = VL_SkillHelper.GetSkillLevel(player, ValheimLegends.DisciplineSkillDef)
-							* (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddPhysicDamage() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddAttackSpeed() / 40f), 0f, 0.5f));
+						float level3 = player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.DisciplineSkillDef).m_level * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddPhysicDamage() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddAttackSpeed() / 40f), 0f, 0.5f));
 						if (sE_Monk.hitCount < Mathf.FloorToInt(Mathf.Sqrt(level3)))
 						{
 							Object.Instantiate(ZNetScene.instance.GetPrefab("fx_VL_ChiPulse"), player.GetCenterPoint(), UnityEngine.Quaternion.identity);
 							Object.Instantiate(ZNetScene.instance.GetPrefab("fx_Potion_frostresist"), player.transform.position, UnityEngine.Quaternion.identity);
 							player.UseStamina(Mathf.Max(50f, player.GetMaxStamina() * 0.8f));
-							sE_Monk.maxHitCount = 1 + Mathf.RoundToInt(0.2f + Mathf.Sqrt(level3));
+							sE_Monk.maxHitCount = 1 + Mathf.RoundToInt(0.2f + Mathf.Sqrt(Player.m_localPlayer.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.DisciplineSkillDef)
+								.m_level * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddPhysicDamage() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddAttackSpeed() / 40f), 0f, 0.5f))));
 							sE_Monk.hitCount++;
 							sE_Monk.hitCount = Mathf.Clamp(sE_Monk.hitCount, 0, sE_Monk.maxHitCount);
 							sE_Monk.refreshed = true;
@@ -479,13 +473,13 @@ public class Class_Monk
 						player.Message(MessageHud.MessageType.TopLeft, "Not enough stamina for Power-Up: (" + player.GetStamina().ToString("#.#") + "/" + Mathf.Max(50f, player.GetMaxStamina() * 0.8f) + ")");
 					}
 				}
-				else if (!player.GetSEMan().HaveStatusEffect(VL_Hashes.Ability1_CD))
+				else if (!player.GetSEMan().HaveStatusEffect("SE_VL_Ability1_CD".GetStableHashCode()))
 				{
 					if ((float)sE_Monk.hitCount >= VL_Utility.GetMeteorPunchCost)
 					{
 						VL_Utility.RotatePlayerToTarget(player);
-						float level3 = VL_SkillHelper.GetSkillLevel(player, ValheimLegends.DisciplineSkillDef)
-							* (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddPhysicDamage() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddAttackSpeed() / 40f), 0f, 0.5f));
+						float level3 = player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.DisciplineSkillDef)
+							.m_level * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddPhysicDamage() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddAttackSpeed() / 40f), 0f, 0.5f));
 						StatusEffect statusEffect3 = (SE_Ability1_CD)ScriptableObject.CreateInstance(typeof(SE_Ability1_CD));
 						statusEffect3.m_ttl = VL_Utility.GetMeteorPunchCooldownTime;
 						player.GetSEMan().AddStatusEffect(statusEffect3);
@@ -494,14 +488,14 @@ public class Class_Monk
 						sE_Monk.refreshed = true;
 						if (player.IsOnGround() || player.transform.position.y - ZoneSystem.instance.GetSolidHeight(player.transform.position) < 2f)
 						{
-							VL_ReflectCache.GetZAnim(player)?.SetTrigger("unarmed_attack1");
+							((ZSyncAnimation)typeof(Player).GetField("m_zanim", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(player)).SetTrigger("unarmed_attack1");
 							QueuedAttack = MonkAttackType.MeteorPunch;
 							ValheimLegends.isChargingDash = true;
 							ValheimLegends.dashCounter = 0;
 						}
 						else
 						{
-							VL_ReflectCache.GetZAnim(player)?.SetTrigger("battleaxe_attack2");
+							((ZSyncAnimation)typeof(Player).GetField("m_zanim", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(player)).SetTrigger("battleaxe_attack2");
 							QueuedAttack = MonkAttackType.MeteorSlam;
 							ValheimLegends.isChargingDash = true;
 							ValheimLegends.dashCounter = 0;

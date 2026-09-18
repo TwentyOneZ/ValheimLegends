@@ -5,7 +5,7 @@ namespace ValheimLegends;
 
 public class SE_IceWeapon : StatusEffect
 {
-    public static Sprite AbilityIcon = ZNetScene.instance.GetPrefab("StaffIceShards").GetComponent<ItemDrop>().m_itemData.GetIcon();
+    public static Sprite AbilityIcon;
 
     public static GameObject GO_SEFX;
 
@@ -23,7 +23,7 @@ public class SE_IceWeapon : StatusEffect
     public SE_IceWeapon()
     {
         base.name = "SE_VL_IceWeapon";
-        m_icon = ZNetScene.instance.GetPrefab("StaffIceShards").GetComponent<ItemDrop>().m_itemData.GetIcon();
+        m_icon = AbilityIcon;
         m_tooltip = "Attacks are imbued with Frost";
         m_name = "Ice Weapon: 0";
 
@@ -66,13 +66,12 @@ public class SE_IceWeapon : StatusEffect
             _baseName = _baseName.Split(':')[0].Trim();
         }
 
-        // Reaplica o nome com charges (mantém sempre certo)
+        // Reaplica o nome com charges (mant�m sempre certo)
         UpdateName();
 
         float level = m_character.GetSkills().GetSkillList()
             .FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.EvocationSkillDef)
             .m_level * (1f + Mathf.Clamp(
-        float level = VL_SkillHelper.GetSkillLevel(m_character, ValheimLegends.EvocationSkillDef) * (1f + Mathf.Clamp(
                 (EpicMMOSystem.LevelSystem.Instance.getAddCriticalChance() / 40f) +
                 (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 80f),
                 0f, 0.5f));
@@ -107,8 +106,17 @@ public class SE_IceWeapon : StatusEffect
         base.UpdateStatusEffect(dt);
     }
 
+    public override bool IsDone()
+    {
+        if (ValheimLegends.vl_player == null || ValheimLegends.vl_player.vl_class != ValheimLegends.PlayerClass.Enchanter)
+        {
+            return true;
+        }
+        return base.IsDone();
+    }
+
     public override bool CanAdd(Character character)
     {
-        return character.IsPlayer();
+        return base.CanAdd(character) && character.IsPlayer() && ValheimLegends.vl_player != null && ValheimLegends.vl_player.vl_class == ValheimLegends.PlayerClass.Enchanter;
     }
 }

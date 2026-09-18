@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 // FILE: VL_AbilityBorrow.cs
 // PURPOSE: Helper “borrowed abilities” used by Druid shapeshift forms.
 //          This file exposes ONLY the entrypoints that Class_Druid calls:
@@ -37,7 +37,6 @@ namespace ValheimLegends
             // We map Dash onto "Ability3" while in Fenring form, so we use Ability3 CD.
             int cdHash = "SE_VL_Ability3_CD".GetStableHashCode();
             if (player.GetSEMan().HaveStatusEffect(cdHash))
-            if (player.GetSEMan().HaveStatusEffect(VL_Hashes.Ability3_CD))
             {
                 player.Message(MessageHud.MessageType.TopLeft, "Ability not ready");
                 return;
@@ -61,7 +60,6 @@ namespace ValheimLegends
             player.UseStamina(cost);
 
             ((ZSyncAnimation)typeof(Player).GetField("m_zanim", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(player)).SetTrigger("swing_longsword2");
-            VL_ReflectCache.GetZAnim(player)?.SetTrigger("swing_longsword2");
             UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("vfx_Potion_stamina_medium"), player.transform.position, UnityEngine.Quaternion.identity);
             ValheimLegends.isChargingDash = true;
             ValheimLegends.dashCounter = 0;
@@ -78,7 +76,6 @@ namespace ValheimLegends
 
             int cdHash = "SE_VL_Ability2_CD".GetStableHashCode();
             if (player.GetSEMan().HaveStatusEffect(cdHash))
-            if (player.GetSEMan().HaveStatusEffect(VL_Hashes.Ability2_CD))
             {
                 player.Message(MessageHud.MessageType.TopLeft, "Ability not ready");
                 return;
@@ -96,7 +93,6 @@ namespace ValheimLegends
             float level = player.GetSkills().GetSkillList()
                 .FirstOrDefault(x => x.m_info == ValheimLegends.DisciplineSkillDef)
                 .m_level * (1f + Mathf.Clamp(
-            float level = VL_SkillHelper.GetSkillLevel(player, ValheimLegends.DisciplineSkillDef) * (1f + Mathf.Clamp(
                     (EpicMMOSystem.LevelSystem.Instance.getAddStamina() / 200f) +
                     (EpicMMOSystem.LevelSystem.Instance.getAddAttackSpeed() / 60f),
                     0f, 0.5f));
@@ -119,7 +115,6 @@ namespace ValheimLegends
                 zanim?.SetTrigger("gpower");
             }
             catch { }
-            VL_ReflectCache.GetZAnim(player)?.SetTrigger("gpower");
 
             // FX/SFX used by Valkyrie
             try
@@ -131,25 +126,15 @@ namespace ValheimLegends
             // Stagger pulse (same as Valkyrie)
             List<Character> list = new List<Character>();
             ((ZSyncAnimation)typeof(Player).GetField("m_zanim", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(Player.m_localPlayer)).SetTrigger("battleaxe_attack1");
-            VL_ReflectCache.GetZAnim(player)?.SetTrigger("battleaxe_attack1");
             UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("sfx_troll_rock_destroyed"), player.transform.position, UnityEngine.Quaternion.identity);
             UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("vfx_sledge_iron_hit"), player.transform.position, UnityEngine.Quaternion.identity);
             List<Character> allCharacters = Character.GetAllCharacters();
             foreach (Character item in allCharacters)
-            
-            using (VL_BufferPool.GetScope(out var nearbyCharacters))
             {
                 if (BaseAI.IsEnemy(player, item) && (item.transform.position - player.transform.position).magnitude <= 6f && VL_Utility.LOS_IsValid(item, player.transform.position, player.GetCenterPoint()))
-                Character.GetCharactersInRange(player.transform.position, 6f, nearbyCharacters);
-                foreach (Character item in nearbyCharacters)
                 {
                     UnityEngine.Vector3 forceDirection = item.transform.position - player.transform.position;
                     item.Stagger(forceDirection);
-                    if (item != null && BaseAI.IsEnemy(player, item) && VL_Utility.LOS_IsValid(item, player.transform.position, player.GetCenterPoint()))
-                    {
-                        UnityEngine.Vector3 forceDirection = item.transform.position - player.transform.position;
-                        item.Stagger(forceDirection);
-                    }
                 }
             }
             player.RaiseSkill(ValheimLegends.DisciplineSkill, VL_Utility.GetStaggerSkillGain);
@@ -165,7 +150,6 @@ namespace ValheimLegends
             // We map Shadow Stalk onto "Ability1" while in Fenring form, so we use Ability1 CD.
             int cdHash = "SE_VL_Ability1_CD".GetStableHashCode();
             if (player.GetSEMan().HaveStatusEffect(cdHash))
-            if (player.GetSEMan().HaveStatusEffect(VL_Hashes.Ability1_CD))
             {
                 player.Message(MessageHud.MessageType.TopLeft, "Ability not ready");
                 return;
@@ -182,7 +166,6 @@ namespace ValheimLegends
             float level = player.GetSkills().GetSkillList()
                 .FirstOrDefault(x => x.m_info == ValheimLegends.DisciplineSkillDef)
                 .m_level * (1f + Mathf.Clamp(
-            float level = VL_SkillHelper.GetSkillLevel(player, ValheimLegends.DisciplineSkillDef) * (1f + Mathf.Clamp(
                     (EpicMMOSystem.LevelSystem.Instance.getAddPhysicDamage() / 40f) +
                     (EpicMMOSystem.LevelSystem.Instance.getAddAttackSpeed() / 40f),
                     0f, 0.5f));
@@ -213,24 +196,15 @@ namespace ValheimLegends
             {
                 List<Character> chars = new List<Character>();
                 Character.GetCharactersInRange(player.GetCenterPoint(), 500f, chars);
-                using (VL_BufferPool.GetScope(out var chars))
-                {
-                    Character.GetCharactersInRange(player.GetCenterPoint(), 500f, chars);
 
                 foreach (Character c in chars)
                 {
                     if (c?.GetBaseAI() is MonsterAI ai && ai.IsEnemy(player))
-                    foreach (Character c in chars)
                     {
                         if (ai.GetTargetCreature() == player)
-                        if (c?.GetBaseAI() is MonsterAI ai && ai.IsEnemy(player))
                         {
                             Traverse.Create(ai).Field("m_alerted").SetValue(false);
                             Traverse.Create(ai).Field("m_targetCreature").SetValue(null);
-                            if (ai.GetTargetCreature() == player)
-                            {
-                                VL_ReflectCache.ResetMonsterAggro(ai);
-                            }
                         }
                     }
                 }
@@ -249,7 +223,6 @@ namespace ValheimLegends
 
             int cdHash = "SE_VL_Ability1_CD".GetStableHashCode();
             if (player.GetSEMan().HaveStatusEffect(cdHash))
-            if (player.GetSEMan().HaveStatusEffect(VL_Hashes.Ability1_CD))
             {
                 player.Message(MessageHud.MessageType.TopLeft, "Ability not ready");
                 return;
@@ -266,7 +239,6 @@ namespace ValheimLegends
             float level = player.GetSkills().GetSkillList()
                 .FirstOrDefault(x => x.m_info == ValheimLegends.EvocationSkillDef)
                 .m_level * (1f + Mathf.Clamp(
-            float level = VL_SkillHelper.GetSkillLevel(player, ValheimLegends.EvocationSkillDef) * (1f + Mathf.Clamp(
                     (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 100f) +
                     (EpicMMOSystem.LevelSystem.Instance.getEitrRegen() / 100f),
                     0f, 0.5f));
@@ -287,7 +259,6 @@ namespace ValheimLegends
                 zanim?.SetTrigger("gpower");
             }
             catch { }
-            VL_ReflectCache.GetZAnim(player)?.SetTrigger("gpower");
 
             // Projectile
             GameObject prefab = ZNetScene.instance.GetPrefab("projectile_fireball");
@@ -313,7 +284,6 @@ namespace ValheimLegends
             proj.Setup(player, player.GetLookDir() * 50f, -1f, hit, null, null);
 
             Traverse.Create(proj).Field("m_skill").SetValue(ValheimLegends.EvocationSkill);
-            VL_ReflectCache.SetProjectileSkill(proj, ValheimLegends.EvocationSkill);
 
             player.RaiseSkill(ValheimLegends.EvocationSkill, VL_Utility.GetFireballSkillGain);
         }
@@ -327,7 +297,6 @@ namespace ValheimLegends
 
             int cdHash = "SE_VL_Ability2_CD".GetStableHashCode();
             if (player.GetSEMan().HaveStatusEffect(cdHash))
-            if (player.GetSEMan().HaveStatusEffect(VL_Hashes.Ability2_CD))
             {
                 player.Message(MessageHud.MessageType.TopLeft, "Ability not ready");
                 return;
@@ -344,7 +313,6 @@ namespace ValheimLegends
             float level = player.GetSkills().GetSkillList()
                 .FirstOrDefault(x => x.m_info == ValheimLegends.EvocationSkillDef)
                 .m_level * (1f + Mathf.Clamp(
-            float level = VL_SkillHelper.GetSkillLevel(player, ValheimLegends.EvocationSkillDef) * (1f + Mathf.Clamp(
                     (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 100f) +
                     (EpicMMOSystem.LevelSystem.Instance.getEitrRegen() / 100f),
                     0f, 0.5f));
@@ -384,7 +352,6 @@ namespace ValheimLegends
 
             int cdHash = "SE_VL_Ability3_CD".GetStableHashCode();
             if (player.GetSEMan().HaveStatusEffect(cdHash))
-            if (player.GetSEMan().HaveStatusEffect(VL_Hashes.Ability3_CD))
             {
                 player.Message(MessageHud.MessageType.TopLeft, "Ability not ready");
                 return;
@@ -394,7 +361,6 @@ namespace ValheimLegends
             float level = player.GetSkills().GetSkillList()
                 .FirstOrDefault(x => x.m_info == ValheimLegends.EvocationSkillDef)
                 .m_level * (1f + Mathf.Clamp(
-            float level = VL_SkillHelper.GetSkillLevel(player, ValheimLegends.EvocationSkillDef) * (1f + Mathf.Clamp(
                     (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 100f) +
                     (EpicMMOSystem.LevelSystem.Instance.getEitrRegen() / 100f),
                     0f, 0.5f));

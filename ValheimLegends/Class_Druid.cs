@@ -62,7 +62,7 @@ public class Class_Druid
                 playerBody.linearVelocity = velocity * 2f + new UnityEngine.Vector3(0f, 8f, 0f);
                 canDoubleJump = false;
                 altitude = 0f;
-                VL_ReflectCache.GetZAnim(player)?.SetTrigger("jump");
+                ((ZSyncAnimation)typeof(Player).GetField("m_zanim", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(player)).SetTrigger("jump");
             }
             else if (player.IsOnGround())
             {
@@ -135,6 +135,7 @@ public class Class_Druid
         //}
 
 
+        System.Random random = new System.Random();
 		UnityEngine.Vector3 vector = default(Vector3);
 		if (VL_Utility.Ability3_Input_Down)
 		{
@@ -144,7 +145,7 @@ public class Class_Druid
             //    TryActivate_CultistForm(player);
             //    return;
             //}
-            if (!player.GetSEMan().HaveStatusEffect(VL_Hashes.Ability3_CD))
+            if (!player.GetSEMan().HaveStatusEffect("SE_VL_Ability3_CD".GetStableHashCode()))
 			{
 				ValheimLegends.shouldUseGuardianPower = false;
 				if (player.GetStamina() >= VL_Utility.GetRootCost && !ValheimLegends.isChanneling)
@@ -155,9 +156,11 @@ public class Class_Druid
 					statusEffect.m_ttl = VL_Utility.GetRootCooldownTime;
 					player.GetSEMan().AddStatusEffect(statusEffect);
 					player.UseStamina(VL_Utility.GetRootCost);
+                    //((ZSyncAnimation)typeof(Player).GetField("m_zanim", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(Player.m_localPlayer)).SetTrigger("gpower");
+                    //((ZSyncAnimation)typeof(Player).GetField("m_zanim", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(Player.m_localPlayer)).SetSpeed(5f);
                     player.StartEmote("point");
-                    float level = VL_SkillHelper.GetSkillLevel(player, ValheimLegends.ConjurationSkillDef)
-						* (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddStamina() / 200f) + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 80f), 0f, 0.5f));
+                    float level = player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.ConjurationSkillDef)
+						.m_level * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddStamina() / 200f) + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 80f), 0f, 0.5f));
 					rootCount = 0;
 					rootCountTrigger = 16 - Mathf.RoundToInt((0.05f * level) - (7.5f * (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 80f)));
 					rootTotal = 0;
@@ -176,7 +179,7 @@ public class Class_Druid
 					P_Root.m_ttl = 35f;
 					P_Root.m_gravity = 0f;
 					P_Root.m_rayRadius = 0.1f;
-					VL_ReflectCache.SetProjectileSkill(P_Root, ValheimLegends.ConjurationSkill);
+					Traverse.Create(P_Root).Field("m_skill").SetValue(ValheimLegends.ConjurationSkill);
                     var d = player.GetLookDir();
                     if (d.sqrMagnitude > 0.000001f) 
                         P_Root.transform.localRotation = UnityEngine.Quaternion.LookRotation(player.GetLookDir());
@@ -204,8 +207,8 @@ public class Class_Druid
 				return;
 			}
 			player.RaiseSkill(ValheimLegends.ConjurationSkill, 0.06f);
-			float level2 = VL_SkillHelper.GetSkillLevel(player, ValheimLegends.ConjurationSkillDef)
-				* (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddStamina() / 200f) + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 80f), 0f, 0.5f));
+			float level2 = player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.ConjurationSkillDef)
+				.m_level * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddStamina() / 200f) + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 80f), 0f, 0.5f));
 			rootCount = 0;
 			if (GO_Root != null && GO_Root.transform != null)
 			{
@@ -220,7 +223,7 @@ public class Class_Druid
 				if (P_Root != null && P_Root.name == "VL_DruidRoot")
 				{
 					P_Root.Setup(player, (vector3 - GO_Root.transform.position) * 75f, -1f, hitData, null, null);
-					VL_ReflectCache.SetProjectileSkill(P_Root, ValheimLegends.ConjurationSkill);
+					Traverse.Create(P_Root).Field("m_skill").SetValue(ValheimLegends.ConjurationSkill);
 				}
 			}
 			GO_Root = null;
@@ -239,7 +242,7 @@ public class Class_Druid
 			P_Root.m_ttl = rootCountTrigger + 1;
 			P_Root.m_gravity = 0f;
 			P_Root.m_rayRadius = 0.1f;
-			VL_ReflectCache.SetProjectileSkill(P_Root, ValheimLegends.ConjurationSkill);
+			Traverse.Create(P_Root).Field("m_skill").SetValue(ValheimLegends.ConjurationSkill);
             var d = player.GetLookDir();
             if (d.sqrMagnitude > 0.000001f)
                 P_Root.transform.localRotation = UnityEngine.Quaternion.LookRotation(player.GetLookDir());
@@ -258,7 +261,7 @@ public class Class_Druid
 				hitData2.SetAttacker(player);
 				UnityEngine.Vector3 vector5 = UnityEngine.Vector3.MoveTowards(GO_Root.transform.position, target2, 1f);
 				P_Root.Setup(player, (vector5 - GO_Root.transform.position) * 65f, -1f, hitData2, null, null);
-				VL_ReflectCache.SetProjectileSkill(P_Root, ValheimLegends.ConjurationSkill);
+				Traverse.Create(P_Root).Field("m_skill").SetValue(ValheimLegends.ConjurationSkill);
 			}
 			rootTotal = 0;
 			GO_Root = null;
@@ -272,7 +275,7 @@ public class Class_Druid
                 TryActivate_FenringForm(player);
                 return;
             }
-            if (!player.GetSEMan().HaveStatusEffect(VL_Hashes.Ability2_CD))
+            if (!player.GetSEMan().HaveStatusEffect("SE_VL_Ability2_CD".GetStableHashCode()))
 			{
                 if (player.GetStamina() >= VL_Utility.GetDefenderCost)
 				{
@@ -284,9 +287,9 @@ public class Class_Druid
 					statusEffect2.m_ttl = VL_Utility.GetDefenderCooldownTime;
 					player.GetSEMan().AddStatusEffect(statusEffect2);
 					player.UseStamina(VL_Utility.GetDefenderCost);
-					float level3 = VL_SkillHelper.GetSkillLevel(player, ValheimLegends.ConjurationSkillDef)
-						* (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddStamina() / 200f) + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 80f), 0f, 0.5f));
-					VL_ReflectCache.GetZAnim(Player.m_localPlayer)?.SetTrigger("gpower");
+					float level3 = player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.ConjurationSkillDef)
+						.m_level * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddStamina() / 200f) + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 80f), 0f, 0.5f));
+					((ZSyncAnimation)typeof(Player).GetField("m_zanim", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(Player.m_localPlayer)).SetTrigger("gpower");
 					UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("vfx_WishbonePing"), player.transform.position, UnityEngine.Quaternion.identity);
 					GameObject prefab3 = ZNetScene.instance.GetPrefab("TentaRoot");
 					CharacterTimedDestruction component = prefab3.GetComponent<CharacterTimedDestruction>();
@@ -368,7 +371,7 @@ public class Class_Druid
 		}
 		else if (VL_Utility.Ability1_Input_Down)
 		{
-            if (!player.GetSEMan().HaveStatusEffect(VL_Hashes.Ability1_CD))
+            if (!player.GetSEMan().HaveStatusEffect("SE_VL_Ability1_CD".GetStableHashCode()))
 			{
                 if (player.IsBlocking())
                 {
@@ -401,7 +404,8 @@ public class Class_Druid
                     player.RaiseSkill(ValheimLegends.AlterationSkill, VL_Utility.GetRegenerationSkillGain);
                     StatusEffect statusEffect = (SE_Ability1_CD)ScriptableObject.CreateInstance(typeof(SE_Ability1_CD));
 
-                    float level = VL_SkillHelper.GetSkillLevel(player, ValheimLegends.AlterationSkillDef)
+                    float level = player.GetSkills().GetSkillList()
+                        .FirstOrDefault(x => x.m_info == ValheimLegends.AlterationSkillDef).m_level
                         * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddCriticalChance() / 40f) +
                                             (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 80f), 0f, 0.5f));
 
@@ -464,8 +468,8 @@ public class Class_Druid
 						statusEffect3.m_ttl = VL_Utility.GetRegenerationCooldownTime;
 						player.GetSEMan().AddStatusEffect(statusEffect3);
 						player.UseStamina(VL_Utility.GetRegenerationCost);
-						float level4 = VL_SkillHelper.GetSkillLevel(player, ValheimLegends.AlterationSkillDef)
-							* (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddCriticalChance() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 80f), 0f, 0.5f));
+						float level4 = player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.AlterationSkillDef)
+							.m_level * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddCriticalChance() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 80f), 0f, 0.5f));
 						player.StartEmote("cheer");
 						GO_CastFX = UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("fx_guardstone_permitted_add"), player.GetCenterPoint(), UnityEngine.Quaternion.identity);
 						GO_CastFX = UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("vfx_WishbonePing"), player.transform.position, UnityEngine.Quaternion.identity);
@@ -474,25 +478,24 @@ public class Class_Druid
 						sE_Regeneration.m_icon = ZNetScene.instance.GetPrefab("TrophyGreydwarfShaman").GetComponent<ItemDrop>().m_itemData.GetIcon();
 						sE_Regeneration.m_HealAmount = 0.5f + 0.4f * level4 * VL_GlobalConfigs.g_DamageModifer * VL_GlobalConfigs.c_druidRegen;
 						sE_Regeneration.doOnce = false;
-						using (VL_BufferPool.GetScope(out var list2))
+						List<Character> list2 = new List<Character>();
+						list2.Clear();
+						Character.GetCharactersInRange(player.GetCenterPoint(), 30f + 0.2f * level4, list2);
+						foreach (Character item in list2)
 						{
-							Character.GetCharactersInRange(player.GetCenterPoint(), 30f + 0.2f * level4, list2);
-							foreach (Character item in list2)
+							if (!BaseAI.IsEnemy(player, item))
 							{
-								if (!BaseAI.IsEnemy(player, item))
+								if (item == Player.m_localPlayer)
 								{
-									if (item == Player.m_localPlayer)
-									{
-										item.GetSEMan().AddStatusEffect(sE_Regeneration, resetTime: true);
-									}
-									else if (item.IsPlayer())
-									{
-										item.GetSEMan().AddStatusEffect(VL_Hashes.Regeneration, resetTime: true);
-									}
-									else
-									{
-										item.GetSEMan().AddStatusEffect(sE_Regeneration, resetTime: true);
-									}
+									item.GetSEMan().AddStatusEffect(sE_Regeneration, resetTime: true);
+								}
+								else if (item.IsPlayer())
+								{
+									item.GetSEMan().AddStatusEffect(sE_Regeneration.name.GetStableHashCode(), resetTime: true);
+								}
+								else
+								{
+									item.GetSEMan().AddStatusEffect(sE_Regeneration, resetTime: true);
 								}
 							}
 						}
@@ -539,7 +542,7 @@ public class Class_Druid
                 return;
             }
 
-            if (seMan.HaveStatusEffect(VL_Hashes.Shapeshift_CD))
+            if (seMan.HaveStatusEffect("SE_VL_Shapeshift_CD".GetStableHashCode()))
             {
                 player.Message(MessageHud.MessageType.TopLeft, "Can't shapeshift again yet.");
                 return;
@@ -551,7 +554,8 @@ public class Class_Druid
         }
 
         StatusEffect statusEffect2 = (SE_Shapeshift_CD)ScriptableObject.CreateInstance(typeof(SE_Shapeshift_CD));
-        float level = VL_SkillHelper.GetSkillLevel(player, ValheimLegends.AlterationSkillDef)
+        float level = player.GetSkills().GetSkillList()
+            .FirstOrDefault(x => x.m_info == ValheimLegends.AlterationSkillDef).m_level
             * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddCriticalChance() / 40f) +
                                 (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 80f), 0f, 0.5f));
         statusEffect2.m_ttl = 180f - (60f * (level / 150f)) - (60f * (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 80f));
@@ -584,7 +588,7 @@ public class Class_Druid
         // FX/anim (opcional)
         ValheimLegends.shouldUseGuardianPower = false;
 
-        var zanim = VL_ReflectCache.GetZAnim(player);
+        var zanim = (ZSyncAnimation)typeof(Player).GetField("m_zanim", BindingFlags.Instance | BindingFlags.NonPublic)?.GetValue(player);
         zanim?.SetTrigger("gpower");
         if (ZNetScene.instance != null)
         {
@@ -623,14 +627,15 @@ public class Class_Druid
             return;
         }
 
-        if (seMan.HaveStatusEffect(VL_Hashes.Shapeshift_CD))
+        if (seMan.HaveStatusEffect("SE_VL_Shapeshift_CD".GetStableHashCode()))
         {
             player.Message(MessageHud.MessageType.TopLeft, "Can't shapeshift again yet.");
             return;
         }
 
         StatusEffect statusEffect2 = (SE_Shapeshift_CD)ScriptableObject.CreateInstance(typeof(SE_Shapeshift_CD));
-        float level = VL_SkillHelper.GetSkillLevel(player, ValheimLegends.AlterationSkillDef)
+        float level = player.GetSkills().GetSkillList()
+            .FirstOrDefault(x => x.m_info == ValheimLegends.AlterationSkillDef).m_level
             * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddCriticalChance() / 40f) +
                                 (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 80f), 0f, 0.5f));
         statusEffect2.m_ttl = 30f - (14.25f * (level / 150f)) - (14.25f * (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 80f));
@@ -655,7 +660,7 @@ public class Class_Druid
 
         ValheimLegends.shouldUseGuardianPower = false;
 
-        var zanim = VL_ReflectCache.GetZAnim(player);
+        var zanim = (ZSyncAnimation)typeof(Player).GetField("m_zanim", BindingFlags.Instance | BindingFlags.NonPublic)?.GetValue(player);
         zanim?.SetTrigger("gpower");
 
         if (ZNetScene.instance != null)
@@ -697,8 +702,8 @@ public class Class_Druid
         UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("vfx_odin_despawn"), player.transform.position, Quaternion.identity);
         UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("sfx_wraith_death"), player.transform.position, Quaternion.identity);
         seMan.AddStatusEffect(se, resetTime: true);
-        VL_ReflectCache.GetZAnim(player)?.SetTrigger("gpower");
-        VL_ReflectCache.GetZAnim(Player.m_localPlayer)?.SetSpeed(2f);
+        ((ZSyncAnimation)typeof(Player).GetField("m_zanim", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(player)).SetTrigger("gpower");
+        ((ZSyncAnimation)typeof(Player).GetField("m_zanim", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(Player.m_localPlayer)).SetSpeed(2f);
         UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("vfx_odin_despawn"), player.transform.position, Quaternion.identity);
         UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("sfx_wraith_death"), player.transform.position, Quaternion.identity);
 

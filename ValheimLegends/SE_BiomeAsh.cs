@@ -54,8 +54,6 @@ public class SE_BiomeAsh : SE_Stats
 				casterLevel = EpicMMOSystem.LevelSystem.Instance.getLevel();
 				casterPower = m_character.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.AbjurationSkillDef)
 					.m_level * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddHp() / 400f) + (EpicMMOSystem.LevelSystem.Instance.getAddStamina() / 200f), 0f, 0.5f));
-				casterPower = VL_SkillHelper.GetSkillLevel(m_character as Player, ValheimLegends.AbjurationSkillDef)
-					* (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddHp() / 400f) + (EpicMMOSystem.LevelSystem.Instance.getAddStamina() / 200f), 0f, 0.5f));
 			}
 			else if (casterLevel == 0f)
 			{
@@ -125,7 +123,6 @@ public class SE_BiomeAsh : SE_Stats
 					m_character.GetSEMan().RemoveStatusEffect(statusEffect);
 				}
 			}
-			VL_Utility.RemoveConflictingBiomes(m_character.GetSEMan(), caster, VL_Hashes.BiomeAsh);
 		}
 		if (doLight)
 		{
@@ -136,11 +133,6 @@ public class SE_BiomeAsh : SE_Stats
 			m_character.GetComponent<Light>().intensity = 0.0035f;
 			m_character.GetComponent<Light>().enabled = true;
 			biomeLight = m_character.GetComponent<Light>();
-			biomeLight = m_character.gameObject.AddComponent<Light>();
-			biomeLight.range = 30f;
-			biomeLight.color = new Color(233f, 240f, 226f);
-			biomeLight.intensity = 0.0035f;
-			biomeLight.enabled = true;
 		}
 		m_timer -= dt;
 		if (m_timer <= 0f)

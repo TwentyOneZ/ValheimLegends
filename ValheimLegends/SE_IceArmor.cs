@@ -5,7 +5,7 @@ namespace ValheimLegends;
 
 public class SE_IceArmor : StatusEffect
 {
-	public static Sprite AbilityIcon = ZNetScene.instance.GetPrefab("FreezeGland").GetComponent<ItemDrop>().m_itemData.GetIcon();
+	public static Sprite AbilityIcon;
 
 	public static GameObject GO_SEFX;
 
@@ -16,7 +16,7 @@ public class SE_IceArmor : StatusEffect
 	public SE_IceArmor()
 	{
 		base.name = "SE_VL_IceArmor";
-		m_icon = ZNetScene.instance.GetPrefab("FreezeGland").GetComponent<ItemDrop>().m_itemData.GetIcon();
+		m_icon = AbilityIcon;
 		m_tooltip = "Ice Armor will reduce physical damage and have a chance to slow attackers";
 		m_name = "Ice Armor";
 		doOnce = true;
@@ -29,8 +29,6 @@ public class SE_IceArmor : StatusEffect
 			doOnce = false;
 			float level = m_character.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.AbjurationSkillDef)
 				.m_level * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddHp() / 400f) + (EpicMMOSystem.LevelSystem.Instance.getAddStamina() / 200f), 0f, 0.5f));
-			float level = VL_SkillHelper.GetSkillLevel(m_character, ValheimLegends.AbjurationSkillDef)
-				* (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddHp() / 400f) + (EpicMMOSystem.LevelSystem.Instance.getAddStamina() / 200f), 0f, 0.5f));
 			resistModifier = 0.95f - 0.001f * level;
 			m_tooltip = "Ice Armor will reduce physical damage and have a chance to slow attackers" +
                 "\n Physical damage resist increased by " + ((1f - resistModifier) * 100f).ToString("#.#") + "% " +
@@ -47,8 +45,17 @@ public class SE_IceArmor : StatusEffect
 		base.OnDamaged(hit, m_character);
 	}
 
+	public override bool IsDone()
+	{
+		if (ValheimLegends.vl_player == null || ValheimLegends.vl_player.vl_class != ValheimLegends.PlayerClass.Enchanter)
+		{
+			return true;
+		}
+		return base.IsDone();
+	}
+
 	public override bool CanAdd(Character character)
 	{
-		return character.IsPlayer();
+		return base.CanAdd(character) && character.IsPlayer() && ValheimLegends.vl_player != null && ValheimLegends.vl_player.vl_class == ValheimLegends.PlayerClass.Enchanter;
 	}
 }

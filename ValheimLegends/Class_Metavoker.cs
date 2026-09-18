@@ -46,15 +46,18 @@ public class Class_Metavoker
 			return;
 		}
 		Object.Instantiate(ZNetScene.instance.GetPrefab("fx_VL_ForceWall"), player.GetEyePoint(), UnityEngine.Quaternion.LookRotation(player.GetLookDir()));
+		List<Character> list = new List<Character>();
+		list.Clear();
 		UnityEngine.Vector3 vector = player.GetCenterPoint() + player.transform.forward * 6f;
-		float level = VL_SkillHelper.GetSkillLevel(player, ValheimLegends.EvocationSkillDef)
-			* (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddCriticalChance() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 80f), 0f, 0.5f));
-		Projectile[] list2 = Object.FindObjectsByType<Projectile>(FindObjectsSortMode.None);
-		if (list2 != null && list2.Length > 0)
+		Character.GetCharactersInRange(vector, 6f, list);
+		float level = player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.EvocationSkillDef)
+			.m_level * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddCriticalChance() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 80f), 0f, 0.5f));
+		List<Projectile> list2 = Object.FindObjectsByType<Projectile>(FindObjectsSortMode.None).ToList();
+		if (list2 != null && list2.Count > 0)
 		{
 			foreach (Projectile item in list2)
 			{
-				if ((item.transform.position - vector).sqrMagnitude <= 36f)
+				if (Vector3.Distance(item.transform.position, vector) <= 6f)
 				{
 					item.m_ttl = 0.05f;
 					string name = item.name.Substring(0, item.name.IndexOf('('));
@@ -74,57 +77,53 @@ public class Class_Metavoker
 						hitData.SetAttacker(player);
 						hitData.m_skill = ValheimLegends.EvocationSkill;
 						component.Setup(player, item.GetVelocity() * -1f, -1f, hitData, null, null);
-						VL_ReflectCache.SetProjectileSkill(component, ValheimLegends.EvocationSkill);
+						Traverse.Create(component).Field("m_skill").SetValue(ValheimLegends.EvocationSkill);
 						gameObject = null;
 					}
 				}
 			}
 		}
-		using (VL_BufferPool.GetScope(out var list))
+		foreach (Character item2 in list)
 		{
-			Character.GetCharactersInRange(vector, 6f, list);
-			foreach (Character item2 in list)
+			if (!BaseAI.IsEnemy(player, item2) || !VL_Utility.LOS_IsValid(item2, player.GetCenterPoint(), player.transform.position))
 			{
-				if (!BaseAI.IsEnemy(player, item2) || !VL_Utility.LOS_IsValid(item2, player.GetCenterPoint(), player.transform.position))
+				continue;
+			}
+			UnityEngine.Vector3 vector2 = item2.transform.position - player.transform.position;
+			float magnitude = vector2.magnitude;
+			Rigidbody value = Traverse.Create(item2).Field("m_body").GetValue<Rigidbody>();
+			if (value != null)
+			{
+				float mass = value.mass;
+				if (Random.value * (1f - mass / 100f) > 0.5f)
 				{
-					continue;
+					item2.Stagger(vector2);
 				}
-				UnityEngine.Vector3 vector2 = item2.transform.position - player.transform.position;
-				float magnitude = vector2.magnitude;
-				Rigidbody value = VL_ReflectCache.GetBody(item2);
-				if (value != null)
-				{
-					float mass = value.mass;
-					if (Random.value * (1f - mass / 100f) > 0.5f)
-					{
-						item2.Stagger(vector2);
-					}
-					mass *= 0.02f;
-					UnityEngine.Vector3 vector3 = vector2 * ((15f - magnitude) / mass) + new UnityEngine.Vector3(0f, Mathf.Clamp(3f / mass, 1f, 5f), 0f);
-					vector3 *= VL_GlobalConfigs.c_metavokerBonusForceWave;
-					VL_ReflectCache.SetCharacterPushForce(item2, vector3);
-					HitData hitData2 = new HitData();
-					hitData2.m_damage.m_damage = magnitude * Random.Range(0.75f, 1.25f) * (1f + 0.02f * level) * VL_GlobalConfigs.c_metavokerBonusForceWave;
-					hitData2.m_point = item2.GetEyePoint();
-					hitData2.m_dir = vector2;
-					hitData2.m_skill = ValheimLegends.EvocationSkill;
-					item2.Damage(hitData2);
-				}
+				mass *= 0.02f;
+				UnityEngine.Vector3 vector3 = vector2 * ((15f - magnitude) / mass) + new UnityEngine.Vector3(0f, Mathf.Clamp(3f / mass, 1f, 5f), 0f);
+                vector3 *= VL_GlobalConfigs.c_metavokerBonusForceWave;
+				Traverse.Create(item2).Field("m_pushForce").SetValue(vector3);
+				HitData hitData2 = new HitData();
+				hitData2.m_damage.m_damage = magnitude * Random.Range(0.75f, 1.25f) * (1f + 0.02f * level) * VL_GlobalConfigs.c_metavokerBonusForceWave;
+				hitData2.m_point = item2.GetEyePoint();
+				hitData2.m_dir = vector2;
+				hitData2.m_skill = ValheimLegends.EvocationSkill;
+				item2.Damage(hitData2);
 			}
 		}
 	}
 
 	public static void Process_Input(Player player, ref float altitude, ref Rigidbody playerBody)
 	{
-		if (player.IsBlocking() && ZInput.GetButtonDown("Attack") && !player.GetSEMan().HaveStatusEffect(VL_Hashes.Ability2_CD) && player.GetStamina() >= VL_Utility.GetForceWaveCost)
+		if (player.IsBlocking() && ZInput.GetButtonDown("Attack") && !player.GetSEMan().HaveStatusEffect("SE_VL_Ability2_CD".GetStableHashCode()) && player.GetStamina() >= VL_Utility.GetForceWaveCost)
 		{
 			StatusEffect statusEffect = (SE_Ability2_CD)ScriptableObject.CreateInstance(typeof(SE_Ability2_CD));
 			statusEffect.m_ttl = VL_Utility.GetForceWaveCooldown;
 			player.GetSEMan().AddStatusEffect(statusEffect);
 			player.UseStamina(VL_Utility.GetForceWaveCost);
 			VL_Utility.RotatePlayerToTarget(player);
-			VL_ReflectCache.GetZAnim(Player.m_localPlayer)?.StopAllCoroutines();
-			VL_ReflectCache.GetZAnim(Player.m_localPlayer)?.SetTrigger("battleaxe_attack2");
+			((ZSyncAnimation)typeof(Player).GetField("m_zanim", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(Player.m_localPlayer)).StopAllCoroutines();
+			((ZSyncAnimation)typeof(Player).GetField("m_zanim", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(Player.m_localPlayer)).SetTrigger("battleaxe_attack2");
 			ValheimLegends.isChargingDash = true;
 			ValheimLegends.dashCounter = 0;
 			QueuedAttack = MetavokerAttackType.ForceWave;
@@ -171,34 +170,31 @@ public class Class_Metavoker
 			{
 				ValheimLegends.shouldUseGuardianPower = false;
 				SE_Reactivearmor SE_Reactivearmor = (SE_Reactivearmor)ScriptableObject.CreateInstance(typeof(SE_Reactivearmor));
-				if (player.GetSEMan().HaveStatusEffect(VL_Hashes.ReactiveArmor))
+				if (player.GetSEMan().HaveStatusEffect("SE_VL_Reactivearmor".GetStableHashCode()))
 				{
-					StatusEffect statusEffect2 = player.GetSEMan().GetStatusEffect(VL_Hashes.ReactiveArmor);
+					StatusEffect statusEffect2 = player.GetSEMan().GetStatusEffect("SE_VL_Reactivearmor".GetStableHashCode());
 					UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("fx_VL_ParticleLightSuction"), player.transform.position, UnityEngine.Quaternion.identity);
 					UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("fx_VL_Lightburst"), player.GetEyePoint(), UnityEngine.Quaternion.identity);
 					player.GetSEMan().RemoveStatusEffect(SE_Reactivearmor, quiet: true);
+					List<Character> allCharacters = Character.GetAllCharacters();
 					float chargesLeft = statusEffect2.m_ttl;
-					using (VL_BufferPool.GetScope(out var allCharacters))
+					foreach (Character item in allCharacters)
 					{
-						Character.GetCharactersInRange(player.transform.position, 6f, allCharacters);
-						foreach (Character item in allCharacters)
+						if (BaseAI.IsEnemy(player, item) && (item.transform.position - player.transform.position).magnitude <= 6f && VL_Utility.LOS_IsValid(item, player.transform.position, player.GetCenterPoint()) && chargesLeft > 0)
 						{
-							if (BaseAI.IsEnemy(player, item) && VL_Utility.LOS_IsValid(item, player.transform.position, player.GetCenterPoint()) && chargesLeft > 0)
-							{
-								UnityEngine.Vector3 forceDirection = item.transform.position - player.transform.position;
-								item.Stagger(forceDirection);
-								UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("fx_VL_ForwardLightningShock"), item.transform.position, UnityEngine.Quaternion.LookRotation(player.GetLookDir()));
-								UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("fx_VL_ParticleLightSuction"), item.GetEyePoint(), UnityEngine.Quaternion.identity);
-								chargesLeft--;
-							}
+							UnityEngine.Vector3 forceDirection = item.transform.position - player.transform.position;
+							item.Stagger(forceDirection);
+							UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("fx_VL_ForwardLightningShock"), item.transform.position, UnityEngine.Quaternion.LookRotation(player.GetLookDir()));
+							UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("fx_VL_ParticleLightSuction"), item.GetEyePoint(), UnityEngine.Quaternion.identity);
+							chargesLeft--;
 						}
 					}
-					StatusEffect statusEffect4 = player.GetSEMan().GetStatusEffect(VL_Hashes.CDReactiveArmor);
-					float level = VL_SkillHelper.GetSkillLevel(Player.m_localPlayer, ValheimLegends.AbjurationSkillDef)
-						* (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddHp() / 400f) + (EpicMMOSystem.LevelSystem.Instance.getAddStamina() / 200f), 0f, 0.5f));
+					StatusEffect statusEffect4 = player.GetSEMan().GetStatusEffect("SE_VL_CDReactivearmor".GetStableHashCode());
+					float level = Player.m_localPlayer.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.AbjurationSkillDef)
+						.m_level * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddHp() / 400f) + (EpicMMOSystem.LevelSystem.Instance.getAddStamina() / 200f), 0f, 0.5f));
 					float maxCharges = 3 + Mathf.RoundToInt(Mathf.Sqrt(level*2));
 					float cooldownRestored = (VL_Utility.GetLightCooldownTime * 3) * (chargesLeft / maxCharges);
-					if (player.GetSEMan().HaveStatusEffect(VL_Hashes.CDReactiveArmor))
+					if (player.GetSEMan().HaveStatusEffect("SE_VL_CDReactivearmor".GetStableHashCode()))
 					{
 						statusEffect4.m_ttl = Mathf.Max(statusEffect4.m_ttl - cooldownRestored, (VL_Utility.GetLightCooldownTime * 3));
 					}
@@ -213,7 +209,7 @@ public class Class_Metavoker
 					player.Message(MessageHud.MessageType.TopLeft, "Reactive Armor is not up.");
 				}
 			}
-			if (!player.IsBlocking() && !player.GetSEMan().HaveStatusEffect(VL_Hashes.Ability3_CD))
+			if (!player.IsBlocking() && !player.GetSEMan().HaveStatusEffect("SE_VL_Ability3_CD".GetStableHashCode()))
 			{
 				
 				ValheimLegends.shouldUseGuardianPower = false;
@@ -257,8 +253,8 @@ public class Class_Metavoker
 		}
 		else if ((VL_Utility.Ability3_Input_Up || player.GetStamina() <= VL_Utility.GetWarpCostPerUpdate || player.GetStamina() <= 2f) && ValheimLegends.isChanneling)
 		{
-			float level = VL_SkillHelper.GetSkillLevel(player, ValheimLegends.EvocationSkillDef)
-				* (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddCriticalChance() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 80f), 0f, 0.5f));
+			float level = player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.EvocationSkillDef)
+				.m_level * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddCriticalChance() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 80f), 0f, 0.5f));
 			warpDistance = warpDistance * (1f + 0.01f * level) * VL_GlobalConfigs.c_metavokerWarpDistance;
 			ValheimLegends.isChanneling = false;
             ValheimLegends.channelingBlocksMovement = true;
@@ -281,30 +277,29 @@ public class Class_Metavoker
 			if (num5 > 0f)
 			{
 				Object.Instantiate(ZNetScene.instance.GetPrefab("fx_VL_ForwardLightningShock"), position2, UnityEngine.Quaternion.LookRotation(player.GetLookDir()));
-				using (VL_BufferPool.GetScope(out var list))
+				List<Character> list = new List<Character>();
+				list.Clear();
+				Character.GetCharactersInRange(vector3, 8f + 0.02f * level, list);
+				bool flag3 = false;
+				foreach (Character item in list)
 				{
-					Character.GetCharactersInRange(vector3, 8f + 0.02f * level, list);
-					bool flag3 = false;
-					foreach (Character item in list)
+					if (BaseAI.IsEnemy(player, item) && VL_Utility.LOS_IsValid(item, player.transform.position))
 					{
-						if (BaseAI.IsEnemy(player, item) && VL_Utility.LOS_IsValid(item, player.transform.position))
-						{
-							UnityEngine.Vector3 vector4 = item.transform.position - player.transform.position;
-							HitData hitData = new HitData();
-							hitData.m_damage.m_lightning = Random.Range(num6 * (level / 15f), num6 * (level / 10f)) * VL_GlobalConfigs.g_DamageModifer * VL_GlobalConfigs.c_metavokerWarpDamage;
-							hitData.m_pushForce = (num6 + level) * 0.1f;
-							hitData.m_point = item.GetEyePoint();
-							hitData.m_dir = item.transform.position - player.transform.position;
-							hitData.m_skill = ValheimLegends.EvocationSkill;
-							item.Damage(hitData);
-							flag3 = true;
-						}
+						UnityEngine.Vector3 vector4 = item.transform.position - player.transform.position;
+						HitData hitData = new HitData();
+						hitData.m_damage.m_lightning = Random.Range(num6 * (level / 15f), num6 * (level / 10f)) * VL_GlobalConfigs.g_DamageModifer * VL_GlobalConfigs.c_metavokerWarpDamage;
+						hitData.m_pushForce = (num6 + level) * 0.1f;
+						hitData.m_point = item.GetEyePoint();
+						hitData.m_dir = item.transform.position - player.transform.position;
+						hitData.m_skill = ValheimLegends.EvocationSkill;
+						item.Damage(hitData);
+						flag3 = true;
 					}
-					if (!flag3 && !flag2)
-					{
-						float v = num6 * 1.5f;
-						player.AddStamina(v);
-					}
+				}
+				if (!flag3 && !flag2)
+				{
+					float v = num6 * 1.5f;
+					player.AddStamina(v);
 				}
 			}
 			if (flag2)
@@ -326,7 +321,7 @@ public class Class_Metavoker
 		}
 		else if (VL_Utility.Ability2_Input_Down)
 		{
-			if (!player.GetSEMan().HaveStatusEffect(VL_Hashes.Ability2_CD))
+			if (!player.GetSEMan().HaveStatusEffect("SE_VL_Ability2_CD".GetStableHashCode()))
 			{
 				if (player.GetStamina() >= VL_Utility.GetReplicaCost)
 				{
@@ -338,20 +333,25 @@ public class Class_Metavoker
 					statusEffect3.m_ttl = VL_Utility.GetReplicaCooldownTime;
 					player.GetSEMan().AddStatusEffect(statusEffect3);
 					player.UseStamina(VL_Utility.GetReplicaCost);
-					float level2 = VL_SkillHelper.GetSkillLevel(player, ValheimLegends.IllusionSkillDef)
-						* (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddAttackSpeed() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 80f), 0f, 0.5f));
-					VL_ReflectCache.GetZAnim(Player.m_localPlayer)?.SetTrigger("gpower");
+					float level2 = player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.IllusionSkillDef)
+						.m_level * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddAttackSpeed() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 80f), 0f, 0.5f));
+					((ZSyncAnimation)typeof(Player).GetField("m_zanim", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(Player.m_localPlayer)).SetTrigger("gpower");
 					Object.Instantiate(ZNetScene.instance.GetPrefab("fx_VL_Replica"), player.transform.position + player.transform.up * 0.6f, UnityEngine.Quaternion.identity);
-					using (VL_BufferPool.GetScope(out var list2))
+					List<Character> list2 = new List<Character>();
+					foreach (Character allCharacter in Character.GetAllCharacters())
 					{
-						Character.GetCharactersInRange(player.transform.position, 18f + 0.05f * level2, list2);
-						for (int i = 0; i < list2.Count; i++)
+						if (!allCharacter.IsBoss())
 						{
-							Character character = list2[i];
-							if (character.IsBoss() || !BaseAI.IsEnemy(player, character))
-							{
-								continue;
-							}
+							list2.Add(allCharacter);
+						}
+					}
+					for (int i = 0; i < list2.Count; i++)
+					{
+						Character character = list2[i];
+						if (!BaseAI.IsEnemy(player, character) || !((character.transform.position - player.transform.position).magnitude <= 18f + 0.05f * level2))
+						{
+							continue;
+						}
 						string name = character.name.Substring(0, character.name.IndexOf('('));
 						GameObject prefab = ZNetScene.instance.GetPrefab(name);
 						if (prefab != null)
@@ -392,7 +392,6 @@ public class Class_Metavoker
 							Object.Instantiate(ZNetScene.instance.GetPrefab("fx_VL_ReplicaCreate"), component2.transform.position + component2.transform.up * 0.2f, UnityEngine.Quaternion.identity);
 						}
 					}
-					}
 					player.RaiseSkill(ValheimLegends.IllusionSkill, VL_Utility.GetReplicaSkillGain);
 				}
 				else
@@ -407,7 +406,7 @@ public class Class_Metavoker
 		}
 		else if (VL_Utility.Ability1_Input_Down)
 		{
-			if (player.IsBlocking() && !player.GetSEMan().HaveStatusEffect(VL_Hashes.CDReactiveArmor))
+			if (player.IsBlocking() && !player.GetSEMan().HaveStatusEffect("SE_VL_CDReactivearmor".GetStableHashCode()))
 			{
 				ValheimLegends.shouldUseGuardianPower = false;
 				if (player.GetStamina() >= VL_Utility.GetLightCost)
@@ -417,9 +416,9 @@ public class Class_Metavoker
 					player.GetSEMan().AddStatusEffect(statusEffect4);
 					player.UseStamina(VL_Utility.GetLightCost);
 					SE_Reactivearmor SE_Reactivearmor = (SE_Reactivearmor)ScriptableObject.CreateInstance(typeof(SE_Reactivearmor));
-					if (player.GetSEMan().HaveStatusEffect(VL_Hashes.ReactiveArmor))
+					if (player.GetSEMan().HaveStatusEffect("SE_VL_Reactivearmor".GetStableHashCode()))
 					{
-						StatusEffect statusEffect2 = player.GetSEMan().GetStatusEffect(VL_Hashes.ReactiveArmor);
+						StatusEffect statusEffect2 = player.GetSEMan().GetStatusEffect("SE_VL_Reactivearmor".GetStableHashCode());
 						player.GetSEMan().RemoveStatusEffect(statusEffect2);
 					}
 					player.GetSEMan().AddStatusEffect(SE_Reactivearmor);
@@ -433,8 +432,8 @@ public class Class_Metavoker
 			}
 			if (!player.IsBlocking() && P_Light != null && (P_Light.transform.position - player.GetEyePoint()).magnitude < 2f)
 			{
-				float level3 = VL_SkillHelper.GetSkillLevel(player, ValheimLegends.IllusionSkillDef)
-					* (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddAttackSpeed() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 80f), 0f, 0.5f));
+				float level3 = player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.IllusionSkillDef)
+					.m_level * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddAttackSpeed() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 80f), 0f, 0.5f));
 				P_Light.m_ttl = 0.05f;
 				HitData hitData2 = new HitData();
 				hitData2.m_skill = ValheimLegends.EvocationSkill;
@@ -459,11 +458,11 @@ public class Class_Metavoker
 				hitData2.SetAttacker(player);
 				UnityEngine.Vector3 vector6 = UnityEngine.Vector3.MoveTowards(gameObject2.transform.position, target2, 1f);
 				component4.Setup(player, (vector6 - gameObject2.transform.position) * 80f, -1f, hitData2, null, null);
-				VL_ReflectCache.SetProjectileSkill(component4, ValheimLegends.IllusionSkill);
+				Traverse.Create(component4).Field("m_skill").SetValue(ValheimLegends.IllusionSkill);
 				gameObject2 = null;
 				GO_Light = null;
 			}
-			else if (!player.IsBlocking() && !player.GetSEMan().HaveStatusEffect(VL_Hashes.Ability1_CD))
+			else if (!player.IsBlocking() && !player.GetSEMan().HaveStatusEffect("SE_VL_Ability1_CD".GetStableHashCode()))
 			{
 				if (player.GetStamina() >= VL_Utility.GetLightCost)
 				{
@@ -471,8 +470,8 @@ public class Class_Metavoker
 					statusEffect4.m_ttl = VL_Utility.GetLightCooldownTime;
 					player.GetSEMan().AddStatusEffect(statusEffect4);
 					player.UseStamina(VL_Utility.GetLightCost);
-					float level4 = VL_SkillHelper.GetSkillLevel(player, ValheimLegends.IllusionSkillDef)
-						* (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddAttackSpeed() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 80f), 0f, 0.5f));
+					float level4 = player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.IllusionSkillDef)
+						.m_level * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddAttackSpeed() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 80f), 0f, 0.5f));
 					player.StartEmote("cheer");
 					VL_Utility.SetTimer();
 					UnityEngine.Vector3 vector7 = player.GetEyePoint() + player.transform.up * 0.4f + player.transform.right * -0.8f;
@@ -494,7 +493,7 @@ public class Class_Metavoker
 					hitData3.m_skill = ValheimLegends.EvocationSkill;
 					UnityEngine.Vector3 vector8 = UnityEngine.Vector3.MoveTowards(GO_Light.transform.position, target3, 1f);
 					P_Light.Setup(player, UnityEngine.Vector3.zero, -1f, hitData3, null, null);
-					VL_ReflectCache.SetProjectileSkill(P_Light, ValheimLegends.IllusionSkill);
+					Traverse.Create(P_Light).Field("m_skill").SetValue(ValheimLegends.IllusionSkill);
 					player.RaiseSkill(ValheimLegends.IllusionSkill, VL_Utility.GetLightSkillGain);
 				}
 				else

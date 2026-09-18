@@ -29,14 +29,26 @@ namespace ValheimLegends
         {
             base.UpdateStatusEffect(dt);
         }
+
+        public override bool IsDone()
+        {
+            if (ValheimLegends.vl_player == null || ValheimLegends.vl_player.vl_class != ValheimLegends.PlayerClass.Mage)
+            {
+                return true;
+            }
+            return base.IsDone();
+        }
+
+        public override bool CanAdd(Character character)
+        {
+            return base.CanAdd(character) && character.IsPlayer() && ValheimLegends.vl_player != null && ValheimLegends.vl_player.vl_class == ValheimLegends.PlayerClass.Mage;
+        }
     }
 
     internal static class ManaShieldUtil
     {
         internal static readonly int SE_HASH = "SE_VL_ManaShield".GetStableHashCode();
         internal static readonly int ARCANE_AFFINITY_HASH = "SE_VL_MageArcaneAffinity".GetStableHashCode();
-        internal static readonly int SE_HASH = VL_Hashes.ManaShield;
-        internal static readonly int ARCANE_AFFINITY_HASH = VL_Hashes.MageArcaneAffinity;
 
         internal static void ApplyCooldown(Player p, string abilityName, float duration)
         {
@@ -46,6 +58,8 @@ namespace ValheimLegends
 
         internal static bool HasManaShield(Player p)
         {
+            if (ValheimLegends.vl_player == null || ValheimLegends.vl_player.vl_class != ValheimLegends.PlayerClass.Mage)
+                return false;
             return p != null && p.GetSEMan() != null && p.GetSEMan().HaveStatusEffect(SE_HASH);
         }
 
@@ -256,11 +270,16 @@ namespace ValheimLegends
             bool perfect = false;
             try
             {
-                var f = AccessTools.Field(typeof(Humanoid), "m_perfectBlock");
-                if (f != null) perfect = (bool)f.GetValue(__instance);
+                var fTimer = AccessTools.Field(typeof(Humanoid), "m_blockTimer");
+                var fInterval = AccessTools.Field(typeof(Humanoid), "m_perfectBlockInterval");
+                if (fTimer != null && fInterval != null)
+                {
+                    float timer = (float)fTimer.GetValue(__instance);
+                    float interval = (float)fInterval.GetValue(__instance);
+                    perfect = timer >= 0f && timer <= interval;
+                }
             }
             catch { }
-            if (!VL_ReflectCache.GetPerfectBlock(__instance)) return;
 
             if (!perfect) return;
 

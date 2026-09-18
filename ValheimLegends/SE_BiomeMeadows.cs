@@ -56,8 +56,6 @@ public class SE_BiomeMeadows : SE_Stats
 				casterLevel = EpicMMOSystem.LevelSystem.Instance.getLevel();
 				casterPower = m_character.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.AbjurationSkillDef)
 					.m_level * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddHp() / 400f) + (EpicMMOSystem.LevelSystem.Instance.getAddStamina() / 200f), 0f, 0.5f));
-				casterPower = VL_SkillHelper.GetSkillLevel(m_character as Player, ValheimLegends.AbjurationSkillDef)
-					* (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddHp() / 400f) + (EpicMMOSystem.LevelSystem.Instance.getAddStamina() / 200f), 0f, 0.5f));
 			}
 			else if (casterLevel == 0f)
 			{
@@ -131,7 +129,6 @@ public class SE_BiomeMeadows : SE_Stats
 					m_character.GetSEMan().RemoveStatusEffect(statusEffect);
 				}
 			}
-			VL_Utility.RemoveConflictingBiomes(m_character.GetSEMan(), caster, VL_Hashes.BiomeMeadows);
 		}
 		m_timer -= dt;
 		if (m_timer <= 0f)

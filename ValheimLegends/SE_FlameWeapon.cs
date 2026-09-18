@@ -5,9 +5,7 @@ namespace ValheimLegends;
 
 public class SE_FlameWeapon : StatusEffect
 {
-    public static Sprite AbilityIcon =
-        ZNetScene.instance.GetPrefab("StaffFireball")
-            .GetComponent<ItemDrop>().m_itemData.GetIcon();
+    public static Sprite AbilityIcon;
 
     public static GameObject GO_SEFX;
 
@@ -25,8 +23,7 @@ public class SE_FlameWeapon : StatusEffect
     public SE_FlameWeapon()
     {
         base.name = "SE_VL_FlameWeapon";
-        m_icon = ZNetScene.instance.GetPrefab("StaffFireball")
-            .GetComponent<ItemDrop>().m_itemData.GetIcon();
+        m_icon = AbilityIcon;
         m_tooltip = "Attacks are imbued with fire.";
         m_name = "Flame Weapon: 0";
 
@@ -59,7 +56,7 @@ public class SE_FlameWeapon : StatusEffect
 
     public override void UpdateStatusEffect(float dt)
     {
-        // Garante que o nome base nunca fique poluído
+        // Garante que o nome base nunca fique polu�do
         if (string.IsNullOrEmpty(_baseName))
         {
             _baseName = "Flame Weapon";
@@ -75,7 +72,6 @@ public class SE_FlameWeapon : StatusEffect
         float level = m_character.GetSkills().GetSkillList()
             .FirstOrDefault(x => x.m_info == ValheimLegends.EvocationSkillDef)
             .m_level * (1f + Mathf.Clamp(
-        float level = VL_SkillHelper.GetSkillLevel(m_character, ValheimLegends.EvocationSkillDef) * (1f + Mathf.Clamp(
                 (EpicMMOSystem.LevelSystem.Instance.getAddCriticalChance() / 40f) +
                 (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 80f),
                 0f, 0.5f));
@@ -118,8 +114,17 @@ public class SE_FlameWeapon : StatusEffect
         base.UpdateStatusEffect(dt);
     }
 
+    public override bool IsDone()
+    {
+        if (ValheimLegends.vl_player == null || ValheimLegends.vl_player.vl_class != ValheimLegends.PlayerClass.Enchanter)
+        {
+            return true;
+        }
+        return base.IsDone();
+    }
+
     public override bool CanAdd(Character character)
     {
-        return character.IsPlayer();
+        return base.CanAdd(character) && character.IsPlayer() && ValheimLegends.vl_player != null && ValheimLegends.vl_player.vl_class == ValheimLegends.PlayerClass.Enchanter;
     }
 }

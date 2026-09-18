@@ -50,62 +50,12 @@ namespace ValheimLegends
 
         // ===== Visual shapeshift state =====
         private bool _visualApplied;
-        private VisSnapshot _oldVis;
+        
 
-        // Reflection: Humanoid.m_visEquipment is protected in your build
-        private static readonly FieldInfo FI_VisEquipment = AccessTools.Field(typeof(Humanoid), "m_visEquipment");
-
-        // Internal field candidates (version tolerant)
-        private static readonly string[] F_HELMET = { "m_helmetItem", "m_currentHelmetItem", "m_helmet" };
-        private static readonly string[] F_CHEST = { "m_chestItem", "m_currentChestItem", "m_chest" };
-        private static readonly string[] F_LEGS = { "m_legItem", "m_legsItem", "m_currentLegItem", "m_leg", "m_legs" };
-        private static readonly string[] F_SHOULDER = { "m_shoulderItem", "m_currentShoulderItem", "m_shoulder" };
-        private static readonly string[] F_UTILITY = { "m_utilityItem", "m_currentUtilityItem", "m_utility" };
-
-        private static readonly string[] F_HELMET_VAR = { "m_helmetItemVariant", "m_currentHelmetVariant", "m_helmetVariant" };
-        private static readonly string[] F_CHEST_VAR = { "m_chestItemVariant", "m_currentChestVariant", "m_chestVariant" };
-        private static readonly string[] F_LEGS_VAR = { "m_legItemVariant", "m_legsItemVariant", "m_currentLegVariant", "m_legVariant", "m_legsVariant" };
-        private static readonly string[] F_SHOULDER_VAR = { "m_shoulderItemVariant", "m_currentShoulderVariant", "m_shoulderVariant" };
-        private static readonly string[] F_UTILITY_VAR = { "m_utilityItemVariant", "m_currentUtilityVariant", "m_utilityVariant" };
-
-        private static FieldInfo FindField(Type t, string[] candidates, Type expectedType)
-        {
-            foreach (string name in candidates)
-            {
-                FieldInfo fi = AccessTools.Field(t, name);
-                if (fi != null && fi.FieldType == expectedType)
-                    return fi;
-            }
-            return null;
-        }
-
-        private static readonly FieldInfo FI_Helmet = FindField(typeof(VisEquipment), F_HELMET, typeof(string));
-        private static readonly FieldInfo FI_Chest = FindField(typeof(VisEquipment), F_CHEST, typeof(string));
-        private static readonly FieldInfo FI_Legs = FindField(typeof(VisEquipment), F_LEGS, typeof(string));
-        private static readonly FieldInfo FI_Shoulder = FindField(typeof(VisEquipment), F_SHOULDER, typeof(string));
-        private static readonly FieldInfo FI_Utility = FindField(typeof(VisEquipment), F_UTILITY, typeof(string));
-
-        private static readonly FieldInfo FI_HelmetVar = FindField(typeof(VisEquipment), F_HELMET_VAR, typeof(int));
-        private static readonly FieldInfo FI_ChestVar = FindField(typeof(VisEquipment), F_CHEST_VAR, typeof(int));
-        private static readonly FieldInfo FI_LegsVar = FindField(typeof(VisEquipment), F_LEGS_VAR, typeof(int));
-        private static readonly FieldInfo FI_ShoulderVar = FindField(typeof(VisEquipment), F_SHOULDER_VAR, typeof(int));
-        private static readonly FieldInfo FI_UtilityVar = FindField(typeof(VisEquipment), F_UTILITY_VAR, typeof(int));
-
-        // Methods (some builds use (string), others (string,int))
-        private static readonly MethodInfo MI_SetHelmet_1 = AccessTools.Method(typeof(VisEquipment), "SetHelmetItem", new[] { typeof(string) });
-        private static readonly MethodInfo MI_SetHelmet_2 = AccessTools.Method(typeof(VisEquipment), "SetHelmetItem", new[] { typeof(string), typeof(int) });
-
-        private static readonly MethodInfo MI_SetChest_1 = AccessTools.Method(typeof(VisEquipment), "SetChestItem", new[] { typeof(string) });
-        private static readonly MethodInfo MI_SetChest_2 = AccessTools.Method(typeof(VisEquipment), "SetChestItem", new[] { typeof(string), typeof(int) });
-
-        private static readonly MethodInfo MI_SetLegs_1 = AccessTools.Method(typeof(VisEquipment), "SetLegItem", new[] { typeof(string) });
-        private static readonly MethodInfo MI_SetLegs_2 = AccessTools.Method(typeof(VisEquipment), "SetLegItem", new[] { typeof(string), typeof(int) });
-
-        private static readonly MethodInfo MI_SetShoulder_2 = AccessTools.Method(typeof(VisEquipment), "SetShoulderItem", new[] { typeof(string), typeof(int) });
-        private static readonly MethodInfo MI_SetShoulder_1 = AccessTools.Method(typeof(VisEquipment), "SetShoulderItem", new[] { typeof(string) });
-
-        private static readonly MethodInfo MI_SetUtility_1 = AccessTools.Method(typeof(VisEquipment), "SetUtilityItem", new[] { typeof(string) });
-        private static readonly MethodInfo MI_SetUtility_2 = AccessTools.Method(typeof(VisEquipment), "SetUtilityItem", new[] { typeof(string), typeof(int) });
+        private static readonly int HASH_HELMET = VIS_HELMET.GetStableHashCode();
+        private static readonly int HASH_CHEST = VIS_CHEST.GetStableHashCode();
+        private static readonly int HASH_LEGS = VIS_LEGS.GetStableHashCode();
+        private static readonly int HASH_SHOULDER = string.IsNullOrEmpty(VIS_SHOULDER) ? 0 : VIS_SHOULDER.GetStableHashCode();
 
         public SE_DruidCultistForm()
         {
@@ -147,7 +97,6 @@ namespace ValheimLegends
                 casterLevel = EpicMMOSystem.LevelSystem.Instance.getLevel();
                 casterPower = m_character.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.AbjurationSkillDef)
                     .m_level * (1f + Mathf.Clamp(
-                casterPower = VL_SkillHelper.GetSkillLevel(m_character as Player, ValheimLegends.AbjurationSkillDef) * (1f + Mathf.Clamp(
                         (EpicMMOSystem.LevelSystem.Instance.getAddHp() / 400f) +
                         (EpicMMOSystem.LevelSystem.Instance.getAddStamina() / 200f),
                         0f, 0.5f));
@@ -172,7 +121,7 @@ namespace ValheimLegends
             base.UpdateStatusEffect(dt);
         }
 
-        public override bool CanAdd(Character character) => character.IsPlayer();
+        public override bool CanAdd(Character character) => character.IsPlayer() && ValheimLegends.vl_player != null && ValheimLegends.vl_player.vl_class == ValheimLegends.PlayerClass.Druid;
 
         // ===============================
         // Visual logic (Cultist set) + "lock" watchdog
@@ -186,21 +135,15 @@ namespace ValheimLegends
             var player = m_character as Player;
             if (player == null) return;
 
-            // MP-safe: só owner escreve visual (ZDO)
             var nview = player.GetComponent<ZNetView>();
             if (nview == null || !nview.IsOwner()) return;
 
-            var ve = GetVisEquipment(player);
+            var ve = player.GetComponent<VisEquipment>();
             if (ve == null) return;
 
-            // Backup atual (uma vez)
-            _oldVis = ReadVisSnapshot(ve);
-
-            // Aplica Cultist (variant 0)
             ApplyCultistVisual(ve);
-
             _visualApplied = true;
-            _visCheckTimer = 0f; // força primeira checagem imediatamente
+            _visCheckTimer = 0f;
         }
 
         private void MaintainCultistVisual(float dt)
@@ -211,7 +154,6 @@ namespace ValheimLegends
             var player = m_character as Player;
             if (player == null) return;
 
-            // Só o owner mantém (evita spam e conflitos em MP)
             var nview = player.GetComponent<ZNetView>();
             if (nview == null || !nview.IsOwner()) return;
 
@@ -219,169 +161,46 @@ namespace ValheimLegends
             if (_visCheckTimer > 0f) return;
             _visCheckTimer = VIS_CHECK_INTERVAL;
 
-            var ve = GetVisEquipment(player);
-            if (ve == null) return;
-
-            // Se qualquer slot principal não bater (equipou algo e o jogo recalculou), reaplica.
-            if (!IsCultistStillApplied(ve))
+            var ve = player.GetComponent<VisEquipment>();
+            if (ve != null)
             {
                 ApplyCultistVisual(ve);
             }
         }
 
-        private bool IsCultistStillApplied(VisEquipment ve)
-        {
-            var cur = ReadVisSnapshot(ve);
-            string helmet = FI_Helmet?.GetValue(ve) as string;
-            string chest = FI_Chest?.GetValue(ve) as string;
-            string legs = FI_Legs?.GetValue(ve) as string;
-            string shoulder = FI_Shoulder?.GetValue(ve) as string;
-
-            // Se você quiser permitir aliases, é aqui que você inclui ORs.
-            bool okHelmet = string.Equals(cur.helmet ?? "", VIS_HELMET, StringComparison.Ordinal);
-            bool okChest = string.Equals(cur.chest ?? "", VIS_CHEST, StringComparison.Ordinal);
-            bool okLegs = string.Equals(cur.legs ?? "", VIS_LEGS, StringComparison.Ordinal);
-            bool okShoulder = string.Equals(cur.shoulder ?? "", VIS_SHOULDER, StringComparison.Ordinal);
-
-            return okHelmet && okChest && okLegs && okShoulder;
-            return string.Equals(helmet ?? "", VIS_HELMET, StringComparison.Ordinal)
-                && string.Equals(chest ?? "", VIS_CHEST, StringComparison.Ordinal)
-                && string.Equals(legs ?? "", VIS_LEGS, StringComparison.Ordinal)
-                && string.Equals(shoulder ?? "", VIS_SHOULDER, StringComparison.Ordinal);
-        }
-
         private void ApplyCultistVisual(VisEquipment ve)
         {
-            InvokeSetItem(ve, MI_SetHelmet_2, MI_SetHelmet_1, VIS_HELMET, 0);
-            InvokeSetItem(ve, MI_SetChest_2, MI_SetChest_1, VIS_CHEST, 0);
-            InvokeSetItem(ve, MI_SetLegs_2, MI_SetLegs_1, VIS_LEGS, 0);
-            InvokeSetItem(ve, MI_SetShoulder_2, MI_SetShoulder_1, VIS_SHOULDER, 0);
+            if (ve == null) return;
+            ve.SetHelmetItem(HASH_HELMET);
+            ve.SetChestItem(HASH_CHEST);
+            ve.SetLegItem(HASH_LEGS);
+            ve.SetShoulderItem(HASH_SHOULDER, 0, 1);
         }
+
+        private static readonly MethodInfo MI_SetupVisEquipment = AccessTools.Method(typeof(Humanoid), "SetupVisEquipment", new[] { typeof(VisEquipment), typeof(bool) });
+
         private void TryRestoreVisual()
         {
             if (!_visualApplied) return;
-            if (m_character == null || !m_character.IsPlayer()) return;
-
-            var player = m_character as Player;
-            if (player == null) return;
-
-            var nview = player.GetComponent<ZNetView>();
-            if (nview == null || !nview.IsOwner()) return;
-
-            var ve = GetVisEquipment(player);
-            if (ve == null) return;
-
             _visualApplied = false;
-            ApplyVisSnapshot(ve, _oldVis);
-            _visualApplied = false;
-        }
 
-        private static VisEquipment GetVisEquipment(Player player)
-        {
-            if (player == null) return null;
-
-            var ve = FI_VisEquipment?.GetValue(player) as VisEquipment;
-            if (ve != null) return ve;
-
-            return player.GetComponent<VisEquipment>();
-        }
-
-        private struct VisSnapshot
-        {
-            public string helmet, chest, legs, shoulder, utility;
-            public int helmetVar, chestVar, legsVar, shoulderVar, utilityVar;
-        }
-
-        private static VisSnapshot ReadVisSnapshot(VisEquipment ve)
-        {
-            var s = new VisSnapshot
-            return new VisSnapshot
+            if (m_character is Player player)
             {
-                helmet = ReadStringField(ve, F_HELMET),
-                chest = ReadStringField(ve, F_CHEST),
-                legs = ReadStringField(ve, F_LEGS),
-                shoulder = ReadStringField(ve, F_SHOULDER),
-                utility = ReadStringField(ve, F_UTILITY),
-                helmet = FI_Helmet?.GetValue(ve) as string,
-                chest = FI_Chest?.GetValue(ve) as string,
-                legs = FI_Legs?.GetValue(ve) as string,
-                shoulder = FI_Shoulder?.GetValue(ve) as string,
-                utility = FI_Utility?.GetValue(ve) as string,
-
-                helmetVar = ReadIntField(ve, F_HELMET_VAR),
-                chestVar = ReadIntField(ve, F_CHEST_VAR),
-                legsVar = ReadIntField(ve, F_LEGS_VAR),
-                shoulderVar = ReadIntField(ve, F_SHOULDER_VAR),
-                utilityVar = ReadIntField(ve, F_UTILITY_VAR)
-                helmetVar = FI_HelmetVar != null ? (int)FI_HelmetVar.GetValue(ve) : 0,
-                chestVar = FI_ChestVar != null ? (int)FI_ChestVar.GetValue(ve) : 0,
-                legsVar = FI_LegsVar != null ? (int)FI_LegsVar.GetValue(ve) : 0,
-                shoulderVar = FI_ShoulderVar != null ? (int)FI_ShoulderVar.GetValue(ve) : 0,
-                utilityVar = FI_UtilityVar != null ? (int)FI_UtilityVar.GetValue(ve) : 0
-            };
-            return s;
-        }
-
-        private static void ApplyVisSnapshot(VisEquipment ve, VisSnapshot s)
-        {
-            InvokeSetItem(ve, MI_SetHelmet_2, MI_SetHelmet_1, s.helmet, s.helmetVar);
-            InvokeSetItem(ve, MI_SetChest_2, MI_SetChest_1, s.chest, s.chestVar);
-            InvokeSetItem(ve, MI_SetLegs_2, MI_SetLegs_1, s.legs, s.legsVar);
-
-            // Shoulder: prefer (string,int) first (seu build exige)
-            InvokeSetItem(ve, MI_SetShoulder_2, MI_SetShoulder_1, s.shoulder, s.shoulderVar);
-            InvokeSetItem(ve, MI_SetUtility_2, MI_SetUtility_1, s.utility, s.utilityVar);
-        }
-
-        private static void InvokeSetItem(VisEquipment ve, MethodInfo mi2, MethodInfo mi1, string item, int variant)
-        {
-            try
-            {
-                if (mi2 != null)
+                var ve = player.GetComponent<VisEquipment>();
+                if (ve != null)
                 {
-                    mi2.Invoke(ve, new object[] { item ?? "", variant });
-                    return;
-                }
-                if (mi1 != null)
-                {
-                    mi1.Invoke(ve, new object[] { item ?? "" });
-                    return;
+                    MI_SetupVisEquipment?.Invoke(player, new object[] { ve, true });
                 }
             }
-            catch (Exception e)
-            {
-                Debug.LogWarning("[VL] VisEquipment setter invoke failed: " + e);
-            }
         }
 
-        private static string ReadStringField(object obj, string[] candidates)
+        public override bool IsDone()
         {
-            if (obj == null || candidates == null) return null;
-            Type t = obj.GetType();
-
-            foreach (string name in candidates)
+            if (ValheimLegends.vl_player == null || ValheimLegends.vl_player.vl_class != ValheimLegends.PlayerClass.Druid)
             {
-                if (string.IsNullOrEmpty(name)) continue;
-                FieldInfo fi = AccessTools.Field(t, name);
-                if (fi != null && fi.FieldType == typeof(string))
-                    return fi.GetValue(obj) as string;
+                return true;
             }
-            return null;
-        }
-
-        private static int ReadIntField(object obj, string[] candidates)
-        {
-            if (obj == null || candidates == null) return 0;
-            Type t = obj.GetType();
-
-            foreach (string name in candidates)
-            {
-                if (string.IsNullOrEmpty(name)) continue;
-                FieldInfo fi = AccessTools.Field(t, name);
-                if (fi != null && fi.FieldType == typeof(int))
-                    return (int)fi.GetValue(obj);
-            }
-            return 0;
+            return base.IsDone();
         }
     }
 }

@@ -22,7 +22,7 @@ public class VL_ConfigSync
 					list.Add(array[i]);
 				}
 			}
-			list.Add("vl_svr_version = 0.5.0");
+			list.Add("vl_svr_version = " + ValheimLegends.Version);
 			zPackage.Write(list.Count);
 			foreach (string item in list)
 			{
@@ -54,13 +54,13 @@ public class VL_ConfigSync
 				{
 					string text3 = text.Substring(text.IndexOf('=') + 1);
 					text3 = text3.Trim(trimChars);
-					if (text3 != "0.5.0")
+					if (text3 != ValheimLegends.Version)
 					{
 						char[] trimChars2 = new char[3] { '.', ',', '0' };
 						string text4 = text3.Trim(trimChars2);
 						string text5 = VL_GlobalConfigs.ConfigStrings[text2].ToString();
 						string text6 = text5.Trim(trimChars2);
-						ZLog.Log("VL CLIENT -------------- version failure: server had version [" + text3 + "] and client had version [0.5.0]");
+						ZLog.Log("VL CLIENT -------------- version failure: server had version [" + text3 + "] and client had version [" + ValheimLegends.Version + "]");
 						flag = true;
 					}
 				}
