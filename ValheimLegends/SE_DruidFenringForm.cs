@@ -179,7 +179,6 @@ namespace ValheimLegends
             ve.SetShoulderItem(HASH_SHOULDER, 0, 1);
         }
 
-        public override bool CanAdd(Character character) => character.IsPlayer();
         public override bool CanAdd(Character character) => character.IsPlayer() && ValheimLegends.vl_player != null && ValheimLegends.vl_player.vl_class == ValheimLegends.PlayerClass.Druid;
 
         private void TryApplyFenrisVisual()

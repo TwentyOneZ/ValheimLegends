@@ -35,7 +35,6 @@ public class SE_Riposte : StatusEffect
 
 	public override bool CanAdd(Character character)
 	{
-		return character.IsPlayer();
 		return base.CanAdd(character) && character.IsPlayer() && ValheimLegends.vl_player != null && (ValheimLegends.vl_player.vl_class == ValheimLegends.PlayerClass.Rogue || ValheimLegends.vl_player.vl_class == ValheimLegends.PlayerClass.Duelist);
 	}
 }

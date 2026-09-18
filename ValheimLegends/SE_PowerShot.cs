@@ -43,7 +43,6 @@ public class SE_PowerShot : StatusEffect
 
 	public override bool CanAdd(Character character)
 	{
-		return character.IsPlayer();
 		return base.CanAdd(character) && character.IsPlayer() && ValheimLegends.vl_player != null && ValheimLegends.vl_player.vl_class == ValheimLegends.PlayerClass.Ranger;
 	}
 }
