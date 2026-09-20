@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>PerspexCharacterAuthority</AssemblyName>
+    <GenerateAssemblyInfo>False</GenerateAssemblyInfo>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>PerspexCharacterAuthority</RootNamespace>
+  </PropertyGroup>
+  <PropertyGroup>
+    <ValheimGamePath Condition="'$(ValheimGamePath)' == ''">D:\spellbook\steam\steamapps\common\Valheim</ValheimGamePath>
+    <ValheimManaged Condition="Exists('$(ValheimGamePath)\valheim_Data\Managed\assembly_valheim.dll')">$(ValheimGamePath)\valheim_Data\Managed</ValheimManaged>
+    <ValheimManaged Condition="'$(ValheimManaged)' == ''">..\Libs</ValheimManaged>
+    <ValheimBepInEx Condition="Exists('$(ValheimGamePath)\BepInEx\core\BepInEx.dll')">$(ValheimGamePath)\BepInEx\core</ValheimBepInEx>
+    <ValheimBepInEx Condition="'$(ValheimBepInEx)' == ''">..\Libs</ValheimBepInEx>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="0Harmony"><HintPath>$(ValheimBepInEx)\0Harmony.dll</HintPath><Private>False</Private></Reference>
+    <Reference Include="assembly_valheim"><HintPath>$(ValheimManaged)\assembly_valheim.dll</HintPath><Private>False</Private></Reference>
+    <Reference Include="assembly_utils"><HintPath>$(ValheimManaged)\assembly_utils.dll</HintPath><Private>False</Private></Reference>
+    <Reference Include="BepInEx"><HintPath>$(ValheimBepInEx)\BepInEx.dll</HintPath><Private>False</Private></Reference>
+    <Reference Include="UnityEngine"><HintPath>..\Libs\UnityEngine.dll</HintPath><Private>False</Private></Reference>
+    <Reference Include="UnityEngine.CoreModule"><HintPath>..\Libs\UnityEngine.CoreModule.dll</HintPath><Private>False</Private></Reference>
+  </ItemGroup>
+</Project>

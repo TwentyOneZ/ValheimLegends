@@ -16,7 +16,7 @@ using static ValheimLegends.Class_Mage;
 
 namespace ValheimLegends;
 
-[BepInPlugin("ValheimLegends", "ValheimLegends", "0.5.1")]
+[BepInPlugin("ValheimLegends", "ValheimLegends", "0.5.2")]
 [BepInDependency("EpicMMOSystem", BepInDependency.DependencyFlags.SoftDependency)]
 public class ValheimLegends : BaseUnityPlugin
 {
@@ -226,6 +226,7 @@ public class ValheimLegends : BaseUnityPlugin
 	{
 		public static void Postfix(PlayerProfile __instance, string ___m_filename, string ___m_playerName)
 		{
+			if (VLCharacterPersistence.IsPerspexAuthorityActive) return;
 			try
 			{
 				string saveDir = Path.Combine(Utils.GetSaveDataPath(FileHelpers.FileSource.Local), "characters", "VL");
@@ -263,6 +264,11 @@ public class ValheimLegends : BaseUnityPlugin
 	{
 		public static void Postfix(PlayerProfile __instance, string ___m_filename, string ___m_playerName)
 		{
+			VLCharacterPersistence.ResetCharacterState(null);
+			if (VLCharacterPersistence.IsPerspexAuthorityActive)
+			{
+				return;
+			}
 			try
 			{
 				if (vl_playerList == null)
@@ -511,7 +517,7 @@ public class ValheimLegends : BaseUnityPlugin
 	{
 		public static bool Prefix()
 		{
-			RemoveSummonedWolf();
+			RemoveClassSummons(Player.m_localPlayer);
 			return true;
 		}
 	}
@@ -521,7 +527,7 @@ public class ValheimLegends : BaseUnityPlugin
 	{
 		public static bool Prefix()
 		{
-			RemoveSummonedWolf();
+			RemoveClassSummons(Player.m_localPlayer);
 			return true;
 		}
 	}
@@ -1953,7 +1959,7 @@ public class ValheimLegends : BaseUnityPlugin
 		[HarmonyPriority(800)]
 		public static bool Prefix(Player __instance)
 		{
-			RemoveSummonedWolf();
+			RemoveClassSummons(__instance);
 			return true;
 		}
 	}
@@ -2981,6 +2987,7 @@ public class ValheimLegends : BaseUnityPlugin
 	{
 		public static void Postfix(Player __instance)
 		{
+			if (__instance != Player.m_localPlayer) return;
 			SetVLPlayer(__instance);
 		}
 	}
@@ -3014,6 +3021,7 @@ public class ValheimLegends : BaseUnityPlugin
 	{
 		public static void Postfix(Player __instance, ref float ___m_maxAirAltitude, ref Rigidbody ___m_body, ref Animator ___m_animator, ref float ___m_lastGroundTouch, float ___m_waterLevel)
 		{
+			if (__instance != Player.m_localPlayer || !ClassIsValid || vl_player.vl_name != __instance.GetPlayerName()) return;
 			if (VL_Utility.ReadyTime)
 			{
 				Player localPlayer = Player.m_localPlayer;
@@ -4042,7 +4050,7 @@ public class ValheimLegends : BaseUnityPlugin
 
 	public static Harmony _Harmony;
 
-	public const string Version = "0.5.1";
+	public const string Version = "0.5.2";
 
 	public const float VersionF = 0.5f;
 
@@ -4510,46 +4518,31 @@ public class ValheimLegends : BaseUnityPlugin
 		}
 	}
 
-	private static void RemoveSummonedWolf()
+	private static void RemoveClassSummons(Player player)
 	{
-		foreach (Character allCharacter in Character.GetAllCharacters())
+		if (player == null) return;
+		foreach (Character character in Character.GetAllCharacters().ToList())
 		{
-			if (!(allCharacter != null) || allCharacter.GetSEMan() == null)
+			if (character == null || character.GetSEMan() == null) continue;
+
+			var companion = character.GetSEMan().GetStatusEffect("SE_VL_Companion".GetStableHashCode()) as SE_Companion;
+			var roots = character.GetSEMan().GetStatusEffect("SE_VL_RootsBuff".GetStableHashCode()) as SE_RootsBuff;
+			if ((companion != null && companion.summoner == player) || (roots != null && roots.summoner == player))
 			{
+				var ai = character.GetComponent<MonsterAI>();
+				if (ai != null) ai.SetFollowTarget(null);
+				var hit = new HitData();
+				hit.m_damage.m_spirit = 999999f;
+				character.ApplyDamage(hit, false, false, HitData.DamageModifier.VeryWeak);
 				continue;
 			}
-			if (allCharacter.GetSEMan().HaveStatusEffect("SE_VL_Companion".GetStableHashCode()))
+
+			var charm = character.GetSEMan().GetStatusEffect("SE_VL_Charm".GetStableHashCode()) as SE_Charm;
+			if (charm != null && charm.summoner == player)
 			{
-				SE_Companion sE_Companion = allCharacter.GetSEMan().GetStatusEffect("SE_VL_Companion".GetStableHashCode()) as SE_Companion;
-				if (sE_Companion.summoner == Player.m_localPlayer)
-				{
-					MonsterAI component = allCharacter.GetComponent<MonsterAI>();
-					if (component != null)
-					{
-						component.SetFollowTarget(null);
-					}
-					SE_Ability2_CD sE_Ability2_CD = Player.m_localPlayer.GetSEMan().GetStatusEffect("SE_VL_Ability2_CD".GetStableHashCode()) as SE_Ability2_CD;
-					float new_mTTL = Mathf.Min(sE_Ability2_CD.m_ttl, Mathf.Sqrt(sE_Ability2_CD.m_ttl / allCharacter.GetHealthPercentage()));
-					Player.m_localPlayer.GetSEMan().RemoveStatusEffect(sE_Ability2_CD);
-					StatusEffect statusEffect3 = (SE_Ability2_CD)ScriptableObject.CreateInstance(typeof(SE_Ability2_CD));
-					statusEffect3.m_ttl = new_mTTL;
-					Player.m_localPlayer.GetSEMan().AddStatusEffect(statusEffect3);
-					allCharacter.m_faction = Character.Faction.MountainMonsters;
-					HitData hitData = new HitData();
-					hitData.m_damage.m_slash = 9999f;
-					allCharacter.Damage(hitData);
-				}
-			}
-			else if (allCharacter.GetSEMan().HaveStatusEffect("SE_VL_Charm".GetStableHashCode()))
-			{
-				SE_Charm sE_Charm = (SE_Charm)allCharacter.GetSEMan().GetStatusEffect("SE_VL_Charm".GetStableHashCode());
-				float charmPower = sE_Charm.charmPower;
-				allCharacter.m_faction = sE_Charm.originalFaction;
-				allCharacter.SetTamed(tamed: false);
-				StatusEffect statusEffect = (SE_CharmImmunity)ScriptableObject.CreateInstance(typeof(SE_CharmImmunity));
-				statusEffect.m_ttl = Mathf.Clamp(allCharacter.GetHealthPercentage() * VL_GlobalConfigs.g_CooldownModifer * 60f, 5f, 300f);
-				allCharacter.GetSEMan().AddStatusEffect(statusEffect);
-				UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("fx_VL_Lightburst"), allCharacter.GetEyePoint(), UnityEngine.Quaternion.identity);
+				character.m_faction = charm.originalFaction;
+				character.SetTamed(false);
+				character.GetSEMan().RemoveStatusEffect(charm, true);
 			}
 		}
 	}
@@ -4762,7 +4755,7 @@ public class ValheimLegends : BaseUnityPlugin
 		VL_Utility.ModID = "valheim.torann.valheimlegends";
 		VL_Utility.Folder = Path.GetDirectoryName(base.Info.Location);
 		ZLog.Log("[ValheimLegends] Assembly: " + base.Info.Location);
-		ZLog.Log("[ValheimLegends] Plugin version: 0.5.1");
+		ZLog.Log("[ValheimLegends] Plugin version: 0.5.2");
 		ZLog.Log("[ValheimLegends] Asset directory: " + VL_Utility.Folder);
 		string vlAssetsPath = Path.Combine(VL_Utility.Folder, "VLAssets");
 		if (Directory.Exists(vlAssetsPath))
@@ -4885,15 +4878,15 @@ public class ValheimLegends : BaseUnityPlugin
 
 	public static void SetVLPlayer(Player p)
 	{
-		vl_player = new VL_Player();
-		foreach (VL_Player vl_player in vl_playerList)
+		vl_player = new VL_Player { vl_name = p.GetPlayerName(), vl_class = PlayerClass.None };
+		foreach (VL_Player savedPlayer in vl_playerList ?? Enumerable.Empty<VL_Player>())
 		{
-			if (!(p.GetPlayerName() == vl_player.vl_name))
+			if (!(p.GetPlayerName() == savedPlayer.vl_name))
 			{
 				continue;
 			}
-			ValheimLegends.vl_player.vl_name = vl_player.vl_name;
-			ValheimLegends.vl_player.vl_class = vl_player.vl_class;
+			ValheimLegends.vl_player.vl_name = savedPlayer.vl_name;
+			ValheimLegends.vl_player.vl_class = savedPlayer.vl_class;
 			if ((ValheimLegends.vl_player.vl_class == PlayerClass.None && chosenClass.Value.ToLower() != "none") || (chosenClass.Value.ToLower() != "none" && VL_GlobalConfigs.ConfigStrings["vl_svr_enforceConfigClass"] != 0f))
 			{
 				switch (chosenClass.Value.ToLower())
@@ -4938,6 +4931,7 @@ public class ValheimLegends : BaseUnityPlugin
 			}
 			RemoveIncompatibleClassBuffs(p, ValheimLegends.vl_player.vl_class);
 			NameCooldowns();
+			break;
 		}
 	}
 
@@ -5059,6 +5053,7 @@ public class ValheimLegends : BaseUnityPlugin
 	public static void RemoveAllClassBuffs(Player player)
 	{
 		if (player == null) return;
+		RemoveClassSummons(player);
 		var seMan = player.GetSEMan();
 		if (seMan == null) return;
 
@@ -5129,14 +5124,19 @@ public class ValheimLegends : BaseUnityPlugin
 
 	public static void UpdateVLPlayer(Player p)
 	{
-		foreach (VL_Player vl_player in vl_playerList)
+		foreach (VL_Player vl_player in vl_playerList ?? Enumerable.Empty<VL_Player>())
 		{
 			if (p.GetPlayerName() == vl_player.vl_name)
 			{
 				vl_player.vl_class = ValheimLegends.vl_player.vl_class;
 				SaveVLPlayer_Patch.Postfix(Game.instance.GetPlayerProfile(), Game.instance.GetPlayerProfile().GetFilename(), Game.instance.GetPlayerProfile().GetName());
+				VLCharacterPersistence.NotifyCharacterChanged();
+				return;
 			}
 		}
+		vl_playerList = new List<VL_Player> { new VL_Player { vl_name = p.GetPlayerName(), vl_class = ValheimLegends.vl_player.vl_class } };
+		SaveVLPlayer_Patch.Postfix(Game.instance.GetPlayerProfile(), Game.instance.GetPlayerProfile().GetFilename(), Game.instance.GetPlayerProfile().GetName());
+		VLCharacterPersistence.NotifyCharacterChanged();
 	}
 
 	public static void NameCooldowns()
