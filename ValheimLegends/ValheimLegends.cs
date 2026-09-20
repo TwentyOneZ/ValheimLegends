@@ -16,7 +16,7 @@ using static ValheimLegends.Class_Mage;
 
 namespace ValheimLegends;
 
-[BepInPlugin("ValheimLegends", "ValheimLegends", "0.5.2")]
+[BepInPlugin("ValheimLegends", "ValheimLegends", "0.5.3")]
 [BepInDependency("EpicMMOSystem", BepInDependency.DependencyFlags.SoftDependency)]
 public class ValheimLegends : BaseUnityPlugin
 {
@@ -3933,6 +3933,7 @@ public class ValheimLegends : BaseUnityPlugin
 	{
 		public static void Postfix(PlayerProfile __instance, Player player)
 		{
+			if (VLCharacterPersistence.IsPerspexAuthorityActive) return;
 			VL_SkillData vL_SkillData = __instance.LoadModData<VL_SkillData>();
 			if (player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == DisciplineSkillDef) == null)
 			{
@@ -4050,7 +4051,7 @@ public class ValheimLegends : BaseUnityPlugin
 
 	public static Harmony _Harmony;
 
-	public const string Version = "0.5.2";
+	public const string Version = "0.5.3";
 
 	public const float VersionF = 0.5f;
 
@@ -4755,7 +4756,7 @@ public class ValheimLegends : BaseUnityPlugin
 		VL_Utility.ModID = "valheim.torann.valheimlegends";
 		VL_Utility.Folder = Path.GetDirectoryName(base.Info.Location);
 		ZLog.Log("[ValheimLegends] Assembly: " + base.Info.Location);
-		ZLog.Log("[ValheimLegends] Plugin version: 0.5.2");
+		ZLog.Log("[ValheimLegends] Plugin version: 0.5.3");
 		ZLog.Log("[ValheimLegends] Asset directory: " + VL_Utility.Folder);
 		string vlAssetsPath = Path.Combine(VL_Utility.Folder, "VLAssets");
 		if (Directory.Exists(vlAssetsPath))

@@ -6,6 +6,8 @@
     <Nullable>disable</Nullable>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="..\PerspexCharacterAuthority\PcaHandshakeStateMachine.cs" Link="PcaHandshakeStateMachine.cs" />
+    <Compile Include="..\PerspexCharacterAuthority\PcaServerConnectionState.cs" Link="PcaServerConnectionState.cs" />
     <Compile Include="..\PerspexCharacterAuthority\PcaStorage.cs" Link="PcaStorage.cs" />
   </ItemGroup>
 </Project>

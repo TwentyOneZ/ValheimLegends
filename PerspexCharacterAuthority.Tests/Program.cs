@@ -1,5 +1,7 @@
 using PerspexCharacterAuthority;
 
+RunHandshakeChecks();
+
 var root = Path.Combine(Path.GetTempPath(), "pca-check-" + Guid.NewGuid().ToString("N"));
 try
 {
@@ -83,4 +85,81 @@ finally
 static void Assert(bool condition)
 {
     if (!condition) throw new InvalidOperationException("PCA check failed.");
+}
+
+static void RunHandshakeChecks()
+{
+    const int protocol = 1;
+    var authority = new PcaHandshakeStateMachine(protocol, true);
+    Assert(authority.State == PcaHandshakeState.Vanilla && authority.CanSpawn);
+    authority.Begin(42);
+    Assert(authority.State == PcaHandshakeState.WaitingForHello && !authority.CanSpawn && !authority.CanSubmit);
+    Assert(authority.ReceiveSnapshot(protocol, 42) == PcaHandshakeAction.Deny && authority.State == PcaHandshakeState.Denied);
+
+    authority.Begin(42);
+    Assert(authority.ReceiveHello(protocol) == PcaHandshakeAction.SendIdentify);
+    Assert(authority.State == PcaHandshakeState.WaitingForSnapshot);
+    Assert(authority.ReceiveHello(protocol) == PcaHandshakeAction.None);
+    Assert(authority.ReceiveSnapshot(protocol + 1, 42) == PcaHandshakeAction.Deny);
+
+    authority.Begin(42);
+    Assert(authority.ReceiveHello(protocol) == PcaHandshakeAction.SendIdentify);
+    Assert(authority.ReceiveSnapshot(protocol, 43) == PcaHandshakeAction.Deny);
+
+    authority.Begin(42);
+    Assert(authority.ReceiveHello(protocol) == PcaHandshakeAction.SendIdentify);
+    Assert(authority.ReceiveSnapshot(protocol, 42) == PcaHandshakeAction.AllowSpawn);
+    Assert(authority.State == PcaHandshakeState.Allowed && authority.CanSpawn && authority.CanSubmit);
+    Assert(authority.ReceiveDenied() == PcaHandshakeAction.Deny && !authority.CanSpawn && !authority.CanSubmit);
+
+    authority.Begin(42);
+    Assert(authority.Timeout() == PcaHandshakeAction.Deny && authority.State == PcaHandshakeState.Denied);
+    var fallback = new PcaHandshakeStateMachine(protocol, false);
+    fallback.Begin(42);
+    Assert(fallback.Timeout() == PcaHandshakeAction.VanillaFallback && fallback.State == PcaHandshakeState.Vanilla && fallback.CanSpawn);
+    fallback.Begin(42);
+    Assert(fallback.ReceiveHello(protocol) == PcaHandshakeAction.SendIdentify);
+    Assert(fallback.Timeout() == PcaHandshakeAction.Deny && fallback.State == PcaHandshakeState.Denied);
+
+    var sessions = new PcaServerSessionGate<string>();
+    Assert(sessions.Authorize("old", "account", 42, out var none) && none == null);
+    Assert(sessions.CanUsePlayerId("old", 42) && sessions.CanSubmit("old", 42));
+    Assert(sessions.Authorize("new", "account", 42, out var replaced) && replaced == "old");
+    Assert(!sessions.CanUsePlayerId("old", 42) && !sessions.CanSubmit("old", 42));
+    Assert(sessions.CanUsePlayerId("new", 42) && !sessions.CanUsePlayerId("new", 43));
+    sessions.Revoke("new");
+    Assert(!sessions.CanSubmit("new", 42));
+
+    var fresh = new PcaFreshProgressionGate();
+    fresh.Load(true);
+    Assert(fresh.TryApply() && !fresh.TryApply());
+    fresh.Load(false);
+    Assert(!fresh.TryApply());
+
+    var server = new PcaServerConnectionState("C001", 10f) { RpcRegistered = true };
+    server.MarkPeerInfo(12f);
+    server.MarkPeerInfo(20f);
+    Assert(server.PeerInfoAt == 12f);
+    Assert(server.PeerInfoSeen && server.TimeoutPhase == "native-authentication");
+    Assert(!server.NativeNetworkAccepted);
+    server.MarkZdoPeerAdded();
+    Assert(server.NativeNetworkAccepted);
+    server.MarkRoutedPeerAdded();
+    server.MarkAuthenticated();
+    Assert(server.TryMarkHelloSent() && !server.TryMarkHelloSent());
+    Assert(server.TimeoutPhase == "identify");
+    server.MarkIdentify();
+    server.MarkAuthorized();
+    server.MarkSnapshotSent();
+    Assert(server.TimeoutPhase == "complete" && server.ZdoPeerAdded && server.RoutedPeerAdded);
+
+    var submits = new PcaSubmitTracker();
+    submits.Sent();
+    submits.Sent();
+    Assert(submits.Pending == 2 && submits.Acknowledge() && submits.Pending == 1);
+    Assert(submits.Acknowledge() && !submits.Acknowledge());
+    submits.Sent();
+    submits.Reset();
+    Assert(submits.Pending == 0);
+    Console.WriteLine("PCA handshake/session checks passed.");
 }
