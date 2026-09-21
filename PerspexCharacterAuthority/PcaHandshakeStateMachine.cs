@@ -130,8 +130,8 @@ public sealed class PcaServerSessionGate<TPeer>
     }
 }
 
-/// <summary>Tracks the one client-side application required by FreshProgression.</summary>
-public sealed class PcaFreshProgressionGate
+/// <summary>Tracks an action that must run once after each load.</summary>
+public sealed class PcaPendingActionGate
 {
     public bool Pending { get; private set; }
 

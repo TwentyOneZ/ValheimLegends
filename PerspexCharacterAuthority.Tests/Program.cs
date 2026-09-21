@@ -130,7 +130,7 @@ static void RunHandshakeChecks()
     sessions.Revoke("new");
     Assert(!sessions.CanSubmit("new", 42));
 
-    var fresh = new PcaFreshProgressionGate();
+    var fresh = new PcaPendingActionGate();
     fresh.Load(true);
     Assert(fresh.TryApply() && !fresh.TryApply());
     fresh.Load(false);

@@ -31,7 +31,8 @@ public sealed class PerspexCharacterAuthorityPlugin : BaseUnityPlugin
     private readonly Dictionary<ZRpc, string> authenticatedAccounts = new Dictionary<ZRpc, string>();
     private readonly HashSet<ZRpc> registeredRpcs = new HashSet<ZRpc>();
     private readonly Dictionary<ZRpc, PcaServerConnectionState> connections = new Dictionary<ZRpc, PcaServerConnectionState>();
-    private readonly PcaFreshProgressionGate freshProgression = new PcaFreshProgressionGate();
+    private readonly PcaPendingActionGate freshProgression = new PcaPendingActionGate();
+    private readonly PcaPendingActionGate vlImport = new PcaPendingActionGate();
     private readonly PcaSubmitTracker submits = new PcaSubmitTracker();
     private PcaStore store;
     private PcaHandshakeStateMachine handshake;
@@ -504,6 +505,7 @@ public sealed class PerspexCharacterAuthorityPlugin : BaseUnityPlugin
         if (profile == null) { handshake.ReceiveDenied(); DisconnectRejectedClient("Selected character is unavailable."); return; }
         AccessTools.Field(typeof(PlayerProfile), "m_playerData").SetValue(profile, snapshot.VanillaPlayerData);
         clientSnapshot = snapshot;
+        vlImport.Load(true);
         freshProgression.Load(snapshot.Extensions.ContainsKey(FreshProgressionExtension));
         lastServerSnapshotTicks = snapshot.UpdatedUtcTicks;
         var snapshotAction = handshake.ReceiveSnapshot(ProtocolVersion, snapshot.CharacterId);
@@ -561,6 +563,7 @@ public sealed class PerspexCharacterAuthorityPlugin : BaseUnityPlugin
         handshake.Reset();
         clientRpc = null;
         clientSnapshot = null;
+        vlImport.Load(false);
         freshProgression.Load(false);
         freshProgressionApplied = false;
         submits.Reset();
@@ -571,6 +574,7 @@ public sealed class PerspexCharacterAuthorityPlugin : BaseUnityPlugin
     {
         Diag(PcaDiagnosticLevel.Trace, clientRpc, "PLAYER_ON_SPAWNED", "handshake=" + handshake.State + " snapshot=" + (clientSnapshot != null));
         if (!handshake.CanSubmit || clientSnapshot == null) { Diag(PcaDiagnosticLevel.Trace, clientRpc, "VL_IMPORT", "SKIP reason=no_authoritative_snapshot"); return; }
+        if (!vlImport.TryApply()) { Diag(PcaDiagnosticLevel.Trace, clientRpc, "VL_IMPORT", "SKIP reason=already_applied"); return; }
         if (clientSnapshot.Extensions.TryGetValue(VLExtension, out var extension)) VLBridge.Import(player, extension);
         else VLBridge.Reset(player);
     }
