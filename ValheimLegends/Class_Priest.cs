@@ -112,7 +112,7 @@ public class Class_Priest
                             return;
                         }
 
-                        // 3) cooldown/skill etc (seu código)
+                        // 3) cooldown/skill etc (seu cÃ³digo)
                         player.RaiseSkill(ValheimLegends.AlterationSkill, VL_Utility.GetHealSkillGain);
                         StatusEffect statusEffect = (SE_Ability3_CD)ScriptableObject.CreateInstance(typeof(SE_Ability3_CD));
                         float level = player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.AlterationSkillDef)
@@ -124,7 +124,7 @@ public class Class_Priest
                         // 4) consumir 1 Ancient Seed
                         inv.RemoveOneItem(foundItem);
 
-                        // 5) criar o item do prefab e adicionar no inventário
+                        // 5) criar o item do prefab e adicionar no inventÃ¡rio
                         const string vialPrefabName = "questitem_wraiths_breath";
 
                         if (ZNetScene.instance == null)
@@ -149,11 +149,11 @@ public class Class_Priest
 
                         ItemDrop.ItemData vialItem = vialDrop.m_itemData.Clone();
 
-                        // adiciona no inventário (retorna false se inventário cheio)
+                        // adiciona no inventÃ¡rio (retorna false se inventÃ¡rio cheio)
                         bool added = inv.AddItem(vialItem);
                         if (!added)
                         {
-                            // fallback: se inventário cheio, dropa no chão
+                            // fallback: se inventÃ¡rio cheio, dropa no chÃ£o
                             ItemDrop.DropItem(vialItem, 1, player.transform.position + player.transform.forward, Quaternion.identity);
                             player.Message(MessageHud.MessageType.TopLeft, "Inventory full. Dropped Spirit Binding Vial on the ground.");
                         }
@@ -175,8 +175,8 @@ public class Class_Priest
 						statusEffect.m_ttl = VL_Utility.GetHealCooldownTime;
 						player.GetSEMan().AddStatusEffect(statusEffect);
 						player.UseStamina(VL_Utility.GetHealCost);
-						float level = player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.AlterationSkillDef)
-							.m_level * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddCriticalChance() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 80f), 0f, 0.5f));
+						float rawLevel = player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.AlterationSkillDef).m_level;
+						float level = rawLevel * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddCriticalChance() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 80f), 0f, 0.5f));
 						((ZSyncAnimation)typeof(Player).GetField("m_zanim", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(player)).SetTrigger("gpower");
 						UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("fx_VL_HealPulse"), player.GetCenterPoint(), UnityEngine.Quaternion.identity);
 						healCharging = true;
@@ -190,7 +190,12 @@ public class Class_Priest
 						list.Add("Wet");
 						list.Add("Smoked");
 						PurgeStatus_NearbyPlayers(player, 30f + 0.2f * level, list);
-						HealNearbyPlayers(player, 30f + 0.2f * level, (10f + level) * VL_GlobalConfigs.g_DamageModifer * VL_GlobalConfigs.c_priestHeal);
+						float heal = VL_Utility.GetHealingPower(
+							EpicMMOSystem.LevelSystem.Instance.getLevel(),
+							EpicMMOSystem.LevelSystem.Instance.getParameter(EpicMMOSystem.Parameter.Body),
+							rawLevel,
+							15f) * VL_GlobalConfigs.c_priestHeal;
+						HealNearbyPlayers(player, 30f + 0.2f * level, heal);
 						player.RaiseSkill(ValheimLegends.AlterationSkill, VL_Utility.GetHealSkillGain);
 					}
 				}
@@ -216,9 +221,15 @@ public class Class_Priest
 				healChargeAmount = 0;
 				((ZSyncAnimation)typeof(Player).GetField("m_zanim", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(player)).SetTrigger("gpower");
 				UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("fx_VL_HealPulse"), player.GetCenterPoint(), UnityEngine.Quaternion.identity);
-				float level2 = player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.AlterationSkillDef)
-					.m_level * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddCriticalChance() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 80f), 0f, 0.5f));
-				HealNearbyPlayers(player, 20f + 0.2f * level2, ((float)healCount + level2 * 0.3f) * 2f * VL_GlobalConfigs.g_DamageModifer * VL_GlobalConfigs.c_priestHeal);
+				float rawLevel2 = player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.AlterationSkillDef).m_level;
+				float level2 = rawLevel2 * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddCriticalChance() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 80f), 0f, 0.5f));
+				float initialHeal = VL_Utility.GetHealingPower(
+					EpicMMOSystem.LevelSystem.Instance.getLevel(),
+					EpicMMOSystem.LevelSystem.Instance.getParameter(EpicMMOSystem.Parameter.Body),
+					rawLevel2,
+					15f) * VL_GlobalConfigs.c_priestHeal;
+				float pulseRatio = ((float)healCount + rawLevel2 * 0.3f) * 2f / (10f + rawLevel2);
+				HealNearbyPlayers(player, 20f + 0.2f * level2, initialHeal * pulseRatio);
 				player.RaiseSkill(ValheimLegends.AlterationSkill, VL_Utility.GetHealSkillGain * 0.5f);
 			}
 		}
@@ -247,7 +258,11 @@ public class Class_Priest
 					player.UseStamina(VL_Utility.GetPurgeCost);
 					player.StartEmote("challenge");
 					GO_CastFX = UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("fx_VL_Purge"), player.GetCenterPoint(), UnityEngine.Quaternion.identity);
-					HealNearbyPlayers(player, 20f + 0.2f * level4, 0.5f + UnityEngine.Random.Range(0.4f, 0.6f) * level4 * VL_GlobalConfigs.g_DamageModifer * VL_GlobalConfigs.c_priestPurgeHeal);
+					HealNearbyPlayers(player, 20f + 0.2f * level4, VL_Utility.GetHealingPower(
+						EpicMMOSystem.LevelSystem.Instance.getLevel(),
+						EpicMMOSystem.LevelSystem.Instance.getParameter(EpicMMOSystem.Parameter.Body),
+						player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.AlterationSkillDef).m_level, 5f)
+						* VL_GlobalConfigs.c_priestPurgeHeal);
 					List<Character> list2 = new List<Character>();
 					list2.Clear();
 					Character.GetCharactersInRange(player.transform.position, 20f + 0.2f * level3, list2);
@@ -257,12 +272,18 @@ public class Class_Priest
 						{
 							UnityEngine.Vector3 vector = item.transform.position - player.transform.position;
 							HitData hitData = new HitData();
-							hitData.m_damage.m_spirit = UnityEngine.Random.Range(4f + 0.4f * level3, 8f + 2.0f * level3) * VL_GlobalConfigs.g_DamageModifer * VL_GlobalConfigs.c_priestPurgeDamage;
-							hitData.m_damage.m_fire = UnityEngine.Random.Range(4f + 0.4f * level3, 8f + 2.0f * level3) * VL_GlobalConfigs.g_DamageModifer * VL_GlobalConfigs.c_priestPurgeDamage;
+							float purgeDamage = VL_Utility.GetMagicAbilityDamage(EpicMMOSystem.LevelSystem.Instance.getLevel(),
+								EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage(),
+								player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.EvocationSkillDef).m_level,
+								EpicMMOSystem.LevelSystem.Instance.getParameter(EpicMMOSystem.Parameter.Body), 0.60f)
+								* VL_GlobalConfigs.g_DamageModifer * VL_GlobalConfigs.c_priestPurgeDamage;
+							hitData.m_damage.m_spirit = purgeDamage * 0.5f;
+							hitData.m_damage.m_fire = purgeDamage * 0.5f;
 							hitData.m_pushForce = 0f;
 							hitData.m_point = item.GetEyePoint();
 							hitData.m_dir = player.transform.position - item.transform.position;
 							hitData.m_skill = ValheimLegends.EvocationSkill;
+							hitData.SetAttacker(player);
 							item.Damage(hitData);
 						}
 					}
@@ -308,9 +329,14 @@ public class Class_Priest
 					P_Sanctify.m_aoe = 8f + 0.04f * level5;
 					GO_Sanctify.transform.localScale = UnityEngine.Vector3.one;
 					HitData hitData2 = new HitData();
-					hitData2.m_damage.m_fire = UnityEngine.Random.Range(10f + 0.5f * level5, 20f + 1.75f * level5) * VL_GlobalConfigs.g_DamageModifer * VL_GlobalConfigs.c_priestSanctify;
-					hitData2.m_damage.m_blunt = UnityEngine.Random.Range(10f + 0.5f * level5, 20f + 1.75f * level5) * VL_GlobalConfigs.g_DamageModifer * VL_GlobalConfigs.c_priestSanctify;
-					hitData2.m_damage.m_spirit = UnityEngine.Random.Range(10f + 0.5f * level5, 20f + 1.75f * level5) * VL_GlobalConfigs.g_DamageModifer * VL_GlobalConfigs.c_priestSanctify;
+					float sanctifyDamage = VL_Utility.GetMagicAbilityDamage(EpicMMOSystem.LevelSystem.Instance.getLevel(),
+						EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage(),
+						player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.EvocationSkillDef).m_level,
+						EpicMMOSystem.LevelSystem.Instance.getParameter(EpicMMOSystem.Parameter.Body), 1.10f)
+						* VL_GlobalConfigs.g_DamageModifer * VL_GlobalConfigs.c_priestSanctify;
+					hitData2.m_damage.m_fire = sanctifyDamage * 0.5f;
+					hitData2.m_damage.m_blunt = sanctifyDamage * 0.5f;
+					hitData2.m_damage.m_spirit = sanctifyDamage;
 					hitData2.SetAttacker(player);
 					hitData2.m_pushForce = 50f;
 					hitData2.m_skill = ValheimLegends.EvocationSkill;

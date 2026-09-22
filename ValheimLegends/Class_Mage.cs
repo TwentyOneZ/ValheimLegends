@@ -619,6 +619,7 @@ namespace ValheimLegends
         private static void Process_Frost_Input(Player player, float altitude)
         {
             float level = GetEvocationLevel(player);
+            float rawLevel = player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.EvocationSkillDef).m_level;
 
             if (VL_Utility.Ability1_Input_Down && !IsOnCooldown(player, "IceShard"))
             {
@@ -654,10 +655,14 @@ namespace ValheimLegends
                             ? (player.transform.position + player.GetLookDir() * 1000f) : hitInfo.point);
 
                         HitData hitData2 = new HitData();
-                        hitData2.m_damage.m_pierce = UnityEngine.Random.Range(2f + 0.1f * level, 3f + 0.2f * level) * VL_GlobalConfigs.c_mageFrostDagger * VL_GlobalConfigs.g_DamageModifer;
-                        hitData2.m_damage.m_frost = UnityEngine.Random.Range(2f + 0.1f * level, 3f + 0.2f * level) * VL_GlobalConfigs.g_DamageModifer * VL_GlobalConfigs.c_mageFrostDagger;
+                        float shardDamage = VL_Utility.GetMagicAbilityDamage(EpicMMOSystem.LevelSystem.Instance.getLevel(),
+                            EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage(), rawLevel,
+                            EpicMMOSystem.LevelSystem.Instance.getParameter(EpicMMOSystem.Parameter.Agility), 0.40f)
+                            * VL_GlobalConfigs.g_DamageModifer * VL_GlobalConfigs.c_mageFrostDagger;
+                        hitData2.m_damage.m_pierce = shardDamage * 0.5f;
+                        hitData2.m_damage.m_frost = shardDamage * 0.5f;
                         hitData2.m_toolTier = 138;
-                        if (player.GetSEMan().HaveStatusEffect(Hash_ElementalMastery)) AddElementalMasteryDamage(player, ref hitData2, 0.8f);
+                        if (player.GetSEMan().HaveStatusEffect(Hash_ElementalMastery)) AddElementalMasteryDamage(player, ref hitData2);
                         hitData2.m_skill = ValheimLegends.EvocationSkill;
                         hitData2.SetAttacker(player);
 
@@ -692,8 +697,11 @@ namespace ValheimLegends
                             VL_Utility.LOS_IsValid(item, player.GetCenterPoint(), player.transform.position + player.transform.up * 0.15f))
                         {
                             HitData hitData2 = new HitData();
-                            hitData2.m_damage.m_frost = UnityEngine.Random.Range(2f + 0.2f * level, 3f + 0.3f * level) * VL_GlobalConfigs.g_DamageModifer * VL_GlobalConfigs.c_mageFrostNova;
-                            if (hasElementalMastery) AddElementalMasteryDamage(player, ref hitData2, 1.0f);
+                            hitData2.m_damage.m_frost = VL_Utility.GetMagicAbilityDamage(EpicMMOSystem.LevelSystem.Instance.getLevel(),
+                                EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage(), rawLevel,
+                                EpicMMOSystem.LevelSystem.Instance.getParameter(EpicMMOSystem.Parameter.Vigour), 0.45f)
+                                * VL_GlobalConfigs.g_DamageModifer * VL_GlobalConfigs.c_mageFrostNova;
+                            if (hasElementalMastery) AddElementalMasteryDamage(player, ref hitData2);
                             hitData2.m_pushForce = 20f;
                             hitData2.m_dir = item.transform.position - player.transform.position;
                             hitData2.m_skill = ValheimLegends.EvocationSkill;
@@ -867,6 +875,7 @@ namespace ValheimLegends
         {
             bool hasElementalMastery = player.GetSEMan().HaveStatusEffect(Hash_ElementalMastery);
             float level = GetEvocationLevel(player);
+            float rawLevel = player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.EvocationSkillDef).m_level;
 
             if (QueuedAttack == MageAttackType.FlameNova)
             {
@@ -879,8 +888,10 @@ namespace ValheimLegends
                         VL_Utility.LOS_IsValid(item, player.GetCenterPoint(), player.transform.position + player.transform.up * 0.2f))
                     {
                         HitData hitData = new HitData();
-                        hitData.m_damage.m_fire = UnityEngine.Random.Range(25f + 2.0f * level, 40f + 6.0f * level) * VL_GlobalConfigs.g_DamageModifer * VL_GlobalConfigs.c_mageInferno;
-                        if (hasElementalMastery) AddElementalMasteryDamage(player, ref hitData, 2.0f);
+                        hitData.m_damage.m_fire = VL_Utility.GetMagicAbilityDamage(EpicMMOSystem.LevelSystem.Instance.getLevel(),
+                            EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage(), rawLevel, 1.20f)
+                            * VL_GlobalConfigs.g_DamageModifer * VL_GlobalConfigs.c_mageInferno;
+                        if (hasElementalMastery) AddElementalMasteryDamage(player, ref hitData);
                         hitData.m_skill = ValheimLegends.EvocationSkill;
                         hitData.SetAttacker(player);
                         item.Damage(hitData);
@@ -914,10 +925,15 @@ namespace ValheimLegends
                 p.m_ttl = 8f;
 
                 HitData hit = new HitData();
-                hit.m_damage.m_pierce = UnityEngine.Random.Range(7f + 0.25f * level, 13f + 0.5f * level) * VL_GlobalConfigs.c_mageFrostDagger * VL_GlobalConfigs.g_DamageModifer;
-                hit.m_damage.m_frost = UnityEngine.Random.Range(3f + 0.75f * level, 7f + 1.0f * level) * VL_GlobalConfigs.g_DamageModifer * VL_GlobalConfigs.c_mageFrostDagger;
+                float rawLevel = player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.EvocationSkillDef).m_level;
+                float shardDamage = VL_Utility.GetMagicAbilityDamage(EpicMMOSystem.LevelSystem.Instance.getLevel(),
+                    EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage(), rawLevel,
+                    EpicMMOSystem.LevelSystem.Instance.getParameter(EpicMMOSystem.Parameter.Body), 0.10f)
+                    * VL_GlobalConfigs.g_DamageModifer * VL_GlobalConfigs.c_mageFrostDagger;
+                hit.m_damage.m_pierce = shardDamage * 0.5f;
+                hit.m_damage.m_frost = shardDamage * 0.5f;
                 hit.m_toolTier = 137;
-                if (player.GetSEMan().HaveStatusEffect(Hash_ElementalMastery)) AddElementalMasteryDamage(player, ref hit, 0.2f);
+                if (player.GetSEMan().HaveStatusEffect(Hash_ElementalMastery)) AddElementalMasteryDamage(player, ref hit);
                 hit.SetAttacker(player);
                 hit.m_skill = ValheimLegends.EvocationSkill;
 
@@ -944,12 +960,18 @@ namespace ValheimLegends
             UnityEngine.Vector3 target2 = ((!Physics.Raycast(vector3, player.GetLookDir(), out hitInfo2, float.PositiveInfinity, Script_Layermask) || !hitInfo2.collider)
                 ? (position2 + player.GetLookDir() * 1000f) : hitInfo2.point);
             HitData hitData3 = new HitData();
-            hitData3.m_damage.m_fire = UnityEngine.Random.Range(3f + 0.5f * level, 13f + 1.0f * level) * VL_GlobalConfigs.g_DamageModifer * VL_GlobalConfigs.c_mageFireball;
-            hitData3.m_damage.m_blunt = UnityEngine.Random.Range(3f + 0.5f * level, 8f + 1.0f * level) * VL_GlobalConfigs.g_DamageModifer * VL_GlobalConfigs.c_mageFireball;
+            float rawEvocation = player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.EvocationSkillDef).m_level;
+            float damage = VL_Utility.GetMagicAbilityDamage(
+                EpicMMOSystem.LevelSystem.Instance.getLevel(),
+                EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage(),
+                rawEvocation,
+                0.8f) * VL_GlobalConfigs.g_DamageModifer * VL_GlobalConfigs.c_mageFireball;
+            hitData3.m_damage.m_fire = damage * 0.5f;
+            hitData3.m_damage.m_blunt = damage * 0.5f;
             hitData3.m_pushForce = 2f;
             hitData3.m_skill = ValheimLegends.EvocationSkill;
             hitData3.SetAttacker(player);
-            if (player.GetSEMan().HaveStatusEffect(Hash_ElementalMastery)) AddElementalMasteryDamage(player, ref hitData3, 1.0f);
+            if (player.GetSEMan().HaveStatusEffect(Hash_ElementalMastery)) AddElementalMasteryDamage(player, ref hitData3);
             UnityEngine.Vector3 vector4 = UnityEngine.Vector3.MoveTowards(GO_Fireball.transform.position, target2, 1f);
             P_Fireball.Setup(player, (vector4 - GO_Fireball.transform.position) * 25f, -1f, hitData3, null, null);
             Traverse.Create(P_Fireball).Field("m_skill").SetValue(ValheimLegends.EvocationSkill);
@@ -958,6 +980,7 @@ namespace ValheimLegends
         private static void CastMeteor(Player player, int count)
         {
             float level = GetEvocationLevel(player);
+            float rawLevel = player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.EvocationSkillDef).m_level;
             System.Random random = new System.Random();
             UnityEngine.Vector3 targetBase = player.transform.position + player.transform.up * 2f + player.GetLookDir() * 10f;
             RaycastHit hitInfo = default(RaycastHit);
@@ -973,11 +996,14 @@ namespace ValheimLegends
                 p.m_rayRadius = 0.1f;
                 p.m_aoe = 8f + 0.03f * level;
                 HitData hitData = new HitData();
-                hitData.m_damage.m_fire = UnityEngine.Random.Range(10f + 2.0f * level, 30f + 4.0f * level) * VL_GlobalConfigs.g_DamageModifer;
-                hitData.m_damage.m_blunt = UnityEngine.Random.Range(20f + 3.0f * level, 60f + 6.0f * level) * VL_GlobalConfigs.g_DamageModifer;
+                float meteorDamage = VL_Utility.GetMagicAbilityDamage(EpicMMOSystem.LevelSystem.Instance.getLevel(),
+                    EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage(), rawLevel, 2.00f)
+                    * VL_GlobalConfigs.g_DamageModifer * VL_GlobalConfigs.c_mageMeteor;
+                hitData.m_damage.m_fire = meteorDamage * 0.5f;
+                hitData.m_damage.m_blunt = meteorDamage * 0.5f;
                 hitData.SetAttacker(player);
                 hitData.m_skill = ValheimLegends.EvocationSkill;
-                if (hasElementalMastery) AddElementalMasteryDamage(player, ref hitData, 4.0f);
+                if (hasElementalMastery) AddElementalMasteryDamage(player, ref hitData);
                 UnityEngine.Vector3 target = targetBase;
                 target.x += random.Next(-8, 8);
                 target.z += random.Next(-8, 8);
@@ -1016,21 +1042,16 @@ namespace ValheimLegends
             p.Message(MessageHud.MessageType.Center, "Surge: Cooldowns & Charges Restored!");
         }
 
-        private static void AddElementalMasteryDamage(Player player, ref HitData hitData, float factor)
+        private static void AddElementalMasteryDamage(Player player, ref HitData hitData)
         {
             if (player.GetSEMan().HaveStatusEffect(Hash_ElementalMastery))
             {
-                float level = 0f;
-                level = GetEvocationLevel(player);
-                float masteryMult = 0.5f + (level * 0.01f);
-                masteryMult = Mathf.Clamp(masteryMult, 0.5f, 2.0f);
-                float finalFactor = factor * masteryMult;
                 HitData.DamageTypes weaponDamage = player.GetCurrentWeapon().GetDamage();
-                hitData.m_damage.m_fire += weaponDamage.m_fire * finalFactor;
-                hitData.m_damage.m_frost += weaponDamage.m_frost * finalFactor;
-                hitData.m_damage.m_lightning += weaponDamage.m_lightning * finalFactor;
-                hitData.m_damage.m_poison += weaponDamage.m_poison * finalFactor;
-                hitData.m_damage.m_spirit += weaponDamage.m_spirit * finalFactor;
+                hitData.m_damage.m_fire += weaponDamage.m_fire * 0.25f;
+                hitData.m_damage.m_frost += weaponDamage.m_frost * 0.25f;
+                hitData.m_damage.m_lightning += weaponDamage.m_lightning * 0.25f;
+                hitData.m_damage.m_poison += weaponDamage.m_poison * 0.25f;
+                hitData.m_damage.m_spirit += weaponDamage.m_spirit * 0.25f;
             }
         }
 
@@ -1042,7 +1063,7 @@ namespace ValheimLegends
 
         public static float GetCooldownReduction(Player player)
         {
-            return (1f - (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 80f));
+            return 1f - 0.005f * Mathf.Clamp(EpicMMOSystem.LevelSystem.Instance.getParameter(EpicMMOSystem.Parameter.Intellect), 0f, 100f);
         }
 
         private static void EnsureAffinities(Player player)

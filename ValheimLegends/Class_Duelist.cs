@@ -28,8 +28,10 @@ public class Class_Duelist
 		UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("fx_VL_BlinkStrike"), player.GetCenterPoint() + player.GetLookDir() * 3f, UnityEngine.Quaternion.LookRotation(player.GetLookDir()));
 		float level = player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.DisciplineSkillDef)
 			.m_level * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddPhysicDamage() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddAttackSpeed() / 40f), 0f, 0.5f));
-		float num = (2.5f + (level / 150f)) * VL_GlobalConfigs.g_DamageModifer * VL_GlobalConfigs.c_duelistSeismicSlash;
-        // Direção horizontal do jogador
+		float num = VL_Utility.GetPhysicalAbilityMultiplier(
+			player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.DisciplineSkillDef).m_level, 0.90f)
+			* VL_GlobalConfigs.g_DamageModifer * VL_GlobalConfigs.c_duelistSeismicSlash;
+        // DireÃ§Ã£o horizontal do jogador
         Vector3 forward = player.transform.forward;
         forward.y = 0f;
         forward.Normalize();
@@ -65,11 +67,12 @@ public class Class_Duelist
             // ===== DANO =====
             HitData hitData = new HitData();
             hitData.m_damage = player.GetCurrentWeapon().GetDamage();
-            hitData.ApplyModifier(UnityEngine.Random.Range(1.8f, 2.2f) * num);
+            hitData.ApplyModifier(num);
             hitData.m_pushForce = 25f + 0.1f * level;
             hitData.m_point = item.GetEyePoint();
             hitData.m_dir = forward;
             hitData.m_skill = ValheimLegends.DisciplineSkill;
+            hitData.SetAttacker(player);
 
             item.Damage(hitData);
 
@@ -448,9 +451,14 @@ public class Class_Duelist
 									RaycastHit hitInfo = default(RaycastHit);
 									UnityEngine.Vector3 target = ((!Physics.Raycast(player.GetEyePoint(), player.GetLookDir(), out hitInfo, float.PositiveInfinity, ScriptChar_Layermask) || !hitInfo.collider) ? (player.GetEyePoint() + player.GetLookDir() * 1000f) : hitInfo.point);
 									HitData hitData = new HitData();
-									hitData.m_damage.m_pierce = UnityEngine.Random.Range(10f + 1f * (level2 + (EpicMMOSystem.LevelSystem.Instance.getLevel())), 30f + 2f * (level2 + (EpicMMOSystem.LevelSystem.Instance.getLevel()))) * VL_GlobalConfigs.g_DamageModifer * VL_GlobalConfigs.c_duelistHipShot;
+									hitData.m_damage = player.GetCurrentWeapon().GetDamage();
+									hitData.m_damage.Modify(VL_Utility.GetPhysicalAbilityMultiplier(
+										player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.DisciplineSkillDef).m_level,
+										EpicMMOSystem.LevelSystem.Instance.getParameter(EpicMMOSystem.Parameter.Agility), 0.70f)
+										* VL_GlobalConfigs.g_DamageModifer * VL_GlobalConfigs.c_duelistHipShot);
 									hitData.m_pushForce = 1f;
 									hitData.m_skill = ValheimLegends.DisciplineSkill;
+									hitData.SetAttacker(player);
 									UnityEngine.Vector3 vector2 = UnityEngine.Vector3.MoveTowards(vector, target, 1f);
 									P_QuickShot.Setup(player, (vector2 - GO_QuickShot.transform.position) * 100f, -1f, hitData, null, null);
 									Traverse.Create(P_QuickShot).Field("m_skill").SetValue(ValheimLegends.DisciplineSkill);

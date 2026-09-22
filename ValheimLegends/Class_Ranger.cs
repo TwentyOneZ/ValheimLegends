@@ -49,7 +49,7 @@ public class Class_Ranger
                         return;
                     }
 
-                    // 3) cooldown/skill etc (seu código)
+                    // 3) cooldown/skill etc (seu cÃ³digo)
                     StatusEffect statusEffect = (SE_Ability3_CD)ScriptableObject.CreateInstance(typeof(SE_Ability3_CD));
                     statusEffect.m_ttl = 0.5f;
                     player.GetSEMan().AddStatusEffect(statusEffect);
@@ -58,7 +58,7 @@ public class Class_Ranger
                     // 4) consumir 1 Ancient Seed
                     inv.RemoveItem(foundItem, requiredItems);
 
-                    // 5) criar o item do prefab e adicionar no inventário
+                    // 5) criar o item do prefab e adicionar no inventÃ¡rio
                     const string arrowPrefabName = "ArrowWood";
 
                     if (ZNetScene.instance == null)
@@ -84,11 +84,11 @@ public class Class_Ranger
                     ItemDrop.ItemData arrowItem = arrowDrop.m_itemData.Clone();
                     arrowItem.m_stack = 20;
 
-                    // adiciona no inventário (retorna false se inventário cheio)
+                    // adiciona no inventÃ¡rio (retorna false se inventÃ¡rio cheio)
                     bool added = inv.AddItem(arrowItem);
                     if (!added)
                     {
-                        // fallback: se inventário cheio, dropa no chão
+                        // fallback: se inventÃ¡rio cheio, dropa no chÃ£o
                         ItemDrop.DropItem(arrowItem, arrowItem.m_stack, player.transform.position + player.transform.forward, Quaternion.identity);
                         player.Message(MessageHud.MessageType.TopLeft, "Inventory full. Dropped arrows on the ground.");
                     }
@@ -174,13 +174,16 @@ public class Class_Ranger
 						}
 						SE_Companion sE_Companion = (SE_Companion)ScriptableObject.CreateInstance(typeof(SE_Companion));
 						sE_Companion.m_ttl = SE_Companion.m_baseTTL;
-						sE_Companion.damageModifier = (1f + EpicMMOSystem.LevelSystem.Instance.getLevel() / 30f) * (0.05f + 0.01f * level) * VL_GlobalConfigs.g_DamageModifer * VL_GlobalConfigs.c_rangerShadowWolf;
+						sE_Companion.damageModifier = 1f;
 						sE_Companion.healthRegen = 1f + 0.1f * level;
 						sE_Companion.speedModifier = 1.2f;
 						sE_Companion.summoner = player;
 						MonsterAI monsterAI = component.GetBaseAI() as MonsterAI;
 						monsterAI.SetFollowTarget(player.gameObject);
 						component.GetSEMan().AddStatusEffect(sE_Companion);
+						VL_Utility.SetSummonDamage(GO_Wolf, player,
+							player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.ConjurationSkillDef).m_level,
+							EpicMMOSystem.LevelSystem.Instance.getParameter(EpicMMOSystem.Parameter.Body), 0.30f, VL_GlobalConfigs.c_rangerShadowWolf);
                         var wolfView = component.GetComponent<ZNetView>();
                         if (wolfView != null && wolfView.IsValid() && wolfView.IsOwner())
                         {
@@ -328,11 +331,12 @@ public class Class_Ranger
 										characterInArea.Heal(Mathf.Max(characterInArea.GetMaxHealth() * healingPower, healingPower * 10f));
 										float level = player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.ConjurationSkillDef)
 											.m_level * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddStamina() / 200f) + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 80f), 0f, 0.5f));
-										SE_Regeneration sE_Regeneration = (SE_Regeneration)ScriptableObject.CreateInstance(typeof(SE_Regeneration));
-										sE_Regeneration.m_ttl = SE_Regeneration.m_baseTTL * (1f + level / 300f);
-										sE_Regeneration.m_HealAmount = 0.5f + level * VL_GlobalConfigs.g_DamageModifer * VL_GlobalConfigs.c_druidRegen;
-										sE_Regeneration.doOnce = false;
-										characterInArea.GetSEMan().AddStatusEffect(sE_Regeneration, resetTime: true);
+										float healAmount = VL_Utility.GetHealingPower(EpicMMOSystem.LevelSystem.Instance.getLevel(),
+											EpicMMOSystem.LevelSystem.Instance.getParameter(EpicMMOSystem.Parameter.Body),
+											player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.ConjurationSkillDef).m_level,
+											2f) * VL_GlobalConfigs.c_druidRegen;
+										characterInArea.GetSEMan().AddStatusEffect("SE_VL_Regeneration".GetStableHashCode(), true,
+											Mathf.RoundToInt(SE_Regeneration.m_baseTTL * (1f + level / 300f) * 1000f), healAmount);
 										UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("vfx_Potion_stamina_medium"), characterInArea.transform.position, UnityEngine.Quaternion.identity);
 										UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("vfx_WishbonePing"), characterInArea.transform.position, UnityEngine.Quaternion.identity);
 										player.RaiseSkill(global::ValheimLegends.ValheimLegends.ConjurationSkill, VL_Utility.GetSummonWolfSkillGain(player) * (healingPower));

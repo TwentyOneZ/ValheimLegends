@@ -74,8 +74,6 @@ public class Class_Necromancer
 						statusEffect2.m_ttl = VL_Utility.GetFrostNovaCooldownTime;
 						player.GetSEMan().AddStatusEffect(statusEffect2);
 						player.UseStamina(VL_Utility.GetFrostNovaCost);
-						float level = player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.EvocationSkillDef)
-							.m_level * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddCriticalChance() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 80f), 0f, 0.5f));
 						player.RaiseSkill(ValheimLegends.EvocationSkill, VL_Utility.GetFrostNovaSkillGain);
 					}
 					else
@@ -94,12 +92,10 @@ public class Class_Necromancer
 				{
 					if (player.GetStamina() >= VL_Utility.GetFireballCost)
 					{
-						float level2 = player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.EvocationSkillDef)
-							.m_level * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddCriticalChance() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 80f), 0f, 0.5f));
 						StatusEffect statusEffect3 = (SE_Ability1_CD)ScriptableObject.CreateInstance(typeof(SE_Ability1_CD));
-						statusEffect3.m_ttl = VL_Utility.GetFireballCooldownTime - 0.02f * level2;
+						statusEffect3.m_ttl = VL_Utility.GetFireballCooldownTime;
 						player.GetSEMan().AddStatusEffect(statusEffect3);
-						player.UseStamina(VL_Utility.GetFireballCost + 0.5f * level2);
+						player.UseStamina(VL_Utility.GetFireballCost);
 						player.RaiseSkill(ValheimLegends.EvocationSkill, VL_Utility.GetFireballSkillGain);
 					}
 					else

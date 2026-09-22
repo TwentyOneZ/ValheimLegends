@@ -89,7 +89,7 @@ public class VL_GlobalConfigs
 		{
 			try
 			{
-				return ConfigStrings["vl_svr_berserkerDash.Value"] / 100f;
+				return ConfigStrings["vl_svr_berserkerDash"] / 100f;
 			}
 			catch
 			{

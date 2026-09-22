@@ -216,7 +216,12 @@ public class Class_Druid
 				UnityEngine.Vector3 position = player.transform.position;
 				UnityEngine.Vector3 target = ((!Physics.Raycast(player.GetEyePoint(), player.GetLookDir(), out hitInfo, float.PositiveInfinity, Script_Layermask) || !hitInfo.collider) ? (position + player.GetLookDir() * 1000f) : hitInfo.point);
 				HitData hitData = new HitData();
-				hitData.m_damage.m_pierce = UnityEngine.Random.Range(6f + 0.6f * level2, 10f + 1.2f * level2) * VL_GlobalConfigs.g_DamageModifer * VL_GlobalConfigs.c_druidVines;
+				hitData.m_damage.m_pierce = VL_Utility.GetMagicAbilityDamage(EpicMMOSystem.LevelSystem.Instance.getLevel(),
+					EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage(),
+					player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.ConjurationSkillDef).m_level,
+					EpicMMOSystem.LevelSystem.Instance.getParameter(EpicMMOSystem.Parameter.Body), 0.35f)
+					* VL_GlobalConfigs.g_DamageModifer * VL_GlobalConfigs.c_druidVines;
+				hitData.SetAttacker(player);
 				hitData.m_pushForce = 2f;
 				rootTotal++;
 				UnityEngine.Vector3 vector3 = UnityEngine.Vector3.MoveTowards(GO_Root.transform.position, target, 1f);
@@ -256,7 +261,11 @@ public class Class_Druid
 				UnityEngine.Vector3 position2 = player.transform.position;
 				UnityEngine.Vector3 target2 = ((!Physics.Raycast(player.GetEyePoint(), player.GetLookDir(), out hitInfo2, float.PositiveInfinity, Script_Layermask) || !hitInfo2.collider) ? (position2 + player.GetLookDir() * 1000f) : hitInfo2.point);
 				HitData hitData2 = new HitData();
-				hitData2.m_damage.m_pierce = 10f;
+				hitData2.m_damage.m_pierce = VL_Utility.GetMagicAbilityDamage(EpicMMOSystem.LevelSystem.Instance.getLevel(),
+					EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage(),
+					player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.ConjurationSkillDef).m_level,
+					EpicMMOSystem.LevelSystem.Instance.getParameter(EpicMMOSystem.Parameter.Body), 0.35f)
+					* VL_GlobalConfigs.g_DamageModifer * VL_GlobalConfigs.c_druidVines;
 				hitData2.m_pushForce = 10f;
 				hitData2.SetAttacker(player);
 				UnityEngine.Vector3 vector5 = UnityEngine.Vector3.MoveTowards(GO_Root.transform.position, target2, 1f);
@@ -316,11 +325,14 @@ public class Class_Druid
 						{
 							SE_RootsBuff sE_RootsBuff = (SE_RootsBuff)ScriptableObject.CreateInstance(typeof(SE_RootsBuff));
 							sE_RootsBuff.m_ttl = SE_RootsBuff.m_baseTTL;
-							sE_RootsBuff.damageModifier = 0.5f + 0.015f * level3 * VL_GlobalConfigs.g_DamageModifer * VL_GlobalConfigs.c_druidDefenders;
+							sE_RootsBuff.damageModifier = 1f;
 							sE_RootsBuff.staminaRegen = 0.5f + 0.05f * level3;
 							sE_RootsBuff.summoner = player;
 							sE_RootsBuff.centerPoint = player.transform.position;
 							component2.GetSEMan().AddStatusEffect(sE_RootsBuff);
+							VL_Utility.SetSummonDamage(GO_RootDefender, player,
+								player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.ConjurationSkillDef).m_level,
+								EpicMMOSystem.LevelSystem.Instance.getParameter(EpicMMOSystem.Parameter.Body), 0.40f, VL_GlobalConfigs.c_druidDefenders);
 							component2.SetMaxHealth(30f + 6f * level3);
 							component2.transform.localScale = (0.75f + 0.005f * level3) * UnityEngine.Vector3.one;
 							component2.m_faction = Character.Faction.Players;
@@ -348,9 +360,12 @@ public class Class_Druid
 						{
 							SE_Companion sE_Companion = (SE_Companion)ScriptableObject.CreateInstance(typeof(SE_Companion));
 							sE_Companion.m_ttl = 60f;
-							sE_Companion.damageModifier = 0.05f + 0.0075f * level3 * VL_GlobalConfigs.g_DamageModifer * VL_GlobalConfigs.c_druidDefenders;
+							sE_Companion.damageModifier = 1f;
 							sE_Companion.summoner = player;
 							component4.GetSEMan().AddStatusEffect(sE_Companion);
+							VL_Utility.SetSummonDamage(gameObject, player,
+								player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.ConjurationSkillDef).m_level,
+								EpicMMOSystem.LevelSystem.Instance.getParameter(EpicMMOSystem.Parameter.Body), 0.22f, VL_GlobalConfigs.c_druidDefenders);
 							component4.transform.localScale = (0.4f + 0.005f * level3) * UnityEngine.Vector3.one;
 							component4.m_faction = Character.Faction.Players;
 							component4.SetTamed(tamed: true);
@@ -404,12 +419,7 @@ public class Class_Druid
                     player.RaiseSkill(ValheimLegends.AlterationSkill, VL_Utility.GetRegenerationSkillGain);
                     StatusEffect statusEffect = (SE_Ability1_CD)ScriptableObject.CreateInstance(typeof(SE_Ability1_CD));
 
-                    float level = player.GetSkills().GetSkillList()
-                        .FirstOrDefault(x => x.m_info == ValheimLegends.AlterationSkillDef).m_level
-                        * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddCriticalChance() / 40f) +
-                                            (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 80f), 0f, 0.5f));
-
-                    statusEffect.m_ttl = VL_Utility.GetHealCooldownTime * 20f / (1f + level / 150f);
+                    statusEffect.m_ttl = VL_Utility.GetHealCooldownTime * 20f;
                     player.GetSEMan().AddStatusEffect(statusEffect);
 
                     player.UseStamina(VL_Utility.GetRegenerationCost);
@@ -468,16 +478,16 @@ public class Class_Druid
 						statusEffect3.m_ttl = VL_Utility.GetRegenerationCooldownTime;
 						player.GetSEMan().AddStatusEffect(statusEffect3);
 						player.UseStamina(VL_Utility.GetRegenerationCost);
-						float level4 = player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.AlterationSkillDef)
-							.m_level * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddCriticalChance() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 80f), 0f, 0.5f));
+						float rawLevel4 = player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.AlterationSkillDef).m_level;
+						float level4 = rawLevel4 * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddCriticalChance() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 80f), 0f, 0.5f));
 						player.StartEmote("cheer");
 						GO_CastFX = UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("fx_guardstone_permitted_add"), player.GetCenterPoint(), UnityEngine.Quaternion.identity);
 						GO_CastFX = UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("vfx_WishbonePing"), player.transform.position, UnityEngine.Quaternion.identity);
-						SE_Regeneration sE_Regeneration = (SE_Regeneration)ScriptableObject.CreateInstance(typeof(SE_Regeneration));
-						sE_Regeneration.m_ttl = SE_Regeneration.m_baseTTL;
-						sE_Regeneration.m_icon = ZNetScene.instance.GetPrefab("TrophyGreydwarfShaman").GetComponent<ItemDrop>().m_itemData.GetIcon();
-						sE_Regeneration.m_HealAmount = 0.5f + 0.4f * level4 * VL_GlobalConfigs.g_DamageModifer * VL_GlobalConfigs.c_druidRegen;
-						sE_Regeneration.doOnce = false;
+						float healAmount = VL_Utility.GetHealingPower(
+							EpicMMOSystem.LevelSystem.Instance.getLevel(),
+							EpicMMOSystem.LevelSystem.Instance.getParameter(EpicMMOSystem.Parameter.Body),
+							rawLevel4,
+							2f) * VL_GlobalConfigs.c_druidRegen;
 						List<Character> list2 = new List<Character>();
 						list2.Clear();
 						Character.GetCharactersInRange(player.GetCenterPoint(), 30f + 0.2f * level4, list2);
@@ -485,18 +495,7 @@ public class Class_Druid
 						{
 							if (!BaseAI.IsEnemy(player, item))
 							{
-								if (item == Player.m_localPlayer)
-								{
-									item.GetSEMan().AddStatusEffect(sE_Regeneration, resetTime: true);
-								}
-								else if (item.IsPlayer())
-								{
-									item.GetSEMan().AddStatusEffect(sE_Regeneration.name.GetStableHashCode(), resetTime: true);
-								}
-								else
-								{
-									item.GetSEMan().AddStatusEffect(sE_Regeneration, resetTime: true);
-								}
+								item.GetSEMan().AddStatusEffect("SE_VL_Regeneration".GetStableHashCode(), true, 1, healAmount);
 							}
 						}
 						player.RaiseSkill(ValheimLegends.AlterationSkill, VL_Utility.GetRegenerationSkillGain);
@@ -554,14 +553,12 @@ public class Class_Druid
         }
 
         StatusEffect statusEffect2 = (SE_Shapeshift_CD)ScriptableObject.CreateInstance(typeof(SE_Shapeshift_CD));
-        float level = player.GetSkills().GetSkillList()
-            .FirstOrDefault(x => x.m_info == ValheimLegends.AlterationSkillDef).m_level
-            * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddCriticalChance() / 40f) +
-                                (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 80f), 0f, 0.5f));
-        statusEffect2.m_ttl = 180f - (60f * (level / 150f)) - (60f * (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 80f));
+        statusEffect2.m_ttl = VL_Utility.GetCooldown(180f, VL_GlobalConfigs.g_CooldownModifer,
+            EpicMMOSystem.LevelSystem.Instance.getParameter(EpicMMOSystem.Parameter.Intellect));
         if (!forced)
         {
-            statusEffect2.m_ttl = 30f - (14.25f * (level / 150f)) - (14.25f * (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 80f));
+            statusEffect2.m_ttl = VL_Utility.GetCooldown(30f, VL_GlobalConfigs.g_CooldownModifer,
+                EpicMMOSystem.LevelSystem.Instance.getParameter(EpicMMOSystem.Parameter.Intellect));
             player.UseStamina(cost);
         }
         seMan.AddStatusEffect(statusEffect2);
@@ -634,11 +631,8 @@ public class Class_Druid
         }
 
         StatusEffect statusEffect2 = (SE_Shapeshift_CD)ScriptableObject.CreateInstance(typeof(SE_Shapeshift_CD));
-        float level = player.GetSkills().GetSkillList()
-            .FirstOrDefault(x => x.m_info == ValheimLegends.AlterationSkillDef).m_level
-            * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddCriticalChance() / 40f) +
-                                (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 80f), 0f, 0.5f));
-        statusEffect2.m_ttl = 30f - (14.25f * (level / 150f)) - (14.25f * (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 80f));
+        statusEffect2.m_ttl = VL_Utility.GetCooldown(30f, VL_GlobalConfigs.g_CooldownModifer,
+            EpicMMOSystem.LevelSystem.Instance.getParameter(EpicMMOSystem.Parameter.Intellect));
         seMan.AddStatusEffect(statusEffect2);
 
         player.UseStamina(cost);

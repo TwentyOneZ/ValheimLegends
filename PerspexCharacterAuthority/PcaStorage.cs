@@ -26,6 +26,93 @@ public sealed class CharacterSnapshot
     public Dictionary<string, ExtensionPayload> Extensions = new Dictionary<string, ExtensionPayload>(StringComparer.Ordinal);
 }
 
+public sealed class WorldProfileState
+{
+    public long WorldId;
+    public bool HaveCustomSpawnPoint;
+    public float SpawnX, SpawnY, SpawnZ;
+    public bool HaveLogoutPoint;
+    public float LogoutX, LogoutY, LogoutZ;
+    public bool HaveDeathPoint;
+    public float DeathX, DeathY, DeathZ;
+    public float HomeX, HomeY, HomeZ;
+    public byte[] MapData;
+}
+
+public static class PcaWorldProfileCodec
+{
+    public const int SchemaVersion = 1;
+
+    public static byte[] Serialize(WorldProfileState state, int maxBytes)
+    {
+        if (state == null || state.WorldId == 0) throw new InvalidDataException("World profile identity is required.");
+        if (state.MapData != null && state.MapData.Length > maxBytes) throw new InvalidDataException("World map data is too large.");
+        using var stream = new MemoryStream();
+        using var writer = new BinaryWriter(stream, Encoding.UTF8, true);
+        writer.Write(SchemaVersion);
+        writer.Write(state.WorldId);
+        writer.Write(state.HaveCustomSpawnPoint);
+        WriteVector(writer, state.SpawnX, state.SpawnY, state.SpawnZ);
+        writer.Write(state.HaveLogoutPoint);
+        WriteVector(writer, state.LogoutX, state.LogoutY, state.LogoutZ);
+        writer.Write(state.HaveDeathPoint);
+        WriteVector(writer, state.DeathX, state.DeathY, state.DeathZ);
+        WriteVector(writer, state.HomeX, state.HomeY, state.HomeZ);
+        writer.Write(state.MapData != null);
+        if (state.MapData != null)
+        {
+            writer.Write(state.MapData.Length);
+            writer.Write(state.MapData);
+        }
+        if (stream.Length > maxBytes) throw new InvalidDataException("World profile data is too large.");
+        return stream.ToArray();
+    }
+
+    public static bool TryDeserialize(byte[] data, int maxBytes, out WorldProfileState state)
+    {
+        state = null;
+        if (data == null || data.Length > maxBytes) return false;
+        try
+        {
+            using var stream = new MemoryStream(data, false);
+            using var reader = new BinaryReader(stream, Encoding.UTF8, true);
+            if (reader.ReadInt32() != SchemaVersion) return false;
+            var value = new WorldProfileState { WorldId = reader.ReadInt64() };
+            value.HaveCustomSpawnPoint = reader.ReadBoolean();
+            ReadVector(reader, out value.SpawnX, out value.SpawnY, out value.SpawnZ);
+            value.HaveLogoutPoint = reader.ReadBoolean();
+            ReadVector(reader, out value.LogoutX, out value.LogoutY, out value.LogoutZ);
+            value.HaveDeathPoint = reader.ReadBoolean();
+            ReadVector(reader, out value.DeathX, out value.DeathY, out value.DeathZ);
+            ReadVector(reader, out value.HomeX, out value.HomeY, out value.HomeZ);
+            if (reader.ReadBoolean())
+            {
+                var length = reader.ReadInt32();
+                if (length < 0 || length > maxBytes) return false;
+                value.MapData = reader.ReadBytes(length);
+                if (value.MapData.Length != length) return false;
+            }
+            if (value.WorldId == 0 || stream.Position != stream.Length) return false;
+            state = value;
+            return true;
+        }
+        catch (Exception ex) when (ex is EndOfStreamException || ex is IOException || ex is ArgumentException)
+        {
+            return false;
+        }
+    }
+
+    private static void WriteVector(BinaryWriter writer, float x, float y, float z)
+    {
+        writer.Write(x); writer.Write(y); writer.Write(z);
+    }
+
+    private static void ReadVector(BinaryReader reader, out float x, out float y, out float z)
+    {
+        x = reader.ReadSingle(); y = reader.ReadSingle(); z = reader.ReadSingle();
+    }
+}
+
 public sealed class AccountBinding
 {
     public const int SchemaVersion = 1;

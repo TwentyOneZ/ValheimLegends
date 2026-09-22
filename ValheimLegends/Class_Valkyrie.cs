@@ -94,13 +94,17 @@ public class Class_Valkyrie
 				{
 					UnityEngine.Vector3 dir = item.transform.position - player.transform.position;
 					HitData hitData = new HitData();
-					hitData.m_damage.m_frost = UnityEngine.Random.Range(Mathf.Max((1f + 0.2f * level) * VL_GlobalConfigs.g_DamageModifer, 0.5f * player.GetCurrentWeapon().GetDamage().m_damage * (1f + level / 300f)), Mathf.Max((4f + 0.4f * level) * VL_GlobalConfigs.g_DamageModifer, player.GetCurrentWeapon().GetDamage().m_damage * (1f + level / 300f))) * (float)sE_Valkyrie.hitCount * VL_GlobalConfigs.c_valkyrieBonusChillWave;
-					hitData.m_damage.m_spirit = UnityEngine.Random.Range(Mathf.Max((1f + 0.2f * level) * VL_GlobalConfigs.g_DamageModifer, 0.5f * player.GetCurrentWeapon().GetDamage().m_damage * (1f + level / 300f)), Mathf.Max((4f + 0.4f * level) * VL_GlobalConfigs.g_DamageModifer, player.GetCurrentWeapon().GetDamage().m_damage * (1f + level / 300f))) * (float)sE_Valkyrie.hitCount * VL_GlobalConfigs.c_valkyrieBonusChillWave;
-					//hitData.m_damage.m_spirit = UnityEngine.Random.Range((float)sE_Valkyrie.hitCount * (1f + 0.02f * level), (float)sE_Valkyrie.hitCount * (2f + 0.015f * level)) * VL_GlobalConfigs.g_DamageModifer * VL_GlobalConfigs.c_valkyrieBonusChillWave;
-					//hitData.m_damage.m_frost = UnityEngine.Random.Range((float)sE_Valkyrie.hitCount * (1f + 0.02f * level), (float)sE_Valkyrie.hitCount * (2f + 0.015f * level)) * VL_GlobalConfigs.g_DamageModifer * VL_GlobalConfigs.c_valkyrieBonusChillWave;
+					float releaseDamage = VL_Utility.GetMagicAbilityDamage(EpicMMOSystem.LevelSystem.Instance.getLevel(),
+						EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage(),
+						player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.AbjurationSkillDef).m_level,
+						EpicMMOSystem.LevelSystem.Instance.getParameter(EpicMMOSystem.Parameter.Vigour), 0.22f * sE_Valkyrie.hitCount)
+						* VL_GlobalConfigs.g_DamageModifer * VL_GlobalConfigs.c_valkyrieBonusChillWave;
+					hitData.m_damage.m_frost = releaseDamage * 0.5f;
+					hitData.m_damage.m_spirit = releaseDamage * 0.5f;
 					hitData.m_point = item.GetEyePoint();
 					hitData.m_dir = dir;
 					hitData.m_skill = ValheimLegends.AbjurationSkill;
+					hitData.SetAttacker(player);
 					item.Damage(hitData);
 				}
 			}
@@ -128,10 +132,9 @@ public class Class_Valkyrie
 			HitData hitData2 = new HitData();
 			hitData2.m_skill = ValheimLegends.DisciplineSkill;
 			hitData2.m_dir = player.GetLookDir() * -1f;
-			hitData2.m_damage.m_frost = UnityEngine.Random.Range(Mathf.Max((12f + 0.5f * level2) * VL_GlobalConfigs.g_DamageModifer, 0.5f * player.GetCurrentWeapon().GetDamage().m_damage * (1f + level2 / 300f)), Mathf.Max((24f + level2) * VL_GlobalConfigs.g_DamageModifer, player.GetCurrentWeapon().GetDamage().m_damage * (1f + level2 / 300f)))  * VL_GlobalConfigs.c_valkyrieBonusChillWave;
-			hitData2.m_damage.m_spirit = UnityEngine.Random.Range(Mathf.Max((12f + 0.5f * level2) * VL_GlobalConfigs.g_DamageModifer, 0.5f * player.GetCurrentWeapon().GetDamage().m_damage * (1f + level2 / 300f)), Mathf.Max((24f + level2) * VL_GlobalConfigs.g_DamageModifer, player.GetCurrentWeapon().GetDamage().m_damage * (1f + level2 / 300f))) * VL_GlobalConfigs.c_valkyrieBonusChillWave;
-			//hitData2.m_damage.m_frost = UnityEngine.Random.Range(1f + 0.2f * level2, 2f + 0.3f * level2) * VL_GlobalConfigs.g_DamageModifer * VL_GlobalConfigs.c_valkyrieBonusIceLance;
-			//hitData2.m_damage.m_spirit = UnityEngine.Random.Range(1f + 0.2f * level2, 2f + 0.3f * level2) * VL_GlobalConfigs.g_DamageModifer * VL_GlobalConfigs.c_valkyrieBonusIceLance;
+			hitData2.m_damage = VL_Utility.GetPhysicalAbilityDamage(player,
+				player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.DisciplineSkillDef).m_level,
+				EpicMMOSystem.LevelSystem.Instance.getParameter(EpicMMOSystem.Parameter.Agility), 0.75f, VL_GlobalConfigs.c_valkyrieBonusIceLance);
 			hitData2.SetAttacker(player);
 			UnityEngine.Vector3 vector4 = UnityEngine.Vector3.MoveTowards(gameObject.transform.position, target, 1f);
 			component2.Setup(player, (vector4 - gameObject.transform.position) * 40f, -1f, hitData2, null, null);
@@ -153,11 +156,15 @@ public class Class_Valkyrie
 			{
 				UnityEngine.Vector3 dir = item.transform.position - player.transform.position;
 				HitData hitData = new HitData();
-				hitData.m_damage.m_blunt = 5f + 3f * altitude + UnityEngine.Random.Range(Mathf.Max(1.5f * level, player.GetCurrentWeapon().GetDamage().m_damage * (1f + level / 300f)), Mathf.Max(2.5f * level, 2f * player.GetCurrentWeapon().GetDamage().m_damage * (1f + level / 300f))) * VL_GlobalConfigs.g_DamageModifer * VL_GlobalConfigs.c_valkyrieLeap;
+				hitData.m_damage = VL_Utility.GetPhysicalAbilityDamage(player,
+					player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.DisciplineSkillDef).m_level,
+					EpicMMOSystem.LevelSystem.Instance.getParameter(EpicMMOSystem.Parameter.Vigour), 0.75f, VL_GlobalConfigs.c_valkyrieLeap);
+				hitData.m_damage.Modify(1f + Mathf.Clamp01(3f * altitude / Mathf.Max(1f, hitData.m_damage.GetTotalDamage())));
 				hitData.m_pushForce = 20f * VL_GlobalConfigs.g_DamageModifer * VL_GlobalConfigs.c_valkyrieLeap;
 				hitData.m_point = item.GetEyePoint();
 				hitData.m_dir = dir;
 				hitData.m_skill = ValheimLegends.DisciplineSkill;
+				hitData.SetAttacker(player);
 				item.Damage(hitData);
 			}
 		}

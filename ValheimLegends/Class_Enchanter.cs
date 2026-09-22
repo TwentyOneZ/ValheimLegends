@@ -133,11 +133,17 @@ public class Class_Enchanter
 				{
 					UnityEngine.Vector3 dir = item.transform.position - player.transform.position;
 					HitData hitData2 = new HitData();
-					hitData2.m_damage.m_lightning = 15f + level2 + statusEffect.m_ttl * Random.Range(0.03f, 0.06f) * (1f + 0.25f * level2) * VL_GlobalConfigs.c_enchanterBiomeShock;
+					hitData2.m_damage.m_lightning = VL_Utility.GetMagicAbilityDamage(EpicMMOSystem.LevelSystem.Instance.getLevel(),
+						EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage(),
+						player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.AlterationSkillDef).m_level,
+						EpicMMOSystem.LevelSystem.Instance.getParameter(EpicMMOSystem.Parameter.Special), 0.80f)
+						* (1f + Mathf.Clamp01(statusEffect.GetRemaningTime() / Mathf.Max(1f, statusEffect.m_ttl)))
+						* VL_GlobalConfigs.g_DamageModifer * VL_GlobalConfigs.c_enchanterBiomeShock;
 					hitData2.m_pushForce = 0f;
 					hitData2.m_point = item.GetEyePoint();
 					hitData2.m_dir = dir;
 					hitData2.m_skill = ValheimLegends.AlterationSkill;
+					hitData2.SetAttacker(player);
 					item.Damage(hitData2);
 					item.Stagger(hitData2.m_dir);
 				}

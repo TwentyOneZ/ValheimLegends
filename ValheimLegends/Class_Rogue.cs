@@ -51,10 +51,12 @@ public class Class_Rogue
 			GameObject gameObject = Object.Instantiate(prefab, vector, UnityEngine.Quaternion.identity);
 			GameObject prefab2 = ZNetScene.instance.GetPrefab("VL_PoisonBombExplosion");
 			Aoe componentInChildren = prefab2.gameObject.GetComponentInChildren<Aoe>();
-			componentInChildren.m_damage.m_poison = (10f + 2f * level) * VL_GlobalConfigs.c_roguePoisonBomb;
+			componentInChildren.m_useAttackSettings = true;
 			componentInChildren.m_ttl = 4f + 0.1f * level;
 			componentInChildren.m_hitInterval = 0.5f;
 			Projectile component = gameObject.GetComponent<Projectile>();
+			component.m_projectilesInheritHitData = true;
+			component.m_onlySpawnedProjectilesDealDamage = true;
 			component.name = "Poison Bomb";
 			component.m_respawnItemOnHit = false;
 			component.m_spawnOnHit = null;
@@ -66,6 +68,10 @@ public class Class_Rogue
 			UnityEngine.Vector3 position = player.transform.position;
 			UnityEngine.Vector3 target = ((!Physics.Raycast(vector, player.GetLookDir(), out hitInfo, float.PositiveInfinity, ScriptChar_Layermask) || !hitInfo.collider) ? (position + player.GetLookDir() * 1000f) : hitInfo.point);
 			HitData hitData = new HitData();
+			hitData.m_damage.m_poison = VL_Utility.GetPhysicalAbilityDamage(player,
+				player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.AlterationSkillDef).m_level,
+				EpicMMOSystem.LevelSystem.Instance.getParameter(EpicMMOSystem.Parameter.Special), 0.20f,
+				VL_GlobalConfigs.c_roguePoisonBomb).GetTotalDamage();
 			hitData.m_skill = ValheimLegends.AlterationSkill;
 			hitData.SetAttacker(player);
 			UnityEngine.Vector3 vector2 = UnityEngine.Vector3.MoveTowards(gameObject.transform.position, target, 1f);
@@ -91,7 +97,11 @@ public class Class_Rogue
 			UnityEngine.Vector3 position2 = player.transform.position;
 			UnityEngine.Vector3 target2 = ((!Physics.Raycast(vector3, player.GetLookDir(), out hitInfo2, float.PositiveInfinity, ScriptChar_Layermask) || !hitInfo2.collider) ? (position2 + player.GetLookDir() * 1000f) : hitInfo2.point);
 			HitData hitData2 = new HitData();
-			hitData2.m_damage.m_pierce = Random.Range(5f + level2, 10f + 2f * level2) * VL_GlobalConfigs.c_rogueBonusThrowingDagger;
+			hitData2.m_damage = player.GetCurrentWeapon().GetDamage();
+			hitData2.m_damage.Modify(VL_Utility.GetPhysicalAbilityMultiplier(
+				player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.DisciplineSkillDef).m_level,
+				EpicMMOSystem.LevelSystem.Instance.getParameter(EpicMMOSystem.Parameter.Agility), 0.60f)
+				* VL_GlobalConfigs.g_DamageModifer * VL_GlobalConfigs.c_rogueBonusThrowingDagger);
 			hitData2.m_skill = ValheimLegends.DisciplineSkill;
 			hitData2.SetAttacker(player);
 			UnityEngine.Vector3 vector4 = UnityEngine.Vector3.MoveTowards(gameObject2.transform.position, target2, 1f);
@@ -191,11 +201,15 @@ public class Class_Rogue
 								UnityEngine.Vector3 dir = component.transform.position - player.transform.position;
 								HitData hitData = new HitData();
 								hitData.m_damage = player.GetCurrentWeapon().GetDamage();
-								hitData.m_damage.Modify(Random.Range(0.6f, 0.8f) * (1f + 0.005f * level) * VL_GlobalConfigs.c_rogueBackstab);
+								hitData.m_damage.Modify(VL_Utility.GetPhysicalAbilityMultiplier(
+									player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.DisciplineSkillDef).m_level,
+									EpicMMOSystem.LevelSystem.Instance.getParameter(EpicMMOSystem.Parameter.Special), 1.60f)
+									* VL_GlobalConfigs.g_DamageModifer * VL_GlobalConfigs.c_rogueBackstab);
 								hitData.m_pushForce = 10f + 0.1f * level;
 								hitData.m_point = component.GetEyePoint();
 								hitData.m_dir = dir;
 								hitData.m_skill = ValheimLegends.DisciplineSkill;
+								hitData.SetAttacker(player);
 								component.Damage(hitData);
 							}
 							Object.Instantiate(ZNetScene.instance.GetPrefab("fx_VL_Smokeburst"), backstabPoint, UnityEngine.Quaternion.identity);

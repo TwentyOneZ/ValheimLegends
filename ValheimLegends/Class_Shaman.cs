@@ -104,7 +104,11 @@ public class Class_Shaman
 						player.StartEmote("challenge");
 						GO_CastFX = UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("fx_guardstone_permitted_add"), player.GetCenterPoint(), UnityEngine.Quaternion.identity);
 						GO_CastFX = UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("vfx_WishbonePing"), player.transform.position, UnityEngine.Quaternion.identity);
-						HealNearbyPlayers(player, 20f + 0.2f * level4, (10f + level4) * VL_GlobalConfigs.g_DamageModifer * VL_GlobalConfigs.c_priestHeal * 1.0f);
+						HealNearbyPlayers(player, 20f + 0.2f * level4, VL_Utility.GetHealingPower(
+							EpicMMOSystem.LevelSystem.Instance.getLevel(),
+							EpicMMOSystem.LevelSystem.Instance.getParameter(EpicMMOSystem.Parameter.Body),
+							player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.AlterationSkillDef).m_level, 12f)
+							* VL_GlobalConfigs.c_priestHeal);
 						player.RaiseSkill(ValheimLegends.AlterationSkill, VL_Utility.GetSpiritBombSkillGain(player));
 					}
 					else
@@ -123,9 +127,11 @@ public class Class_Shaman
 							.m_level * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddCriticalChance() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 80f), 0f, 0.5f));
 						((ZSyncAnimation)typeof(Player).GetField("m_zanim", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(Player.m_localPlayer)).SetTrigger("battleaxe_attack1");
 						Object.Instantiate(ZNetScene.instance.GetPrefab("fx_goblinking_nova"), player.transform.position, UnityEngine.Quaternion.identity);
-						SE_SpiritDrain sE_SpiritDrain = (SE_SpiritDrain)ScriptableObject.CreateInstance(typeof(SE_SpiritDrain));
-						sE_SpiritDrain.m_ttl = SE_SpiritDrain.m_baseTTL;
-						sE_SpiritDrain.damageModifier = 1f + 0.1f * level;
+						float drainDamage = VL_Utility.GetMagicAbilityDamage(EpicMMOSystem.LevelSystem.Instance.getLevel(),
+							EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage(),
+							player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.EvocationSkillDef).m_level,
+							EpicMMOSystem.LevelSystem.Instance.getParameter(EpicMMOSystem.Parameter.Body), 0.10f)
+							* VL_GlobalConfigs.g_DamageModifer * VL_GlobalConfigs.c_shamanSpiritShock;
 						List<Character> allCharacters = Character.GetAllCharacters();
 						foreach (Character item in allCharacters)
 						{
@@ -133,14 +139,21 @@ public class Class_Shaman
 							{
 								UnityEngine.Vector3 dir = item.transform.position - player.transform.position;
 								HitData hitData = new HitData();
-								hitData.m_damage.m_spirit = Random.Range(15f + 0.8f * level, 30f + 1.5f * level) * VL_GlobalConfigs.g_DamageModifer * VL_GlobalConfigs.c_shamanSpiritShock;
-								hitData.m_damage.m_lightning = Random.Range(15f + 0.8f * level, 30f + 1.5f * level) * VL_GlobalConfigs.g_DamageModifer * VL_GlobalConfigs.c_shamanSpiritShock;
+								float shockDamage = VL_Utility.GetMagicAbilityDamage(EpicMMOSystem.LevelSystem.Instance.getLevel(),
+									EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage(),
+									player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.EvocationSkillDef).m_level, 0.75f)
+									* VL_GlobalConfigs.g_DamageModifer * VL_GlobalConfigs.c_shamanSpiritShock;
+								hitData.m_damage.m_spirit = shockDamage * 0.5f;
+								hitData.m_damage.m_lightning = shockDamage * 0.5f;
 								hitData.m_pushForce = 25f + 0.1f * level;
 								hitData.m_point = item.GetEyePoint();
 								hitData.m_dir = dir;
 								hitData.m_skill = ValheimLegends.EvocationSkill;
+								hitData.SetAttacker(player);
 								item.Damage(hitData);
-								item.GetSEMan().AddStatusEffect(sE_SpiritDrain);
+								ZNetView targetView = item.GetComponent<ZNetView>();
+								if (targetView != null && targetView.IsValid())
+									targetView.InvokeRPC("VL_ApplySpiritDrain", player.GetZDOID(), drainDamage);
 							}
 						}
 						player.RaiseSkill(ValheimLegends.EvocationSkill, VL_Utility.GetSpiritBombSkillGain(player));
@@ -193,7 +206,7 @@ public class Class_Shaman
                         return;
                     }
 
-                    // 3) cooldown/skill etc (seu código)
+                    // 3) cooldown/skill etc (seu cÃ³digo)
                     player.RaiseSkill(ValheimLegends.AlterationSkill, VL_Utility.GetHealSkillGain);
                     StatusEffect statusEffect = (SE_Ability3_CD)ScriptableObject.CreateInstance(typeof(SE_Ability3_CD));
                     float level = player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.AlterationSkillDef)
@@ -205,7 +218,7 @@ public class Class_Shaman
                     // 4) consumir 1 Ancient Seed
                     inv.RemoveOneItem(foundItem);
 
-                    // 5) criar o item do prefab e adicionar no inventário
+                    // 5) criar o item do prefab e adicionar no inventÃ¡rio
                     const string vialPrefabName = "questitem_wraiths_breath";
 
                     if (ZNetScene.instance == null)
@@ -230,11 +243,11 @@ public class Class_Shaman
 
                     ItemDrop.ItemData vialItem = vialDrop.m_itemData.Clone();
 
-                    // adiciona no inventário (retorna false se inventário cheio)
+                    // adiciona no inventÃ¡rio (retorna false se inventÃ¡rio cheio)
                     bool added = inv.AddItem(vialItem);
                     if (!added)
                     {
-                        // fallback: se inventário cheio, dropa no chão
+                        // fallback: se inventÃ¡rio cheio, dropa no chÃ£o
                         ItemDrop.DropItem(vialItem, 1, player.transform.position + player.transform.forward, UnityEngine.Quaternion.identity);
                         player.Message(MessageHud.MessageType.TopLeft, "Inventory full. Dropped Spirit Binding Vial on the ground.");
                     }

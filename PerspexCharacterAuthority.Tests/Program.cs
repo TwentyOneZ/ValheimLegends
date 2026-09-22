@@ -21,6 +21,19 @@ try
     encoded[8] ^= 1;
     Assert(!PcaSnapshotCodec.TryDeserialize(encoded, 1024, out _, out _));
 
+    var world = new WorldProfileState
+    {
+        WorldId = 99, HaveCustomSpawnPoint = true, SpawnX = 1, SpawnY = 2, SpawnZ = 3,
+        HaveLogoutPoint = true, LogoutX = 4, LogoutY = 5, LogoutZ = 6,
+        HaveDeathPoint = true, DeathX = 7, DeathY = 8, DeathZ = 9,
+        HomeX = 10, HomeY = 11, HomeZ = 12, MapData = new byte[] { 13, 14 }
+    };
+    var worldBytes = PcaWorldProfileCodec.Serialize(world, 1024);
+    Assert(PcaWorldProfileCodec.TryDeserialize(worldBytes, 1024, out var decodedWorld));
+    Assert(decodedWorld.WorldId == 99 && decodedWorld.MapData.SequenceEqual(new byte[] { 13, 14 }) && decodedWorld.LogoutZ == 6);
+    worldBytes[0] = 2;
+    Assert(!PcaWorldProfileCodec.TryDeserialize(worldBytes, 1024, out _));
+
     var store = new PcaStore(root, 1024, true, 2);
     Assert(store.TryAuthorize("account-a", 4242, "A", true, out _));
     Assert(!store.TryAuthorize("account-a", 4243, "B", true, out _));

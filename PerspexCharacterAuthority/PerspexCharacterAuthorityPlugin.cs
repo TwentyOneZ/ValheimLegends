@@ -3,6 +3,7 @@ using BepInEx.Configuration;
 using HarmonyLib;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Reflection;
 using UnityEngine;
@@ -14,10 +15,12 @@ public sealed class PerspexCharacterAuthorityPlugin : BaseUnityPlugin
 {
     public const string PluginGuid = "TwentyOneZ.PerspexCharacterAuthority";
     public const string PluginName = "PerspexCharacterAuthority";
-    public const string PluginVersion = "1.0.4";
+    public const string PluginVersion = "1.0.5";
     public const int ProtocolVersion = 1;
     private const string RpcName = "PCA_Message";
     private const string VLExtension = "ValheimLegends";
+    private const string WorldProfileExtension = "PCA.WorldProfile";
+    private const string HearthstoneExtension = "Hearthstone";
     private const string FreshProgressionExtension = "PCA.FreshProgression";
     private const string FreshAppliedExtension = "PCA.FreshApplied";
 
@@ -504,6 +507,7 @@ public sealed class PerspexCharacterAuthorityPlugin : BaseUnityPlugin
         var profile = Game.instance?.GetPlayerProfile();
         if (profile == null) { handshake.ReceiveDenied(); DisconnectRejectedClient("Selected character is unavailable."); return; }
         AccessTools.Field(typeof(PlayerProfile), "m_playerData").SetValue(profile, snapshot.VanillaPlayerData);
+        if (snapshot.Extensions.TryGetValue(WorldProfileExtension, out var worldProfile)) WorldProfileBridge.Import(profile, worldProfile, MaxBytes);
         clientSnapshot = snapshot;
         vlImport.Load(true);
         freshProgression.Load(snapshot.Extensions.ContainsKey(FreshProgressionExtension));
@@ -579,6 +583,12 @@ public sealed class PerspexCharacterAuthorityPlugin : BaseUnityPlugin
         else VLBridge.Reset(player);
     }
 
+    internal void ApplyPendingHearthstoneExtension()
+    {
+        if (handshake.CanSubmit && clientSnapshot != null && clientSnapshot.Extensions.TryGetValue(HearthstoneExtension, out var hearthstone))
+            HearthstoneBridge.Import(hearthstone);
+    }
+
     internal void ApplyFreshProgression(PlayerProfile profile, Player player)
     {
         if (player == null || profile == null || !freshProgression.TryApply()) return;
@@ -624,7 +634,13 @@ public sealed class PerspexCharacterAuthorityPlugin : BaseUnityPlugin
     private CharacterSnapshot BuildLocalSnapshot()
     {
         var profile = Game.instance?.GetPlayerProfile() ?? throw new InvalidOperationException("Player profile is unavailable.");
-        if (Player.m_localPlayer != null) profile.SavePlayerData(Player.m_localPlayer);
+        // EpicMMO level, XP and attributes live in Player.m_knownTexts and are serialized by this native call.
+        if (Player.m_localPlayer != null)
+        {
+            profile.SavePlayerData(Player.m_localPlayer);
+            Minimap.instance?.SaveMapData();
+            profile.SaveLogoutPoint();
+        }
         var data = AccessTools.Field(typeof(PlayerProfile), "m_playerData").GetValue(profile) as byte[];
         if (data == null) throw new InvalidDataException("Native player data is unavailable.");
         var snapshot = new CharacterSnapshot
@@ -639,6 +655,10 @@ public sealed class PerspexCharacterAuthorityPlugin : BaseUnityPlugin
         };
         var vl = VLBridge.Export(Player.m_localPlayer);
         if (vl != null) snapshot.Extensions.Add(VLExtension, vl);
+        var worldProfile = WorldProfileBridge.Export(profile, MaxBytes);
+        if (worldProfile != null) snapshot.Extensions.Add(WorldProfileExtension, worldProfile);
+        var hearthstone = HearthstoneBridge.Export();
+        if (hearthstone != null) snapshot.Extensions.Add(HearthstoneExtension, hearthstone);
         if (freshProgressionApplied) snapshot.Extensions.Add(FreshAppliedExtension, new ExtensionPayload { SchemaVersion = 1, Data = Array.Empty<byte>() });
         return snapshot;
     }
@@ -940,7 +960,11 @@ public sealed class PerspexCharacterAuthorityPlugin : BaseUnityPlugin
 
     [HarmonyPatch(typeof(Player), "OnSpawned")]
     [HarmonyPriority(Priority.First)]
-    private static class PlayerSpawnPatch { private static void Prefix(Player __instance) => Instance?.ApplyPendingVLExtension(__instance); }
+    private static class PlayerSpawnPatch
+    {
+        private static void Prefix(Player __instance) => Instance?.ApplyPendingVLExtension(__instance);
+        private static void Postfix() => Instance?.ApplyPendingHearthstoneExtension();
+    }
 
     [HarmonyPatch(typeof(PlayerProfile), "Save")]
     private static class PlayerProfileSavePatch { private static void Postfix() => Instance?.SubmitLocalSnapshot("player save"); }
@@ -967,6 +991,110 @@ public sealed class PerspexCharacterAuthorityPlugin : BaseUnityPlugin
             if (Instance.saveOnDisconnect.Value) Instance.SubmitLocalSnapshot("disconnect");
             Instance.ResetClientSession(__instance);
         }
+    }
+}
+
+internal static class WorldProfileBridge
+{
+    private static readonly MethodInfo GetWorldData = AccessTools.Method(typeof(PlayerProfile), "GetWorldData");
+
+    internal static ExtensionPayload Export(PlayerProfile profile, int maxBytes)
+    {
+        try
+        {
+            var worldId = ZNet.instance?.GetWorldUID() ?? 0;
+            var data = worldId == 0 ? null : GetWorldData?.Invoke(profile, new object[] { worldId });
+            if (data == null) return null;
+            var type = data.GetType();
+            var spawn = (Vector3)AccessTools.Field(type, "m_spawnPoint").GetValue(data);
+            var logout = (Vector3)AccessTools.Field(type, "m_logoutPoint").GetValue(data);
+            var death = (Vector3)AccessTools.Field(type, "m_deathPoint").GetValue(data);
+            var home = (Vector3)AccessTools.Field(type, "m_homePoint").GetValue(data);
+            var state = new WorldProfileState
+            {
+                WorldId = worldId,
+                HaveCustomSpawnPoint = (bool)AccessTools.Field(type, "m_haveCustomSpawnPoint").GetValue(data),
+                SpawnX = spawn.x, SpawnY = spawn.y, SpawnZ = spawn.z,
+                HaveLogoutPoint = (bool)AccessTools.Field(type, "m_haveLogoutPoint").GetValue(data),
+                LogoutX = logout.x, LogoutY = logout.y, LogoutZ = logout.z,
+                HaveDeathPoint = (bool)AccessTools.Field(type, "m_haveDeathPoint").GetValue(data),
+                DeathX = death.x, DeathY = death.y, DeathZ = death.z,
+                HomeX = home.x, HomeY = home.y, HomeZ = home.z,
+                MapData = AccessTools.Field(type, "m_mapData").GetValue(data) as byte[]
+            };
+            return new ExtensionPayload { SchemaVersion = PcaWorldProfileCodec.SchemaVersion, Data = PcaWorldProfileCodec.Serialize(state, maxBytes) };
+        }
+        catch (Exception ex)
+        {
+            PerspexCharacterAuthorityPlugin.Instance?.WarnExternal("World profile export failed: " + ex.Message);
+            return null;
+        }
+    }
+
+    internal static void Import(PlayerProfile profile, ExtensionPayload payload, int maxBytes)
+    {
+        try
+        {
+            if (payload?.SchemaVersion != PcaWorldProfileCodec.SchemaVersion ||
+                !PcaWorldProfileCodec.TryDeserialize(payload.Data, maxBytes, out var state)) return;
+            var data = GetWorldData?.Invoke(profile, new object[] { state.WorldId });
+            if (data == null) return;
+            var type = data.GetType();
+            AccessTools.Field(type, "m_haveCustomSpawnPoint").SetValue(data, state.HaveCustomSpawnPoint);
+            AccessTools.Field(type, "m_spawnPoint").SetValue(data, new Vector3(state.SpawnX, state.SpawnY, state.SpawnZ));
+            AccessTools.Field(type, "m_haveLogoutPoint").SetValue(data, state.HaveLogoutPoint);
+            AccessTools.Field(type, "m_logoutPoint").SetValue(data, new Vector3(state.LogoutX, state.LogoutY, state.LogoutZ));
+            AccessTools.Field(type, "m_haveDeathPoint").SetValue(data, state.HaveDeathPoint);
+            AccessTools.Field(type, "m_deathPoint").SetValue(data, new Vector3(state.DeathX, state.DeathY, state.DeathZ));
+            AccessTools.Field(type, "m_homePoint").SetValue(data, new Vector3(state.HomeX, state.HomeY, state.HomeZ));
+            AccessTools.Field(type, "m_mapData").SetValue(data, state.MapData);
+        }
+        catch (Exception ex) { PerspexCharacterAuthorityPlugin.Instance?.WarnExternal("World profile import failed: " + ex.Message); }
+    }
+}
+
+internal static class HearthstoneBridge
+{
+    private const int Schema = 1;
+    private static Type Type => AccessTools.TypeByName("Hearthstone.Hearthstone");
+
+    internal static ExtensionPayload Export()
+    {
+        try
+        {
+            var type = Type;
+            var method = type?.GetMethod("GetHearthStonePosition", BindingFlags.Public | BindingFlags.Static);
+            if (method == null) return null;
+            var position = (Vector3)method.Invoke(null, null);
+            using var stream = new MemoryStream();
+            using var writer = new BinaryWriter(stream);
+            writer.Write(position != Vector3.zero);
+            writer.Write(position.x); writer.Write(position.y); writer.Write(position.z);
+            return new ExtensionPayload { SchemaVersion = Schema, Data = stream.ToArray() };
+        }
+        catch (Exception ex)
+        {
+            PerspexCharacterAuthorityPlugin.Instance?.WarnExternal("Hearthstone export failed: " + ex.Message);
+            return null;
+        }
+    }
+
+    internal static void Import(ExtensionPayload payload)
+    {
+        try
+        {
+            var type = Type;
+            if (type == null || payload?.SchemaVersion != Schema || payload.Data == null || payload.Data.Length != 13) return;
+            using var reader = new BinaryReader(new MemoryStream(payload.Data, false));
+            var present = reader.ReadBoolean();
+            var position = new Vector3(reader.ReadSingle(), reader.ReadSingle(), reader.ReadSingle());
+            var text = present ? string.Join("|", position.x.ToString(CultureInfo.InvariantCulture), position.y.ToString(CultureInfo.InvariantCulture), position.z.ToString(CultureInfo.InvariantCulture)) : string.Empty;
+            type.GetField("m_lastPositionString", BindingFlags.NonPublic | BindingFlags.Static)?.SetValue(null, text);
+            var file = type.GetProperty("PositionFile", BindingFlags.NonPublic | BindingFlags.Static)?.GetValue(null) as string;
+            if (!string.IsNullOrEmpty(file)) File.WriteAllText(file, text);
+            type.GetMethod("SetHearthPosToZDO", BindingFlags.NonPublic | BindingFlags.Static)?.Invoke(null, new object[] { present ? position : Vector3.zero });
+        }
+        catch (Exception ex) { PerspexCharacterAuthorityPlugin.Instance?.WarnExternal("Hearthstone import failed: " + ex.Message); }
     }
 }
 

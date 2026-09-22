@@ -20,6 +20,13 @@ namespace ValheimLegends;
 [BepInDependency("EpicMMOSystem", BepInDependency.DependencyFlags.SoftDependency)]
 public class ValheimLegends : BaseUnityPlugin
 {
+	private const short ExecuteTierMarker = 0x4000;
+
+	private static bool IsExecuteWeaponHit(HitData hit) =>
+		(hit.m_damage.m_damage + hit.m_damage.m_blunt + hit.m_damage.m_pierce + hit.m_damage.m_slash) > 0f
+		&& hit.m_skill != EvocationSkill && hit.m_skill != AlterationSkill
+		&& hit.m_skill != ConjurationSkill && hit.m_skill != IllusionSkill
+		&& hit.m_skill != AbjurationSkill;
 	public class VL_Player
 	{
 		public string vl_name;
@@ -570,6 +577,7 @@ public class ValheimLegends : BaseUnityPlugin
 						}
 						HitData hitData = new HitData();
 						hitData.m_damage = weapon.GetDamage();
+						hitData.SetAttacker(character);
 						hitData.m_damage.m_slash = weapon.GetDamage().m_slash * num;
 						hitData.m_point = hitInfo.point;
 						hitData.m_dir = component.transform.position - character.transform.position;
@@ -842,6 +850,7 @@ public class ValheimLegends : BaseUnityPlugin
 
 			if (attacker != null)
 			{
+				bool summonDamage = VL_Utility.ApplySummonDamage(attacker, hit);
                 if (__instance.GetSEMan() != null && hit.HaveAttacker() && !hit.m_ranged && __instance.GetSEMan().HaveStatusEffect("SE_VL_FlameArmor".GetStableHashCode()))
                 {
                     Player localplayer = Player.m_localPlayer;
@@ -1195,25 +1204,25 @@ public class ValheimLegends : BaseUnityPlugin
 					SE_Berserk sE_Berserk = attacker.GetSEMan().GetStatusEffect("SE_VL_Berserk".GetStableHashCode()) as SE_Berserk;
 					attacker.AddStamina(hit.GetTotalDamage() * sE_Berserk.healthAbsorbPercent);
 				}
-				if (attacker.GetSEMan().HaveStatusEffect("SE_VL_Execute".GetStableHashCode()))
+				if (IsExecuteWeaponHit(hit) && attacker.GetSEMan().HaveStatusEffect("SE_VL_Execute".GetStableHashCode()))
 				{
 					SE_Execute sE_Execute = attacker.GetSEMan().GetStatusEffect("SE_VL_Execute".GetStableHashCode()) as SE_Execute;
 					hit.m_staggerMultiplier *= sE_Execute.staggerForce;
-					hit.m_damage.m_blunt *= sE_Execute.damageBonus;
-					hit.m_damage.m_pierce *= sE_Execute.damageBonus;
-					hit.m_damage.m_slash *= sE_Execute.damageBonus;
+					hit.m_damage.Modify(sE_Execute.damageBonus);
+					// Preserve the weapon tier while carrying the Execute flag to the victim owner.
+					hit.m_toolTier = (short)(hit.m_toolTier | ExecuteTierMarker);
 					sE_Execute.hitCount--;
 					if (sE_Execute.hitCount <= 0)
 					{
 						attacker.GetSEMan().RemoveStatusEffect(sE_Execute, quiet: true);
 					}
 				}
-				if (attacker.GetSEMan().HaveStatusEffect("SE_VL_Companion".GetStableHashCode()))
+				if (!summonDamage && attacker.GetSEMan().HaveStatusEffect("SE_VL_Companion".GetStableHashCode()))
 				{
 					SE_Companion sE_Companion = attacker.GetSEMan().GetStatusEffect("SE_VL_Companion".GetStableHashCode()) as SE_Companion;
 					hit.m_damage.Modify(sE_Companion.damageModifier);
 				}
-				if (attacker.GetSEMan().HaveStatusEffect("SE_VL_RootsBuff".GetStableHashCode()))
+				if (!summonDamage && attacker.GetSEMan().HaveStatusEffect("SE_VL_RootsBuff".GetStableHashCode()))
 				{
 					SE_RootsBuff sE_RootsBuff = attacker.GetSEMan().GetStatusEffect("SE_VL_RootsBuff".GetStableHashCode()) as SE_RootsBuff;
 					hit.m_damage.Modify(sE_RootsBuff.damageModifier);
@@ -1972,7 +1981,7 @@ public class ValheimLegends : BaseUnityPlugin
 			if (___m_character.GetSEMan().HaveStatusEffect("SE_VL_Berserk".GetStableHashCode()))
 			{
 				SE_Berserk sE_Berserk = (SE_Berserk)___m_character.GetSEMan().GetStatusEffect("SE_VL_Berserk".GetStableHashCode());
-				___m_damageMultiplier = sE_Berserk.damageModifier;
+				___m_damageMultiplier *= sE_Berserk.damageModifier;
 			}
 			return true;
 		}
@@ -1986,8 +1995,10 @@ public class ValheimLegends : BaseUnityPlugin
 			if (___m_character.GetSEMan().HaveStatusEffect("SE_VL_PowerShot".GetStableHashCode()))
 			{
 				___m_projectileVel *= 2f;
-				___m_damageMultiplier = 1.4f * VL_GlobalConfigs.c_rangerPowerShot + ___m_character.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == DisciplineSkillDef)
-					.m_level * 0.015f * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddPhysicDamage() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddAttackSpeed() / 40f), 0f, 0.5f));
+				___m_damageMultiplier *= VL_Utility.GetPhysicalAbilityMultiplier(
+					___m_character.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == DisciplineSkillDef).m_level,
+					EpicMMOSystem.LevelSystem.Instance.getParameter(EpicMMOSystem.Parameter.Agility), 1.15f)
+					* VL_GlobalConfigs.g_DamageModifer * VL_GlobalConfigs.c_rangerPowerShot;
 				SE_PowerShot sE_PowerShot = ___m_character.GetSEMan().GetStatusEffect("SE_VL_PowerShot".GetStableHashCode()) as SE_PowerShot;
 				sE_PowerShot.hitCount--;
 				if (sE_PowerShot.hitCount <= 0)
@@ -2271,8 +2282,6 @@ public class ValheimLegends : BaseUnityPlugin
 							__result = false;
 							return false;
 						}
-						HitData hitData = new HitData();
-						hitData.m_damage = hit.m_damage;
 						float level = __instance.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == DisciplineSkillDef)
 							.m_level * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddPhysicDamage() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddAttackSpeed() / 40f), 0f, 0.5f));
 						bool flag = currentWeapon.m_shared.m_timedBlockBonus > 1f && ___m_blockTimer != -1f && ___m_blockTimer < 0.25f;
@@ -2327,11 +2336,14 @@ public class ValheimLegends : BaseUnityPlugin
 								{
 									SE_Riposte sE_Riposte = (SE_Riposte)__instance.GetSEMan().GetStatusEffect("SE_VL_Riposte".GetStableHashCode());
 									__instance.GetSEMan().RemoveStatusEffect("SE_VL_Riposte".GetStableHashCode());
-									hitData2.m_damage = hitData.m_damage;
+									hitData2.m_damage = currentWeapon.GetDamage();
 									//((ZSyncAnimation)typeof(Player).GetField("m_zanim", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(Player.m_localPlayer)).SetTrigger("atgeir_attack2");
 									UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("fx_VL_ParticleLightSuction"), __instance.GetEyePoint(), UnityEngine.Quaternion.identity);
-									float num5 = UnityEngine.Random.Range(0.3f, 0.5f) + level / 150f;
-									hitData2.ApplyModifier(num5 * VL_GlobalConfigs.c_duelistRiposte);
+									hitData2.ApplyModifier(VL_Utility.GetPhysicalAbilityMultiplier(
+										__instance.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == DisciplineSkillDef).m_level,
+										EpicMMOSystem.LevelSystem.Instance.getParameter(EpicMMOSystem.Parameter.Special), 1.10f)
+										* VL_GlobalConfigs.g_DamageModifer * VL_GlobalConfigs.c_duelistRiposte);
+									hitData2.SetAttacker(__instance);
 									__instance.RaiseSkill(DisciplineSkill, VL_Utility.GetRiposteSkillGain * 2f);
 									if (__instance.GetSEMan().HaveStatusEffect("SE_VL_Ability3_CD".GetStableHashCode()))
 									{
@@ -2431,6 +2443,36 @@ public class ValheimLegends : BaseUnityPlugin
 				}
 			}
 			return true;
+		}
+	}
+
+	[HarmonyPatch(typeof(Character), "RPC_Damage")]
+	public static class ExecuteThreshold_Patch
+	{
+		private static void Prefix(Character __instance, HitData hit)
+		{
+			if ((hit.m_toolTier & ExecuteTierMarker) == 0) return;
+			hit.m_toolTier = (short)(hit.m_toolTier & ~ExecuteTierMarker);
+			if (__instance.GetHealth() < __instance.GetMaxHealth() * 0.2f)
+				hit.m_damage.Modify(2f);
+		}
+	}
+
+	[HarmonyPatch(typeof(Character), "Awake")]
+	public static class SpiritDrainRpc_Patch
+	{
+		private static void Postfix(Character __instance)
+		{
+			ZNetView view = __instance.GetComponent<ZNetView>();
+			if (view == null) return;
+			view.Register<ZDOID, float>("VL_ApplySpiritDrain", (sender, attackerId, damage) =>
+			{
+				if (!view.IsValid() || !view.IsOwner()) return;
+				SEMan effects = __instance.GetSEMan();
+				effects.AddStatusEffect("SE_VL_SpiritDrain".GetStableHashCode(), true, 1, damage);
+				SE_SpiritDrain drain = effects.GetStatusEffect("SE_VL_SpiritDrain".GetStableHashCode()) as SE_SpiritDrain;
+				if (drain != null) drain.attackerId = attackerId;
+			});
 		}
 	}
 

@@ -21,6 +21,7 @@
   <ItemGroup>
     <Compile Remove="PerspexCharacterAuthority\**\*.cs" />
     <Compile Remove="PerspexCharacterAuthority.Tests\**\*.cs" />
+    <Compile Remove="BalanceMath.Tests\**\*.cs" />
     <None Remove="ValheimLegends.vl_assetbundle" />
     <EmbeddedResource Include="ValheimLegends.vl_assetbundle" />
   </ItemGroup>

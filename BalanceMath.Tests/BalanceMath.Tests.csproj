@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../ValheimLegends/VL_BalanceMath.cs" Link="VL_BalanceMath.cs" />
+  </ItemGroup>
+</Project>

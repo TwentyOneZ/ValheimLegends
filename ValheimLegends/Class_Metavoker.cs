@@ -104,10 +104,15 @@ public class Class_Metavoker
                 vector3 *= VL_GlobalConfigs.c_metavokerBonusForceWave;
 				Traverse.Create(item2).Field("m_pushForce").SetValue(vector3);
 				HitData hitData2 = new HitData();
-				hitData2.m_damage.m_damage = magnitude * Random.Range(0.75f, 1.25f) * (1f + 0.02f * level) * VL_GlobalConfigs.c_metavokerBonusForceWave;
+				hitData2.m_damage.m_damage = VL_Utility.GetMagicAbilityDamage(EpicMMOSystem.LevelSystem.Instance.getLevel(),
+					EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage(),
+					player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.EvocationSkillDef).m_level,
+					EpicMMOSystem.LevelSystem.Instance.getParameter(EpicMMOSystem.Parameter.Vigour), 0.35f)
+					* VL_GlobalConfigs.g_DamageModifer * VL_GlobalConfigs.c_metavokerBonusForceWave;
 				hitData2.m_point = item2.GetEyePoint();
 				hitData2.m_dir = vector2;
 				hitData2.m_skill = ValheimLegends.EvocationSkill;
+				hitData2.SetAttacker(player);
 				item2.Damage(hitData2);
 			}
 		}
@@ -287,11 +292,16 @@ public class Class_Metavoker
 					{
 						UnityEngine.Vector3 vector4 = item.transform.position - player.transform.position;
 						HitData hitData = new HitData();
-						hitData.m_damage.m_lightning = Random.Range(num6 * (level / 15f), num6 * (level / 10f)) * VL_GlobalConfigs.g_DamageModifer * VL_GlobalConfigs.c_metavokerWarpDamage;
+						hitData.m_damage.m_lightning = VL_Utility.GetMagicAbilityDamage(EpicMMOSystem.LevelSystem.Instance.getLevel(),
+							EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage(),
+							player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.EvocationSkillDef).m_level,
+							EpicMMOSystem.LevelSystem.Instance.getParameter(EpicMMOSystem.Parameter.Agility), 0.55f)
+							* (1f + Mathf.Clamp01(num6 / 140f)) * VL_GlobalConfigs.g_DamageModifer * VL_GlobalConfigs.c_metavokerWarpDamage;
 						hitData.m_pushForce = (num6 + level) * 0.1f;
 						hitData.m_point = item.GetEyePoint();
 						hitData.m_dir = item.transform.position - player.transform.position;
 						hitData.m_skill = ValheimLegends.EvocationSkill;
+						hitData.SetAttacker(player);
 						item.Damage(hitData);
 						flag3 = true;
 					}
@@ -377,9 +387,12 @@ public class Class_Metavoker
 							component2.transform.localScale = 0.8f * UnityEngine.Vector3.one;
 							SE_Companion sE_Companion = (SE_Companion)ScriptableObject.CreateInstance(typeof(SE_Companion));
 							sE_Companion.m_ttl = 8f + 0.2f * level2;
-							sE_Companion.damageModifier = 0.05f + 0.0075f * level2 * VL_GlobalConfigs.g_DamageModifer * VL_GlobalConfigs.c_metavokerReplica;
+							sE_Companion.damageModifier = 1f;
 							sE_Companion.summoner = player;
 							component2.GetSEMan().AddStatusEffect(sE_Companion);
+							VL_Utility.SetSummonDamage(gameObject, player,
+								player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.IllusionSkillDef).m_level,
+								EpicMMOSystem.LevelSystem.Instance.getParameter(EpicMMOSystem.Parameter.Body), 0.25f, VL_GlobalConfigs.c_metavokerReplica);
 							component2.m_faction = Character.Faction.Players;
 							component2.SetTamed(tamed: true);
 							CharacterDrop component3 = component2.GetComponent<CharacterDrop>();
@@ -452,8 +465,12 @@ public class Class_Metavoker
 				RaycastHit hitInfo3 = default(RaycastHit);
 				UnityEngine.Vector3 position4 = player.transform.position;
 				UnityEngine.Vector3 target2 = ((!Physics.Raycast(player.GetEyePoint(), player.GetLookDir(), out hitInfo3, float.PositiveInfinity, Light_Layermask) || !hitInfo3.collider) ? (position4 + player.GetLookDir() * 1000f) : hitInfo3.point);
-				hitData2.m_damage.m_lightning = Random.Range(5f + 0.3f * level3, 10f + 0.6f * level3) * VL_GlobalConfigs.g_DamageModifer * VL_GlobalConfigs.c_meteavokerLight;
-				hitData2.m_damage.m_pierce = Random.Range(5f + 0.3f * level3, 10f + 0.6f * level3) * VL_GlobalConfigs.g_DamageModifer * VL_GlobalConfigs.c_meteavokerLight;
+				float lightDamage = VL_Utility.GetMagicAbilityDamage(EpicMMOSystem.LevelSystem.Instance.getLevel(),
+					EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage(),
+					player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.IllusionSkillDef).m_level, 0.65f)
+					* VL_GlobalConfigs.g_DamageModifer * VL_GlobalConfigs.c_meteavokerLight;
+				hitData2.m_damage.m_lightning = lightDamage * 0.5f;
+				hitData2.m_damage.m_pierce = lightDamage * 0.5f;
 				hitData2.m_pushForce = (100f + 2f * level3) * VL_GlobalConfigs.c_meteavokerLight;
 				hitData2.SetAttacker(player);
 				UnityEngine.Vector3 vector6 = UnityEngine.Vector3.MoveTowards(gameObject2.transform.position, target2, 1f);

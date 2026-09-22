@@ -83,11 +83,15 @@ public class Class_Monk
 			{
 				UnityEngine.Vector3 dir = item.transform.position - player.transform.position;
 				HitData hitData = new HitData();
-				hitData.m_damage.m_blunt = 5f + 3f * altitude + Random.Range(Mathf.Min(level * VL_GlobalConfigs.g_DamageModifer, player.GetCurrentWeapon().GetDamage().m_damage * (1f + level / 300f)), Mathf.Min((2f * level) * VL_GlobalConfigs.g_DamageModifer, 2f * player.GetCurrentWeapon().GetDamage().m_damage * (1f + level / 300f))) * VL_GlobalConfigs.c_monkChiSlam;
+				hitData.m_damage = VL_Utility.GetPhysicalAbilityDamage(player,
+					player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.DisciplineSkillDef).m_level,
+					EpicMMOSystem.LevelSystem.Instance.getParameter(EpicMMOSystem.Parameter.Vigour), 1f, VL_GlobalConfigs.c_monkChiSlam);
+				hitData.m_damage.Modify(1f + Mathf.Clamp01(3f * altitude / Mathf.Max(1f, hitData.m_damage.GetTotalDamage())));
 				hitData.m_pushForce = 20f * VL_GlobalConfigs.g_DamageModifer;
 				hitData.m_point = item.GetEyePoint();
 				hitData.m_dir = dir;
 				hitData.m_skill = ValheimLegends.DisciplineSkill;
+				hitData.SetAttacker(player);
 				item.Damage(hitData);
 			}
 		}
@@ -138,11 +142,14 @@ public class Class_Monk
 					{
 						UnityEngine.Vector3 dir = item.transform.position - player.transform.position;
 						HitData hitData = new HitData();
-						hitData.m_damage.m_blunt = Random.Range(Mathf.Max((12f + 0.5f * level) * VL_GlobalConfigs.g_DamageModifer, 0.5f * player.GetCurrentWeapon().GetDamage().m_damage * (1f + level / 300f)), Mathf.Max((24f + level) * VL_GlobalConfigs.g_DamageModifer, player.GetCurrentWeapon().GetDamage().m_damage * (1f + level / 300f))) * VL_GlobalConfigs.c_monkChiPunch;
+						hitData.m_damage = VL_Utility.GetPhysicalAbilityDamage(player,
+							player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.DisciplineSkillDef).m_level,
+							EpicMMOSystem.LevelSystem.Instance.getParameter(EpicMMOSystem.Parameter.Special), 1.35f, VL_GlobalConfigs.c_monkChiPunch);
 						hitData.m_pushForce = 45f + 0.5f * level;
 						hitData.m_point = item.GetEyePoint();
 						hitData.m_dir = dir;
 						hitData.m_skill = ValheimLegends.DisciplineSkill;
+						hitData.SetAttacker(player);
 						item.Damage(hitData);
 					}
 				}
@@ -187,8 +194,9 @@ public class Class_Monk
 			UnityEngine.Vector3 position2 = player.transform.position;
 			UnityEngine.Vector3 target = ((!Physics.Raycast(vector3, player.GetLookDir(), out hitInfo2, float.PositiveInfinity, ScriptChar_Layermask) || !hitInfo2.collider) ? (position2 + player.GetLookDir() * 1000f) : hitInfo2.point);
 			HitData hitData2 = new HitData();
-			hitData2.m_damage.m_slash = Random.Range(Mathf.Max((1f + 0.2f * level2) * VL_GlobalConfigs.g_DamageModifer, 0.5f * player.GetCurrentWeapon().GetDamage().m_damage * (1f + level2 / 300f)), Mathf.Max((4f + 0.4f * level2) * VL_GlobalConfigs.g_DamageModifer, player.GetCurrentWeapon().GetDamage().m_damage * (1f + level2 / 300f))) * (float)sE_Monk2.hitCount * VL_GlobalConfigs.c_monkChiBlast;
-			hitData2.m_damage.m_spirit = Random.Range(Mathf.Max((0.2f * level2) * VL_GlobalConfigs.g_DamageModifer, 0.5f * player.GetCurrentWeapon().GetDamage().m_damage * (1f + level2 / 300f)), Mathf.Max((1f + 0.2f * level2) * VL_GlobalConfigs.g_DamageModifer, player.GetCurrentWeapon().GetDamage().m_damage * (1f + level2 / 300f))) * (float)sE_Monk2.hitCount * VL_GlobalConfigs.c_monkChiBlast;
+			hitData2.m_damage = VL_Utility.GetPhysicalAbilityDamage(player,
+				player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.DisciplineSkillDef).m_level,
+				EpicMMOSystem.LevelSystem.Instance.getParameter(EpicMMOSystem.Parameter.Special), 0.30f * sE_Monk2.hitCount, VL_GlobalConfigs.c_monkChiBlast);
 			hitData2.m_skill = ValheimLegends.DisciplineSkill;
 			hitData2.SetAttacker(player);
 			UnityEngine.Vector3 vector4 = UnityEngine.Vector3.MoveTowards(gameObject.transform.position, target, 1f);
@@ -206,7 +214,6 @@ public class Class_Monk
 			}
 			float level3 = player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.DisciplineSkillDef)
 				.m_level * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddPhysicDamage() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddAttackSpeed() / 40f), 0f, 0.5f));
-			float num = 0.5f + level3 * 0.005f * VL_GlobalConfigs.g_DamageModifer * VL_GlobalConfigs.c_monkFlyingKick;
 			SE_Monk sE_Monk3 = (SE_Monk)player.GetSEMan().GetStatusEffect("SE_VL_Monk".GetStableHashCode());
 			UnityEngine.Vector3 lookDir = player.GetLookDir();
 			lookDir.y = 0f;
@@ -249,12 +256,14 @@ public class Class_Monk
 				foreach (Character allCharacter in Character.GetAllCharacters())
 				{
 					HitData hitData3 = new HitData();
-					hitData3.m_damage = player.GetCurrentWeapon().GetDamage();
-					hitData3.ApplyModifier(Random.Range(0.8f, 1.2f) * num);
+					hitData3.m_damage = VL_Utility.GetPhysicalAbilityDamage(player,
+						player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.DisciplineSkillDef).m_level,
+						EpicMMOSystem.LevelSystem.Instance.getParameter(EpicMMOSystem.Parameter.Agility), 0.22f, VL_GlobalConfigs.c_monkFlyingKick);
 					hitData3.m_point = allCharacter.GetCenterPoint();
 					hitData3.m_pushForce = 4f;
 					hitData3.m_dir = allCharacter.transform.position - position3;
 					hitData3.m_skill = ValheimLegends.DisciplineSkill;
+					hitData3.SetAttacker(player);
 					float num2 = UnityEngine.Vector3.Distance(allCharacter.transform.position, player.transform.position);
 					if (BaseAI.IsEnemy(allCharacter, player) && num2 <= 2.5f && !kicklist.Contains(allCharacter.GetInstanceID()))
 					{
@@ -311,12 +320,14 @@ public class Class_Monk
 					if (flag3 && BaseAI.IsEnemy(component3, player))
 					{
 						HitData hitData4 = new HitData();
-						hitData4.m_damage = player.GetCurrentWeapon().GetDamage();
-						hitData4.ApplyModifier(Random.Range(1f, 1.5f) * num);
+						hitData4.m_damage = VL_Utility.GetPhysicalAbilityDamage(player,
+							player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.DisciplineSkillDef).m_level,
+							EpicMMOSystem.LevelSystem.Instance.getParameter(EpicMMOSystem.Parameter.Agility), 0.55f, VL_GlobalConfigs.c_monkFlyingKick);
 						hitData4.m_point = vector5;
 						hitData4.m_pushForce = 10f;
 						hitData4.m_dir = vector5 - player.transform.position;
 						hitData4.m_skill = ValheimLegends.DisciplineSkill;
+						hitData4.SetAttacker(player);
 						component3.Damage(hitData4);
 						Object.Instantiate(ZNetScene.instance.GetPrefab("sfx_perfectblock"), player.transform.position, UnityEngine.Quaternion.identity);
 						Object.Instantiate(ZNetScene.instance.GetPrefab("vfx_perfectblock"), vector5, UnityEngine.Quaternion.identity);

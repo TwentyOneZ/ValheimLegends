@@ -18,161 +18,223 @@ public static class VL_Utility
 
 	private static float vl_timer;
 
-	public static float GetZoneChargeCost => 40f * VL_GlobalConfigs.g_EnergyCostModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getStaminaReduction() / 100f));
+	public static float GetReferencePower(float characterLevel) => VL_BalanceMath.ReferencePower(characterLevel);
 
-	public static float GetZoneChargeCooldownTime => 600f * VL_GlobalConfigs.g_CooldownModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 100f));
+	public static float GetProgressionModifier(float value) => VL_BalanceMath.Progression(value);
 
-	public static float GetZoneChargeCostPerUpdate => 1f * VL_GlobalConfigs.g_EnergyCostModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getStaminaReduction() / 100f));
+	public static float GetMagicAbilityDamage(float characterLevel, float magicDamagePercent, float school, float coefficient) =>
+		VL_BalanceMath.Magic(characterLevel, magicDamagePercent, school, coefficient);
+
+	public static float GetMagicAbilityDamage(float characterLevel, float magicDamagePercent, float school, float secondary, float coefficient) =>
+		VL_BalanceMath.Magic(characterLevel, magicDamagePercent, school, secondary, coefficient);
+
+	public static float GetPhysicalAbilityMultiplier(float school, float coefficient) => VL_BalanceMath.Physical(school, coefficient);
+
+	public static float GetPhysicalAbilityMultiplier(float school, float secondary, float coefficient) =>
+		VL_BalanceMath.Physical(school, secondary, coefficient);
+
+	public static HitData.DamageTypes GetPhysicalAbilityDamage(Player player, float school, float secondary, float coefficient, float config)
+	{
+		ItemDrop.ItemData weapon = player.GetCurrentWeapon();
+		HitData.DamageTypes damage = weapon.GetDamage();
+		// EpicMMO's GetDamage hook only scales items in the local inventory, not bare hands.
+		if (!player.GetInventory().ContainsItem(weapon))
+			damage.Modify(1f + EpicMMOSystem.LevelSystem.Instance.getAddPhysicDamage() / 100f);
+		damage.Modify(GetPhysicalAbilityMultiplier(school, secondary, coefficient)
+			* VL_GlobalConfigs.g_DamageModifer * config);
+		return damage;
+	}
+
+	public static float GetHealingPower(float characterLevel, float endurance, float healingSkill, float baseHeal) =>
+		GetHealingPower(characterLevel, endurance, healingSkill, baseHeal, VL_GlobalConfigs.g_DamageModifer);
+
+	public static float GetHealingPower(float characterLevel, float endurance, float healingSkill, float baseHeal, float globalModifier) =>
+		VL_BalanceMath.Heal(characterLevel, endurance, healingSkill, baseHeal, globalModifier);
+
+	public static float GetCooldown(float baseCooldown, float globalModifier, float intelligence) =>
+		VL_BalanceMath.Cooldown(baseCooldown, globalModifier, intelligence);
+
+	public static float GetAbilityCost(float baseCost, float globalModifier, float agility) =>
+		VL_BalanceMath.Cost(baseCost, globalModifier, agility);
+
+	public static void SetSummonDamage(GameObject summon, Player caster, float school, float secondary, float coefficient, float config)
+	{
+		ZNetView view = summon.GetComponent<ZNetView>();
+		if (view == null || !view.IsValid() || !view.IsOwner()) return;
+		ZDO zdo = view.GetZDO();
+		zdo.Set("VL_SummonOwner", caster.GetZDOID());
+		zdo.Set("VL_SummonDamage", GetMagicAbilityDamage(EpicMMOSystem.LevelSystem.Instance.getLevel(),
+			EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage(), school, secondary, coefficient)
+			* VL_GlobalConfigs.g_DamageModifer * config);
+	}
+
+	public static bool ApplySummonDamage(Character attacker, HitData hit)
+	{
+		ZNetView view = attacker.GetComponent<ZNetView>();
+		ZDO zdo = view != null && view.IsValid() ? view.GetZDO() : null;
+		if (zdo == null || zdo.GetZDOID("VL_SummonOwner") == ZDOID.None) return false;
+		float total = hit.m_damage.GetTotalDamage();
+		if (total > 0f) hit.m_damage.Modify(zdo.GetFloat("VL_SummonDamage", 0f) / total);
+		return true;
+	}
+
+	private static float GetAttribute(EpicMMOSystem.Parameter parameter) => EpicMMOSystem.LevelSystem.Instance.getParameter(parameter);
+
+	public static float GetZoneChargeCost => GetAbilityCost(40f, VL_GlobalConfigs.g_EnergyCostModifer, GetAttribute(EpicMMOSystem.Parameter.Agility));
+
+	public static float GetZoneChargeCooldownTime => GetCooldown(600f, VL_GlobalConfigs.g_CooldownModifer, GetAttribute(EpicMMOSystem.Parameter.Intellect));
+
+	public static float GetZoneChargeCostPerUpdate => GetAbilityCost(1f, VL_GlobalConfigs.g_EnergyCostModifer, GetAttribute(EpicMMOSystem.Parameter.Agility));
 
 	public static float GetZoneChargeSkillGain => 8f * VL_GlobalConfigs.g_SkillGainModifer * (1f + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 16f));
 
-	public static float GetWeakenCost => 40f * VL_GlobalConfigs.g_EnergyCostModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getStaminaReduction() / 100f));
+	public static float GetWeakenCost => GetAbilityCost(40f, VL_GlobalConfigs.g_EnergyCostModifer, GetAttribute(EpicMMOSystem.Parameter.Agility));
 
-	public static float GetWeakenCooldownTime => 60f * VL_GlobalConfigs.g_CooldownModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 100f));
+	public static float GetWeakenCooldownTime => GetCooldown(60f, VL_GlobalConfigs.g_CooldownModifer, GetAttribute(EpicMMOSystem.Parameter.Intellect));
 
 	public static float GetWeakenSkillGain => 1.4f * VL_GlobalConfigs.g_SkillGainModifer * (1f + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 16f));
 
-	public static float GetCharmCost => 50f * VL_GlobalConfigs.g_EnergyCostModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getStaminaReduction() / 100f));
+	public static float GetCharmCost => GetAbilityCost(50f, VL_GlobalConfigs.g_EnergyCostModifer, GetAttribute(EpicMMOSystem.Parameter.Agility));
 
-	public static float GetCharmCooldownTime => 60f * VL_GlobalConfigs.g_CooldownModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 100f));
+	public static float GetCharmCooldownTime => GetCooldown(60f, VL_GlobalConfigs.g_CooldownModifer, GetAttribute(EpicMMOSystem.Parameter.Intellect));
 
 	public static float GetCharmSkillGain => 2.6f * VL_GlobalConfigs.g_SkillGainModifer * (1f + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 16f));
 
 	public static float GetMeteorPunchCost => 3f;
 
-	public static float GetMeteorPunchCooldownTime => 1f * VL_GlobalConfigs.g_CooldownModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 100f));
+	public static float GetMeteorPunchCooldownTime => GetCooldown(1f, VL_GlobalConfigs.g_CooldownModifer, GetAttribute(EpicMMOSystem.Parameter.Intellect));
 
 	public static float GetMeteorPunchSkillGain => 4.0f * VL_GlobalConfigs.g_SkillGainModifer * (1f + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 16f));
 
 	public static float GetPsiBoltCost => 5f;
 
-	public static float GetPsiBoltCooldownTime => 1f * VL_GlobalConfigs.g_CooldownModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 100f));
+	public static float GetPsiBoltCooldownTime => GetCooldown(1f, VL_GlobalConfigs.g_CooldownModifer, GetAttribute(EpicMMOSystem.Parameter.Intellect));
 
 	public static float GetPsiBoltSkillGain => 5f * VL_GlobalConfigs.g_SkillGainModifer * (1f + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 16f));
 
-	public static float GetFlyingKickCost => 50f * VL_GlobalConfigs.g_EnergyCostModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getStaminaReduction() / 100f));
+	public static float GetFlyingKickCost => GetAbilityCost(50f, VL_GlobalConfigs.g_EnergyCostModifer, GetAttribute(EpicMMOSystem.Parameter.Agility));
 
-	public static float GetFlyingKickCooldownTime => 6f * VL_GlobalConfigs.g_CooldownModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 100f));
+	public static float GetFlyingKickCooldownTime => GetCooldown(6f, VL_GlobalConfigs.g_CooldownModifer, GetAttribute(EpicMMOSystem.Parameter.Intellect));
 
 	public static float GetFlyingKickSkillGain => 0.8f * VL_GlobalConfigs.g_SkillGainModifer * (1f + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 16f));
 
-	public static float GetPoisonBombCost => 50f * VL_GlobalConfigs.g_EnergyCostModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getStaminaReduction() / 100f));
+	public static float GetPoisonBombCost => GetAbilityCost(50f, VL_GlobalConfigs.g_EnergyCostModifer, GetAttribute(EpicMMOSystem.Parameter.Agility));
 
-	public static float GetPoisonBombCooldownTime => 30f * VL_GlobalConfigs.g_CooldownModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 100f));
+	public static float GetPoisonBombCooldownTime => GetCooldown(30f, VL_GlobalConfigs.g_CooldownModifer, GetAttribute(EpicMMOSystem.Parameter.Intellect));
 
 	public static float GetPoisonBombSkillGain => 1.8f * VL_GlobalConfigs.g_SkillGainModifer * (1f + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 16f));
 
-	public static float GetBackstabCost => 50f * VL_GlobalConfigs.g_EnergyCostModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getStaminaReduction() / 100f));
+	public static float GetBackstabCost => GetAbilityCost(50f, VL_GlobalConfigs.g_EnergyCostModifer, GetAttribute(EpicMMOSystem.Parameter.Agility));
 
-	public static float GetBackstabCooldownTime => 20f * VL_GlobalConfigs.g_CooldownModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 100f));
+	public static float GetBackstabCooldownTime => GetCooldown(20f, VL_GlobalConfigs.g_CooldownModifer, GetAttribute(EpicMMOSystem.Parameter.Intellect));
 
 	public static float GetBackstabSkillGain => 2.6f * VL_GlobalConfigs.g_SkillGainModifer * (1f + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 16f));
 
-	public static float GetFadeCost => 10f * VL_GlobalConfigs.g_EnergyCostModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getStaminaReduction() / 100f));
+	public static float GetFadeCost => GetAbilityCost(10f, VL_GlobalConfigs.g_EnergyCostModifer, GetAttribute(EpicMMOSystem.Parameter.Agility));
 
-	public static float GetFadeCooldownTime => 15f * VL_GlobalConfigs.g_CooldownModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 100f));
+	public static float GetFadeCooldownTime => GetCooldown(15f, VL_GlobalConfigs.g_CooldownModifer, GetAttribute(EpicMMOSystem.Parameter.Intellect));
 
 	public static float GetFadeSkillGain => 1.0f * VL_GlobalConfigs.g_SkillGainModifer * (1f + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 16f));
 
-	public static float GetSanctifyCost => 50f * VL_GlobalConfigs.g_EnergyCostModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getStaminaReduction() / 100f));
+	public static float GetSanctifyCost => GetAbilityCost(50f, VL_GlobalConfigs.g_EnergyCostModifer, GetAttribute(EpicMMOSystem.Parameter.Agility));
 
-	public static float GetSanctifyCooldownTime => 45f * VL_GlobalConfigs.g_CooldownModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 100f));
+	public static float GetSanctifyCooldownTime => GetCooldown(45f, VL_GlobalConfigs.g_CooldownModifer, GetAttribute(EpicMMOSystem.Parameter.Intellect));
 
 	public static float GetSanctifySkillGain => 1.8f * VL_GlobalConfigs.g_SkillGainModifer * (1f + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 16f));
 
-	public static float GetHealCost => 40f * VL_GlobalConfigs.g_EnergyCostModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getStaminaReduction() / 100f));
+	public static float GetHealCost => GetAbilityCost(40f, VL_GlobalConfigs.g_EnergyCostModifer, GetAttribute(EpicMMOSystem.Parameter.Agility));
 
-	public static float GetHealCostPerUpdate => 0.75f * VL_GlobalConfigs.g_EnergyCostModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getStaminaReduction() / 100f));
+	public static float GetHealCostPerUpdate => GetAbilityCost(0.75f, VL_GlobalConfigs.g_EnergyCostModifer, GetAttribute(EpicMMOSystem.Parameter.Agility));
 
-	public static float GetHealCooldownTime => 30f * VL_GlobalConfigs.g_CooldownModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 100f));
+	public static float GetHealCooldownTime => GetCooldown(30f, VL_GlobalConfigs.g_CooldownModifer, GetAttribute(EpicMMOSystem.Parameter.Intellect));
 
 	public static float GetHealSkillGain => 1.3f * VL_GlobalConfigs.g_SkillGainModifer * (1f + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 16f));
 
-	public static float GetPurgeCost => 50f * VL_GlobalConfigs.g_EnergyCostModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getStaminaReduction() / 100f));
+	public static float GetPurgeCost => GetAbilityCost(50f, VL_GlobalConfigs.g_EnergyCostModifer, GetAttribute(EpicMMOSystem.Parameter.Agility));
 
-	public static float GetPurgeCooldownTime => 15f * VL_GlobalConfigs.g_CooldownModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 100f));
+	public static float GetPurgeCooldownTime => GetCooldown(15f, VL_GlobalConfigs.g_CooldownModifer, GetAttribute(EpicMMOSystem.Parameter.Intellect));
 
 	public static float GetPurgeSkillGain => 0.8f * VL_GlobalConfigs.g_SkillGainModifer * (1f + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 16f));
 
-	public static float GetQuickShotCost => 25f * VL_GlobalConfigs.g_EnergyCostModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getStaminaReduction() / 100f));
+	public static float GetQuickShotCost => GetAbilityCost(25f, VL_GlobalConfigs.g_EnergyCostModifer, GetAttribute(EpicMMOSystem.Parameter.Agility));
 
-	public static float GetQuickShotCooldownTime => 10f * VL_GlobalConfigs.g_CooldownModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 100f));
+	public static float GetQuickShotCooldownTime => GetCooldown(10f, VL_GlobalConfigs.g_CooldownModifer, GetAttribute(EpicMMOSystem.Parameter.Intellect));
 
 	public static float GetQuickShotSkillGain => 0.5f * VL_GlobalConfigs.g_SkillGainModifer * (1f + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 16f));
 
-	public static float GetRiposteCost => 30f * VL_GlobalConfigs.g_EnergyCostModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getStaminaReduction() / 100f));
+	public static float GetRiposteCost => GetAbilityCost(30f, VL_GlobalConfigs.g_EnergyCostModifer, GetAttribute(EpicMMOSystem.Parameter.Agility));
 
-	public static float GetRiposteCooldownTime => 6f * VL_GlobalConfigs.g_CooldownModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 100f));
+	public static float GetRiposteCooldownTime => GetCooldown(6f, VL_GlobalConfigs.g_CooldownModifer, GetAttribute(EpicMMOSystem.Parameter.Intellect));
 
 	public static float GetRiposteSkillGain => 0.2f * VL_GlobalConfigs.g_SkillGainModifer * (1f + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 16f));
 
-	public static float GetBlinkStrikeCost => 50f * VL_GlobalConfigs.g_EnergyCostModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getStaminaReduction() / 100f));
+	public static float GetBlinkStrikeCost => GetAbilityCost(50f, VL_GlobalConfigs.g_EnergyCostModifer, GetAttribute(EpicMMOSystem.Parameter.Agility));
 
-	public static float GetBlinkStrikeCooldownTime => 30f * VL_GlobalConfigs.g_CooldownModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 100f));
+	public static float GetBlinkStrikeCooldownTime => GetCooldown(30f, VL_GlobalConfigs.g_CooldownModifer, GetAttribute(EpicMMOSystem.Parameter.Intellect));
 
 	public static float GetBlinkStrikeSkillGain => 1.5f * VL_GlobalConfigs.g_SkillGainModifer * (1f + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 16f));
 
-	public static float GetLightCost => 50f * VL_GlobalConfigs.g_EnergyCostModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getStaminaReduction() / 100f));
+	public static float GetLightCost => GetAbilityCost(50f, VL_GlobalConfigs.g_EnergyCostModifer, GetAttribute(EpicMMOSystem.Parameter.Agility));
 
-	public static float GetLightCooldownTime => 20f * VL_GlobalConfigs.g_CooldownModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 100f));
+	public static float GetLightCooldownTime => GetCooldown(20f, VL_GlobalConfigs.g_CooldownModifer, GetAttribute(EpicMMOSystem.Parameter.Intellect));
 
 	public static float GetLightSkillGain => 1.0f * VL_GlobalConfigs.g_SkillGainModifer * (1f + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 16f));
 
-	public static float GetWarpCost => 40f * VL_GlobalConfigs.g_EnergyCostModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getStaminaReduction() / 100f));
+	public static float GetWarpCost => GetAbilityCost(40f, VL_GlobalConfigs.g_EnergyCostModifer, GetAttribute(EpicMMOSystem.Parameter.Agility));
 
-	public static float GetWarpCostPerUpdate => 1f * VL_GlobalConfigs.g_EnergyCostModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getStaminaReduction() / 100f));
+	public static float GetWarpCostPerUpdate => GetAbilityCost(1f, VL_GlobalConfigs.g_EnergyCostModifer, GetAttribute(EpicMMOSystem.Parameter.Agility));
 
-	public static float GetWarpCooldownTime => 6f * VL_GlobalConfigs.g_CooldownModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 100f));
+	public static float GetWarpCooldownTime => GetCooldown(6f, VL_GlobalConfigs.g_CooldownModifer, GetAttribute(EpicMMOSystem.Parameter.Intellect));
 
 	public static float GetWarpSkillGain => 0.2f * VL_GlobalConfigs.g_SkillGainModifer * (1f + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 16f));
 
-	public static float GetReplicaCost => 50f * VL_GlobalConfigs.g_EnergyCostModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getStaminaReduction() / 100f));
+	public static float GetReplicaCost => GetAbilityCost(50f, VL_GlobalConfigs.g_EnergyCostModifer, GetAttribute(EpicMMOSystem.Parameter.Agility));
 
-	public static float GetReplicaCooldownTime => 30f * VL_GlobalConfigs.g_CooldownModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 100f));
+	public static float GetReplicaCooldownTime => GetCooldown(30f, VL_GlobalConfigs.g_CooldownModifer, GetAttribute(EpicMMOSystem.Parameter.Intellect));
 
 	public static float GetReplicaSkillGain => 1.5f * VL_GlobalConfigs.g_SkillGainModifer * (1f + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 16f));
 
-	public static float GetForceWaveCost => 30f * VL_GlobalConfigs.g_EnergyCostModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getStaminaReduction() / 100f));
+	public static float GetForceWaveCost => GetAbilityCost(30f, VL_GlobalConfigs.g_EnergyCostModifer, GetAttribute(EpicMMOSystem.Parameter.Agility));
 
 	public static float GetForceWaveSkillGain => 1.5f * VL_GlobalConfigs.g_SkillGainModifer * (1f + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 16f));
 
-	public static float GetForceWaveCooldown => 20f * VL_GlobalConfigs.g_CooldownModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 100f));
+	public static float GetForceWaveCooldown => GetCooldown(20f, VL_GlobalConfigs.g_CooldownModifer, GetAttribute(EpicMMOSystem.Parameter.Intellect));
 
-	public static float GetFireballCost => 30f * VL_GlobalConfigs.g_EnergyCostModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getStaminaReduction() / 100f));
+	public static float GetFireballCost => GetAbilityCost(30f, VL_GlobalConfigs.g_EnergyCostModifer, GetAttribute(EpicMMOSystem.Parameter.Agility));
 
-	public static float GetFireballCooldownTime => 2f * VL_GlobalConfigs.g_CooldownModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 100f));
+	public static float GetFireballCooldownTime => GetCooldown(2f, VL_GlobalConfigs.g_CooldownModifer, GetAttribute(EpicMMOSystem.Parameter.Intellect));
 
 	public static float GetFireballSkillGain => 1.0f * VL_GlobalConfigs.g_SkillGainModifer * (1f + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 16f));
 
-	public static float GetMeteorCost => 30f * VL_GlobalConfigs.g_EnergyCostModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getStaminaReduction() / 100f));
+	public static float GetMeteorCost => GetAbilityCost(30f, VL_GlobalConfigs.g_EnergyCostModifer, GetAttribute(EpicMMOSystem.Parameter.Agility));
 
-	public static float GetMeteorCostPerUpdate => 0.25f * VL_GlobalConfigs.g_EnergyCostModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getStaminaReduction() / 100f));
+	public static float GetMeteorCostPerUpdate => GetAbilityCost(0.25f, VL_GlobalConfigs.g_EnergyCostModifer, GetAttribute(EpicMMOSystem.Parameter.Agility));
 
-	public static float GetMeteorCooldownTime => 30f * VL_GlobalConfigs.g_CooldownModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 100f));
+	public static float GetMeteorCooldownTime => GetCooldown(30f, VL_GlobalConfigs.g_CooldownModifer, GetAttribute(EpicMMOSystem.Parameter.Intellect));
 
 	public static float GetMeteorSkillGain => 2.0f * VL_GlobalConfigs.g_SkillGainModifer * (1f + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 16f));
 
-	public static float GetFrostNovaCost => 40f * VL_GlobalConfigs.g_EnergyCostModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getStaminaReduction() / 100f));
+	public static float GetFrostNovaCost => GetAbilityCost(40f, VL_GlobalConfigs.g_EnergyCostModifer, GetAttribute(EpicMMOSystem.Parameter.Agility));
 
-	public static float GetFrostNovaCooldownTime => 20f * VL_GlobalConfigs.g_CooldownModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 100f));
+	public static float GetFrostNovaCooldownTime => GetCooldown(20f, VL_GlobalConfigs.g_CooldownModifer, GetAttribute(EpicMMOSystem.Parameter.Intellect));
 
 	public static float GetFrostNovaSkillGain => 1.0f * VL_GlobalConfigs.g_SkillGainModifer * (1f + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 16f));
 
-	public static float GetBulwarkCost => 50f * VL_GlobalConfigs.g_EnergyCostModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getStaminaReduction() / 100f));
+	public static float GetBulwarkCost => GetAbilityCost(50f, VL_GlobalConfigs.g_EnergyCostModifer, GetAttribute(EpicMMOSystem.Parameter.Agility));
 
-	public static float GetBulwarkCooldownTime => 60f * VL_GlobalConfigs.g_CooldownModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 100f));
+	public static float GetBulwarkCooldownTime => GetCooldown(60f, VL_GlobalConfigs.g_CooldownModifer, GetAttribute(EpicMMOSystem.Parameter.Intellect));
 
 	public static float GetBulwarkSkillGain => 1.8f * VL_GlobalConfigs.g_SkillGainModifer * (1f + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 16f));
 
-	public static float GetLeapCost => 50f * VL_GlobalConfigs.g_EnergyCostModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getStaminaReduction() / 100f));
+	public static float GetLeapCost => GetAbilityCost(50f, VL_GlobalConfigs.g_EnergyCostModifer, GetAttribute(EpicMMOSystem.Parameter.Agility));
 
-	public static float GetLeapCooldownTime => 15f * VL_GlobalConfigs.g_CooldownModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 100f));
+	public static float GetLeapCooldownTime => GetCooldown(15f, VL_GlobalConfigs.g_CooldownModifer, GetAttribute(EpicMMOSystem.Parameter.Intellect));
 
 	public static float GetLeapSkillGain => 1.8f * VL_GlobalConfigs.g_SkillGainModifer * (1f + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 16f));
 
-	public static float GetStaggerCost => 40f * VL_GlobalConfigs.g_EnergyCostModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getStaminaReduction() / 100f));
+	public static float GetStaggerCost => GetAbilityCost(40f, VL_GlobalConfigs.g_EnergyCostModifer, GetAttribute(EpicMMOSystem.Parameter.Agility));
 
-	public static float GetStaggerCooldownTime => 20f * VL_GlobalConfigs.g_CooldownModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 100f));
+	public static float GetStaggerCooldownTime => GetCooldown(20f, VL_GlobalConfigs.g_CooldownModifer, GetAttribute(EpicMMOSystem.Parameter.Intellect));
 
 	public static float GetStaggerSkillGain => 1.8f * VL_GlobalConfigs.g_SkillGainModifer * (1f + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 16f));
 
@@ -180,29 +242,29 @@ public static class VL_Utility
 
 	public static float GetHarpoonPullSkillGain => 1.8f * VL_GlobalConfigs.g_SkillGainModifer * (1f + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 16f));
 
-	public static float GetHarpoonPullCooldown => 10f * VL_GlobalConfigs.g_CooldownModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 100f));
+	public static float GetHarpoonPullCooldown => GetCooldown(10f, VL_GlobalConfigs.g_CooldownModifer, GetAttribute(EpicMMOSystem.Parameter.Intellect));
 
 	public static float GetShieldReleaseSkillGain => 1.8f * VL_GlobalConfigs.g_SkillGainModifer * (1f + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 16f));
 
-	public static float GetVineHookCost => 40f * VL_GlobalConfigs.g_EnergyCostModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getStaminaReduction() / 100f));
+	public static float GetVineHookCost => GetAbilityCost(40f, VL_GlobalConfigs.g_EnergyCostModifer, GetAttribute(EpicMMOSystem.Parameter.Agility));
 
-	public static float GetRegenerationCost => 50f * VL_GlobalConfigs.g_EnergyCostModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getStaminaReduction() / 100f));
+	public static float GetRegenerationCost => GetAbilityCost(50f, VL_GlobalConfigs.g_EnergyCostModifer, GetAttribute(EpicMMOSystem.Parameter.Agility));
 
-	public static float GetRegenerationCooldownTime => 60f * VL_GlobalConfigs.g_CooldownModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 100f));
+	public static float GetRegenerationCooldownTime => GetCooldown(60f, VL_GlobalConfigs.g_CooldownModifer, GetAttribute(EpicMMOSystem.Parameter.Intellect));
 
 	public static float GetRegenerationSkillGain => 2.7f * VL_GlobalConfigs.g_SkillGainModifer * (1f + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 16f));
 
-	public static float GetRootCost => 30f * VL_GlobalConfigs.g_EnergyCostModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getStaminaReduction() / 100f));
+	public static float GetRootCost => GetAbilityCost(30f, VL_GlobalConfigs.g_EnergyCostModifer, GetAttribute(EpicMMOSystem.Parameter.Agility));
 
-	public static float GetRootCostPerUpdate => 0.3f * VL_GlobalConfigs.g_EnergyCostModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getStaminaReduction() / 100f));
+	public static float GetRootCostPerUpdate => GetAbilityCost(0.3f, VL_GlobalConfigs.g_EnergyCostModifer, GetAttribute(EpicMMOSystem.Parameter.Agility));
 
-	public static float GetRootCooldownTime => 20f * VL_GlobalConfigs.g_CooldownModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 100f));
+	public static float GetRootCooldownTime => GetCooldown(20f, VL_GlobalConfigs.g_CooldownModifer, GetAttribute(EpicMMOSystem.Parameter.Intellect));
 
 	public static float GetRootSkillGain => 1.4f * VL_GlobalConfigs.g_SkillGainModifer * (1f + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 16f));
 
-	public static float GetDefenderCost => 50f * VL_GlobalConfigs.g_EnergyCostModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getStaminaReduction() / 100f));
+	public static float GetDefenderCost => GetAbilityCost(50f, VL_GlobalConfigs.g_EnergyCostModifer, GetAttribute(EpicMMOSystem.Parameter.Agility));
 
-	public static float GetDefenderCooldownTime => 120f * VL_GlobalConfigs.g_CooldownModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 100f));
+	public static float GetDefenderCooldownTime => GetCooldown(120f, VL_GlobalConfigs.g_CooldownModifer, GetAttribute(EpicMMOSystem.Parameter.Intellect));
 
 	public static float GetDefenderSkillGain => 2.7f * VL_GlobalConfigs.g_SkillGainModifer * (1f + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 16f));
 
@@ -670,12 +732,12 @@ public static class VL_Utility
 
 	public static float GetEnrageCost(Player p)
 	{
-		return 50f * VL_GlobalConfigs.g_EnergyCostModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getStaminaReduction() / 100f));
+		return GetAbilityCost(50f, VL_GlobalConfigs.g_EnergyCostModifer, GetAttribute(EpicMMOSystem.Parameter.Agility));
 	}
 
 	public static float GetEnrageCooldown(Player p)
 	{
-		return 60f * VL_GlobalConfigs.g_CooldownModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 100f));
+		return GetCooldown(60f, VL_GlobalConfigs.g_CooldownModifer, GetAttribute(EpicMMOSystem.Parameter.Intellect));
 	}
 
 	public static float GetEnrageSkillGain(Player p)
@@ -685,12 +747,12 @@ public static class VL_Utility
 
 	public static float GetSpiritBombCost(Player p)
 	{
-		return 50f * VL_GlobalConfigs.g_EnergyCostModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getStaminaReduction() / 100f));
+		return GetAbilityCost(50f, VL_GlobalConfigs.g_EnergyCostModifer, GetAttribute(EpicMMOSystem.Parameter.Agility));
 	}
 
 	public static float GetSpiritBombCooldown(Player p)
 	{
-		return 30f * VL_GlobalConfigs.g_CooldownModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 100f));
+		return GetCooldown(30f, VL_GlobalConfigs.g_CooldownModifer, GetAttribute(EpicMMOSystem.Parameter.Intellect));
 	}
 
 	public static float GetSpiritBombSkillGain(Player p)
@@ -700,12 +762,12 @@ public static class VL_Utility
 
 	public static float GetShellCost(Player p)
 	{
-		return 80f * VL_GlobalConfigs.g_EnergyCostModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getStaminaReduction() / 100f));
+		return GetAbilityCost(80f, VL_GlobalConfigs.g_EnergyCostModifer, GetAttribute(EpicMMOSystem.Parameter.Agility));
 	}
 
 	public static float GetShellCooldown(Player p)
 	{
-		return 120f * VL_GlobalConfigs.g_CooldownModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 100f));
+		return GetCooldown(120f, VL_GlobalConfigs.g_CooldownModifer, GetAttribute(EpicMMOSystem.Parameter.Intellect));
 	}
 
 	public static float GetShellSkillGain(Player p)
@@ -715,12 +777,12 @@ public static class VL_Utility
 
 	public static float GetDashCost(Player p)
 	{
-		return 50f * VL_GlobalConfigs.g_EnergyCostModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getStaminaReduction() / 100f));
+		return GetAbilityCost(50f, VL_GlobalConfigs.g_EnergyCostModifer, GetAttribute(EpicMMOSystem.Parameter.Agility));
 	}
 
 	public static float GetDashCooldown(Player p)
 	{
-		return 10f * VL_GlobalConfigs.g_CooldownModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 100f));
+		return GetCooldown(10f, VL_GlobalConfigs.g_CooldownModifer, GetAttribute(EpicMMOSystem.Parameter.Intellect));
 	}
 
 	public static float GetDashSkillGain(Player p)
@@ -730,12 +792,12 @@ public static class VL_Utility
 
 	public static float GetBerserkCost(Player p)
 	{
-		return 0f * VL_GlobalConfigs.g_EnergyCostModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getStaminaReduction() / 100f));
+		return GetAbilityCost(0f, VL_GlobalConfigs.g_EnergyCostModifer, GetAttribute(EpicMMOSystem.Parameter.Agility));
 	}
 
 	public static float GetBerserkCooldown(Player p)
 	{
-		return 60f * VL_GlobalConfigs.g_CooldownModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 100f));
+		return GetCooldown(60f, VL_GlobalConfigs.g_CooldownModifer, GetAttribute(EpicMMOSystem.Parameter.Intellect));
 	}
 
 	public static float GetBerserkSkillGain(Player p)
@@ -745,12 +807,12 @@ public static class VL_Utility
 
 	public static float GetExecuteCost(Player p)
 	{
-		return 50f * VL_GlobalConfigs.g_EnergyCostModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getStaminaReduction() / 100f));
+		return GetAbilityCost(50f, VL_GlobalConfigs.g_EnergyCostModifer, GetAttribute(EpicMMOSystem.Parameter.Agility));
 	}
 
 	public static float GetExecuteCooldown(Player p)
 	{
-		return 60f * VL_GlobalConfigs.g_CooldownModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 100f));
+		return GetCooldown(60f, VL_GlobalConfigs.g_CooldownModifer, GetAttribute(EpicMMOSystem.Parameter.Intellect));
 	}
 
 	public static float GetExecuteSkillGain(Player p)
@@ -760,12 +822,12 @@ public static class VL_Utility
 
 	public static float GetPowerShotCost(Player p)
 	{
-		return 50f * VL_GlobalConfigs.g_EnergyCostModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getStaminaReduction() / 100f));
+		return GetAbilityCost(50f, VL_GlobalConfigs.g_EnergyCostModifer, GetAttribute(EpicMMOSystem.Parameter.Agility));
 	}
 
 	public static float GetPowerShotCooldown(Player p)
 	{
-		return 60f * VL_GlobalConfigs.g_CooldownModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 100f));
+		return GetCooldown(60f, VL_GlobalConfigs.g_CooldownModifer, GetAttribute(EpicMMOSystem.Parameter.Intellect));
 	}
 
 	public static float GetPowerShotSkillGain(Player p)
@@ -775,12 +837,12 @@ public static class VL_Utility
 
 	public static float GetShadowStalkCost(Player p)
 	{
-		return 40f * VL_GlobalConfigs.g_EnergyCostModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getStaminaReduction() / 100f));
+		return GetAbilityCost(40f, VL_GlobalConfigs.g_EnergyCostModifer, GetAttribute(EpicMMOSystem.Parameter.Agility));
 	}
 
 	public static float GetShadowStalkCooldown(Player p)
 	{
-		return 45f * VL_GlobalConfigs.g_CooldownModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 100f));
+		return GetCooldown(45f, VL_GlobalConfigs.g_CooldownModifer, GetAttribute(EpicMMOSystem.Parameter.Intellect));
 	}
 
 	public static float GetShadowStalkSkillGain(Player p)
@@ -790,12 +852,12 @@ public static class VL_Utility
 
 	public static float GetSummonWolfCost(Player p)
 	{
-		return 50f * VL_GlobalConfigs.g_EnergyCostModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getStaminaReduction() / 100f));
+		return GetAbilityCost(50f, VL_GlobalConfigs.g_EnergyCostModifer, GetAttribute(EpicMMOSystem.Parameter.Agility));
 	}
 
 	public static float GetSummonWolfCooldown(Player p)
 	{
-		return 600f * VL_GlobalConfigs.g_CooldownModifer * (1f - (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 100f));
+		return GetCooldown(600f, VL_GlobalConfigs.g_CooldownModifer, GetAttribute(EpicMMOSystem.Parameter.Intellect));
 	}
 
 	public static float GetSummonWolfSkillGain(Player p)

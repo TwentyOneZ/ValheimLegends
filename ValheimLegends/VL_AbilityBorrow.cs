@@ -277,8 +277,14 @@ namespace ValheimLegends
             proj.m_hitNoise = 100f;
 
             HitData hit = new HitData();
-            hit.m_damage.m_fire = UnityEngine.Random.Range(40f + 1.5f * level, 50f + 3f * level)
-                                  * VL_GlobalConfigs.g_DamageModifer * VL_GlobalConfigs.c_mageFireball;
+            float damage = VL_Utility.GetMagicAbilityDamage(EpicMMOSystem.LevelSystem.Instance.getLevel(),
+                EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage(),
+                player.GetSkills().GetSkillList().FirstOrDefault(x => x.m_info == ValheimLegends.EvocationSkillDef).m_level, 0.80f)
+                * VL_GlobalConfigs.g_DamageModifer * VL_GlobalConfigs.c_mageFireball;
+            hit.m_damage.m_fire = damage * 0.5f;
+            hit.m_damage.m_blunt = damage * 0.5f;
+            hit.m_skill = ValheimLegends.EvocationSkill;
+            hit.SetAttacker(player);
 
             proj.transform.localRotation = Quaternion.LookRotation(player.GetLookDir());
             proj.Setup(player, player.GetLookDir() * 50f, -1f, hit, null, null);
@@ -392,7 +398,8 @@ namespace ValheimLegends
 
             // CD scales with how much you recovered (same as Class_Mage)
             StatusEffect cd = (SE_Ability3_CD)ScriptableObject.CreateInstance(typeof(SE_Ability3_CD));
-            cd.m_ttl = recoverEitr * (1f - EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 100f) * 0.5f;
+            cd.m_ttl = VL_Utility.GetCooldown(recoverEitr * 0.5f, VL_GlobalConfigs.g_CooldownModifer,
+                EpicMMOSystem.LevelSystem.Instance.getParameter(EpicMMOSystem.Parameter.Intellect));
             player.GetSEMan().AddStatusEffect(cd);
 
             // Spend stamina, gain eitr

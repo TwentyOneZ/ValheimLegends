@@ -1,4 +1,3 @@
-using System.Numerics;
 using UnityEngine;
 
 namespace ValheimLegends;
@@ -24,8 +23,6 @@ public class SE_Regeneration : StatusEffect
 
 	private float m_timer = 0f;
 
-	public bool doOnce = true;
-
 	public SE_Regeneration()
 	{
 		base.name = "SE_VL_Regeneration";
@@ -34,22 +31,20 @@ public class SE_Regeneration : StatusEffect
 		m_name = "Regeneration";
 		m_activationAnimation = "vfx_Potion_health_medium";
 		m_ttl = m_baseTTL;
-		doOnce = true;
+	}
+
+	public override void SetLevel(int itemLevel, float skillLevel)
+	{
+		if (itemLevel == 1 || itemLevel >= 1000)
+		{
+			m_HealAmount = skillLevel;
+			m_ttl = itemLevel >= 1000 ? itemLevel / 1000f : m_baseTTL;
+		}
 	}
 
 	public override void UpdateStatusEffect(float dt)
 	{
 		base.UpdateStatusEffect(dt);
-		if (doOnce)
-		{
-			doOnce = false;
-			if (m_character.IsPlayer()) {
-                m_HealAmount = (5f + 0.25f * (EpicMMOSystem.LevelSystem.Instance.getLevel() * 10f / 6f)) * VL_GlobalConfigs.c_druidRegen;
-            } else
-			{
-                m_HealAmount = (5f + 0.05f * m_character.GetMaxHealth()) * VL_GlobalConfigs.c_druidRegen;
-            }
-		}
 		m_timer -= dt;
 		if (m_timer <= 0f)
 		{
