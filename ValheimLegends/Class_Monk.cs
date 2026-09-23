@@ -85,7 +85,7 @@ public class Class_Monk
 				HitData hitData = new HitData();
 				hitData.m_damage = VL_Utility.GetPhysicalAbilityDamage(player,
 					player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.DisciplineSkillDef).m_level,
-					EpicMMOSystem.LevelSystem.Instance.getParameter(EpicMMOSystem.Parameter.Vigour), 1f, VL_GlobalConfigs.c_monkChiSlam);
+					EpicMMOSystem.LevelSystem.Instance.getParameter(EpicMMOSystem.Parameter.Vigour), 2.5f, VL_GlobalConfigs.c_monkChiSlam);
 				hitData.m_damage.Modify(1f + Mathf.Clamp01(3f * altitude / Mathf.Max(1f, hitData.m_damage.GetTotalDamage())));
 				hitData.m_pushForce = 20f * VL_GlobalConfigs.g_DamageModifer;
 				hitData.m_point = item.GetEyePoint();
@@ -144,7 +144,7 @@ public class Class_Monk
 						HitData hitData = new HitData();
 						hitData.m_damage = VL_Utility.GetPhysicalAbilityDamage(player,
 							player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.DisciplineSkillDef).m_level,
-							EpicMMOSystem.LevelSystem.Instance.getParameter(EpicMMOSystem.Parameter.Special), 1.35f, VL_GlobalConfigs.c_monkChiPunch);
+							EpicMMOSystem.LevelSystem.Instance.getParameter(EpicMMOSystem.Parameter.Special), 1.5f, VL_GlobalConfigs.c_monkChiPunch);
 						hitData.m_pushForce = 45f + 0.5f * level;
 						hitData.m_point = item.GetEyePoint();
 						hitData.m_dir = dir;

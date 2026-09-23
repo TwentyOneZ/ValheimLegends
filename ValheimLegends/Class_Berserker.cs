@@ -71,7 +71,7 @@ public class Class_Berserker
 			foreach (Character allCharacter in Character.GetAllCharacters())
 			{
 				HitData hitData = new HitData();
-				hitData.m_damage = VL_Utility.GetPhysicalAbilityDamage(player, level, 50f, 1f, VL_GlobalConfigs.c_berserkerDash);
+				hitData.m_damage = VL_Utility.GetPhysicalAbilityDamage(player, level, 50f, 1.8f, VL_GlobalConfigs.c_berserkerDash);
 				hitData.ApplyModifier(num);
 				hitData.SetAttacker(player);
 				hitData.m_point = allCharacter.GetCenterPoint();

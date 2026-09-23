@@ -770,44 +770,73 @@ public class ValheimLegends : BaseUnityPlugin
 	[HarmonyPatch(typeof(Attack), "GetAttackStamina", null)]
 	public class AttackStaminaReduction_Patch
 	{
-		public static void Postfix(Attack __instance, ref Humanoid ___m_character, ItemDrop.ItemData ___m_weapon, ref float __result)
+		public static void Postfix(
+			Attack __instance,
+			ref Humanoid ___m_character,
+			ItemDrop.ItemData ___m_weapon,
+			ref float __result)
 		{
-			if (___m_character != null || !___m_character.IsPlayer())
+			if (___m_character == null || !___m_character.IsPlayer())
 			{
 				return;
 			}
+
 			Player localPlayer = Player.m_localPlayer;
-			if (localPlayer == null || ___m_weapon == null)
+
+			if (localPlayer == null || ___m_weapon == null || ___m_weapon.m_shared == null)
 			{
 				return;
 			}
-			ItemDrop.ItemData hasLeftItem = Traverse.Create(localPlayer).Field("m_leftItem").GetValue<ItemDrop.ItemData>();
-			ItemDrop.ItemData hasRightItem = Traverse.Create(localPlayer).Field("m_rightItem").GetValue<ItemDrop.ItemData>();
-			if (hasLeftItem == null || hasRightItem == null)
+
+			if (ValheimLegends.vl_player == null)
 			{
 				return;
 			}
-			ItemDrop.ItemData.SharedData sharedL = hasLeftItem.m_shared;
-			ItemDrop.ItemData.SharedData sharedR = hasRightItem.m_shared;
-			if (sharedL == null || sharedR == null)
+
+			ItemDrop.ItemData hasLeftItem = Traverse.Create(localPlayer)
+				.Field("m_leftItem")
+				.GetValue<ItemDrop.ItemData>();
+
+			ItemDrop.ItemData hasRightItem = Traverse.Create(localPlayer)
+				.Field("m_rightItem")
+				.GetValue<ItemDrop.ItemData>();
+
+			ItemDrop.ItemData.SharedData sharedL = hasLeftItem?.m_shared;
+			ItemDrop.ItemData.SharedData sharedR = hasRightItem?.m_shared;
+
+			bool isTwoHandedWeapon =
+				___m_weapon.m_shared.m_itemType == ItemDrop.ItemData.ItemType.TwoHandedWeapon;
+
+			bool isDualWielding =
+				sharedL != null &&
+				sharedR != null &&
+				sharedL.m_itemType == ItemDrop.ItemData.ItemType.OneHandedWeapon &&
+				sharedR.m_itemType == ItemDrop.ItemData.ItemType.OneHandedWeapon &&
+				!sharedL.m_name.ToLower().Contains("torch") &&
+				!sharedR.m_name.ToLower().Contains("torch");
+
+			// Berserker:
+			// - redução com qualquer arma de duas mãos
+			// - redução com qualquer combinação válida de dual wield
+			if (ValheimLegends.vl_player.vl_class == ValheimLegends.PlayerClass.Berserker)
 			{
-				return;
-			}
-			if (ValheimLegends.vl_player != null && ValheimLegends.vl_player.vl_class == ValheimLegends.PlayerClass.Berserker && ___m_weapon.m_shared.m_itemType == ItemDrop.ItemData.ItemType.OneHandedWeapon)
-			{
-				if ((sharedL.m_itemType == ItemDrop.ItemData.ItemType.OneHandedWeapon) && (sharedR.m_itemType == ItemDrop.ItemData.ItemType.OneHandedWeapon) && (!sharedL.m_name.ToLower().Contains("torch")) && (sharedR.m_skillType == sharedL.m_skillType))
+				if (isTwoHandedWeapon || isDualWielding)
 				{
-					__result *= Mathf.Sqrt(0.5f) * VL_GlobalConfigs.c_berserkerBonus2h;
+					__result *= 0.3f * VL_GlobalConfigs.c_berserkerBonus2h;
 				}
 			}
-			if (ValheimLegends.vl_player != null && ValheimLegends.vl_player.vl_class == ValheimLegends.PlayerClass.Rogue && ___m_weapon.m_shared.m_itemType == ItemDrop.ItemData.ItemType.OneHandedWeapon)
+
+			// Rogue:
+			// mantém redução apenas para dual wield Knife + Knife
+			if (ValheimLegends.vl_player.vl_class == ValheimLegends.PlayerClass.Rogue)
 			{
-				if ((sharedL.m_itemType == ItemDrop.ItemData.ItemType.OneHandedWeapon) && (sharedR.m_itemType == ItemDrop.ItemData.ItemType.OneHandedWeapon) && (!sharedL.m_name.ToLower().Contains("torch")) && (sharedR.m_skillType == sharedL.m_skillType) && (sharedR.m_skillType == Skills.SkillType.Knives))
+				if (isDualWielding &&
+					sharedL.m_skillType == Skills.SkillType.Knives &&
+					sharedR.m_skillType == Skills.SkillType.Knives)
 				{
-					__result *= Mathf.Sqrt(0.7f);
+					__result *= 0.3f;
 				}
 			}
-			return;
 		}
 	}
 
@@ -1071,39 +1100,145 @@ public class ValheimLegends : BaseUnityPlugin
 				{
 					if (Class_Monk.PlayerIsUnarmed && (hit.m_damage.m_blunt > 0f || hit.m_damage.m_slash > 0f))
 					{
-						float level2 = player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.DisciplineSkillDef)
-							.m_level * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddPhysicDamage() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddAttackSpeed() / 40f), 0f, 0.5f));
-						float chiDamage = (EpicMMOSystem.LevelSystem.Instance.getLevel() * (1f + (level2 / 80f))) * 0.5f;
-                        if (!Class_Monk.PlayerIsBareHanded)
+						float characterLevel = EpicMMOSystem.LevelSystem.Instance.getLevel();
+
+						float unarmedLevel = player.GetSkills().GetSkillLevel(Skills.SkillType.Unarmed);
+
+						float disciplineLevel = player.GetSkills().GetSkillList()
+							.FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.DisciplineSkillDef)
+							.m_level;
+
+						float referencePower = VL_BalanceMath.ReferencePower(characterLevel);
+						float unarmedModifier = VL_BalanceMath.Progression(unarmedLevel);
+						float disciplineModifier = VL_BalanceMath.Progression(disciplineLevel);
+
+						// Strength continua fornecendo o modificador global de dano físico.
+						float strengthDamageModifier =
+							1f + (EpicMMOSystem.LevelSystem.Instance.getAddPhysicDamage() / 100f);
+
+						float baseDamage =
+							referencePower
+							* unarmedModifier
+							* disciplineModifier
+							* strengthDamageModifier;
+
+						/*
+						 * PlayerIsUnarmed inclui:
+						 * - Unarmed real
+						 * - armas cujo nome contém "fist"
+						 * - armas com attachOverride == Hands
+						 *
+						 * Portanto fazemos uma verificação explícita do prefab/weapon
+						 * "Unarmed" para impedir que uma fist weapon receba também
+						 * o dano físico substituto das mãos nuas.
+						 */
+						ItemDrop.ItemData currentWeapon = player.GetCurrentWeapon();
+
+						bool isBareHanded =
+							Class_Monk.PlayerIsBareHanded
+							&& currentWeapon != null
+							&& currentWeapon.m_shared != null
+							&& currentWeapon.m_shared.m_name.ToLower() == "unarmed";
+
+						if (isBareHanded)
 						{
-                            chiDamage *= attacker.GetStaminaPercentage();
-                        } 
+							// Monk realmente desarmado:
+							// dano TOTAL substituído por
+							// 60% Blunt + 40% Spirit = 100% BaseDamage.
+							hit.m_damage = new HitData.DamageTypes();
+							hit.m_damage.m_blunt = baseDamage * 0.60f;
+							hit.m_damage.m_spirit = baseDamage * 0.40f;
+						}
 						else
 						{
-                            hit.m_damage.m_blunt += chiDamage;
-                        }
-                        hit.m_damage.m_spirit += chiDamage;
-						SE_Monk sE_Monk = (SE_Monk)attacker.GetSEMan().GetStatusEffect("SE_VL_Monk".GetStableHashCode());
-						sE_Monk.maxHitCount = 5 + Mathf.RoundToInt(0.4f * Mathf.Sqrt(Player.m_localPlayer.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.DisciplineSkillDef)
-							.m_level * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddPhysicDamage() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddAttackSpeed() / 40f), 0f, 0.5f))));
+							// Fist weapon:
+							// mantém integralmente o dano original da arma
+							// e acrescenta 40% do BaseDamage como Spirit.
+							hit.m_damage.m_spirit += baseDamage * 0.40f;
+						}
+
+						SE_Monk sE_Monk = (SE_Monk)attacker.GetSEMan()
+							.GetStatusEffect("SE_VL_Monk".GetStableHashCode());
+
+						sE_Monk.maxHitCount =
+							5 + Mathf.RoundToInt(
+								0.4f * Mathf.Sqrt(disciplineLevel)
+							);
+
 						sE_Monk.hitCount++;
-						sE_Monk.hitCount = Mathf.Clamp(sE_Monk.hitCount, 0, sE_Monk.maxHitCount);
+						sE_Monk.hitCount = Mathf.Clamp(
+							sE_Monk.hitCount,
+							0,
+							sE_Monk.maxHitCount
+						);
 						sE_Monk.refreshed = true;
-						player.RaiseSkill(ValheimLegends.DisciplineSkill, 0.001f * VL_GlobalConfigs.g_SkillGainModifer * (1f + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 16f)));
+
+						player.RaiseSkill(
+							ValheimLegends.DisciplineSkill,
+							0.001f
+							* VL_GlobalConfigs.g_SkillGainModifer
+							* (1f + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 16f))
+						);
 					}
 				}
-                if (attacker.GetSEMan().HaveStatusEffect("SE_VL_DruidFenringForm".GetStableHashCode()))
-                {
-                    if (Class_Monk.PlayerIsBareHanded && (hit.m_damage.m_blunt > 0f))
-                    {
-                        float level2 = player.GetSkills().GetSkillList().FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.DisciplineSkillDef)
-                            .m_level * (1f + Mathf.Clamp((EpicMMOSystem.LevelSystem.Instance.getAddPhysicDamage() / 40f) + (EpicMMOSystem.LevelSystem.Instance.getAddAttackSpeed() / 40f), 0f, 0.5f));
-                        float clawDamage = (EpicMMOSystem.LevelSystem.Instance.getLevel() * (1f + (level2 / 80f))) * 0.25f;
-                        hit.m_damage.m_blunt += clawDamage;
-                        hit.m_damage.m_slash += clawDamage;
-                        player.RaiseSkill(ValheimLegends.DisciplineSkill, 0.001f * VL_GlobalConfigs.g_SkillGainModifer * (1f + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 16f)));
-                    }
-                }
+
+				if (attacker.GetSEMan().HaveStatusEffect("SE_VL_DruidFenringForm".GetStableHashCode()))
+				{
+					/*
+					 * Fenring só recebe o novo dano-base quando está realmente
+					 * de mãos nuas. Fist weapons não recebem bônus do Fenring.
+					 */
+					ItemDrop.ItemData currentWeapon = player.GetCurrentWeapon();
+
+					bool isBareHanded =
+						Class_Monk.PlayerIsBareHanded
+						&& currentWeapon != null
+						&& currentWeapon.m_shared != null
+						&& currentWeapon.m_shared.m_name.ToLower() == "unarmed";
+
+					if (isBareHanded && hit.m_damage.m_blunt > 0f)
+					{
+						float characterLevel = EpicMMOSystem.LevelSystem.Instance.getLevel();
+
+						float unarmedLevel = player.GetSkills()
+							.GetSkillLevel(Skills.SkillType.Unarmed);
+
+						float disciplineLevel = player.GetSkills().GetSkillList()
+							.FirstOrDefault((Skills.Skill x) => x.m_info == ValheimLegends.DisciplineSkillDef)
+							.m_level;
+
+						float referencePower =
+							VL_BalanceMath.ReferencePower(characterLevel);
+
+						float unarmedModifier =
+							VL_BalanceMath.Progression(unarmedLevel);
+
+						float disciplineModifier =
+							VL_BalanceMath.Progression(disciplineLevel);
+
+						float strengthDamageModifier =
+							1f + (EpicMMOSystem.LevelSystem.Instance.getAddPhysicDamage() / 100f);
+
+						float baseDamage =
+							referencePower
+							* unarmedModifier
+							* disciplineModifier
+							* strengthDamageModifier;
+
+						// Fenring:
+						// 40% Blunt + 40% Slash = 80% do BaseDamage.
+						hit.m_damage = new HitData.DamageTypes();
+						hit.m_damage.m_blunt = baseDamage * 0.40f;
+						hit.m_damage.m_slash = baseDamage * 0.40f;
+
+						player.RaiseSkill(
+							ValheimLegends.DisciplineSkill,
+							0.001f
+							* VL_GlobalConfigs.g_SkillGainModifer
+							* (1f + (EpicMMOSystem.LevelSystem.Instance.getAddMagicDamage() / 16f))
+						);
+					}
+				}
                 if (attacker.GetSEMan().HaveStatusEffect("SE_VL_Shell".GetStableHashCode()))
 				{
 					SE_Shell sE_Shell = attacker.GetSEMan().GetStatusEffect("SE_VL_Shell".GetStableHashCode()) as SE_Shell;
@@ -1450,51 +1585,139 @@ public class ValheimLegends : BaseUnityPlugin
                         }
                     }
 
-                    if (vl_player.vl_class == ValheimLegends.PlayerClass.Rogue && attacker.GetHoverName() == vl_player.vl_name && !hit.m_ranged)
+                    if (vl_player.vl_class == ValheimLegends.PlayerClass.Rogue &&
+                        attacker.GetHoverName() == vl_player.vl_name &&
+                        !hit.m_ranged)
 					{
 						Player localPlayer = Player.m_localPlayer;
+
 						if (localPlayer.GetCurrentWeapon() != null)
 						{
-							ItemDrop.ItemData value = Traverse.Create(localPlayer).Field("m_leftItem").GetValue<ItemDrop.ItemData>();
-							ItemDrop.ItemData.SharedData shared = localPlayer.GetCurrentWeapon().m_shared;
-							if (shared != null && (shared.m_name.ToLower() == "unarmed" || shared.m_attachOverride == ItemDrop.ItemData.ItemType.Hands) && value == null)
+							ItemDrop.ItemData leftItem = Traverse.Create(localPlayer)
+								.Field("m_leftItem")
+								.GetValue<ItemDrop.ItemData>();
+
+							ItemDrop.ItemData currentWeapon = localPlayer.GetCurrentWeapon();
+							ItemDrop.ItemData.SharedData shared = currentWeapon.m_shared;
+
+							if (shared != null)
 							{
-								SE_Rogue sE_Rogue = (SE_Rogue)localPlayer.GetSEMan().GetStatusEffect("SE_VL_Rogue".GetStableHashCode());
-								if (sE_Rogue.hitCount > 0 && (sE_Rogue.lastSnatched == null || !sE_Rogue.lastSnatched.Contains(__instance.GetInstanceID())))
+								/*
+								 * Snatch pode ser usado quando:
+								 *
+								 * 1) A mão de ataque está realmente desarmada ("Unarmed").
+								 *    Nesse caso, a mão esquerda pode estar ocupada ou não.
+								 *
+								 * 2) Está usando uma arma de UMA mão e a mão esquerda está vazia.
+								 *
+								 * 3) Mantém compatibilidade com itens/fist weapons que usam
+								 *    attachOverride == Hands, desde que a mão esquerda esteja vazia.
+								 *
+								 * Armas de duas mãos não passam pela condição.
+								 */
+
+								bool rightHandIsUnarmed =
+									shared.m_name != null &&
+									shared.m_name.Equals("Unarmed", StringComparison.OrdinalIgnoreCase);
+
+								bool leftHandIsFree = leftItem == null;
+
+								bool isOneHandedWeapon =
+									shared.m_itemType == ItemDrop.ItemData.ItemType.OneHandedWeapon;
+
+								bool isHandsWeapon =
+									shared.m_attachOverride == ItemDrop.ItemData.ItemType.Hands;
+
+								bool canSnatch =
+									rightHandIsUnarmed ||
+									(leftHandIsFree && (isOneHandedWeapon || isHandsWeapon));
+
+								if (canSnatch)
 								{
-									if (ValheimLegends.coinsItem == null)
+									SE_Rogue sE_Rogue = (SE_Rogue)localPlayer.GetSEMan()
+										.GetStatusEffect("SE_VL_Rogue".GetStableHashCode());
+
+									if (sE_Rogue.hitCount > 0 &&
+										(sE_Rogue.lastSnatched == null ||
+										!sE_Rogue.lastSnatched.Contains(__instance.GetInstanceID())))
 									{
-										ValheimLegends.DefineCoins();
-									}
-									if (ValheimLegends.coinsItem != null)
-									{
-										int coinsSpoiled = Mathf.CeilToInt(UnityEngine.Random.Range(0.33f, 1f) * (1f + (EpicMMOSystem.LevelSystem.Instance.getAddCriticalChance() / 40f)) * Mathf.Sqrt(__instance.GetMaxHealth()));
-										if (coinsSpoiled < EpicMMOSystem.LevelSystem.Instance.getLevel())
+										if (ValheimLegends.coinsItem == null)
 										{
-											UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("sfx_coins_destroyed"), __instance.GetCenterPoint(), UnityEngine.Quaternion.identity);
-											UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("vfx_coin_stack_destroyed"), __instance.GetCenterPoint(), UnityEngine.Quaternion.identity);
+											ValheimLegends.DefineCoins();
 										}
-										else
+
+										if (ValheimLegends.coinsItem != null)
 										{
-											UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("sfx_coins_pile_destroyed"), __instance.GetCenterPoint(), UnityEngine.Quaternion.identity);
-											UnityEngine.Object.Instantiate(ZNetScene.instance.GetPrefab("vfx_coin_pile_destroyed"), __instance.GetCenterPoint(), UnityEngine.Quaternion.identity);
+											int coinsSpoiled = Mathf.CeilToInt(
+												UnityEngine.Random.Range(0.33f, 1f)
+												* (1f + (EpicMMOSystem.LevelSystem.Instance.getAddCriticalChance() / 40f))
+												* Mathf.Sqrt(__instance.GetMaxHealth())
+											);
+
+											if (coinsSpoiled < EpicMMOSystem.LevelSystem.Instance.getLevel())
+											{
+												UnityEngine.Object.Instantiate(
+													ZNetScene.instance.GetPrefab("sfx_coins_destroyed"),
+													__instance.GetCenterPoint(),
+													UnityEngine.Quaternion.identity
+												);
+
+												UnityEngine.Object.Instantiate(
+													ZNetScene.instance.GetPrefab("vfx_coin_stack_destroyed"),
+													__instance.GetCenterPoint(),
+													UnityEngine.Quaternion.identity
+												);
+											}
+											else
+											{
+												UnityEngine.Object.Instantiate(
+													ZNetScene.instance.GetPrefab("sfx_coins_pile_destroyed"),
+													__instance.GetCenterPoint(),
+													UnityEngine.Quaternion.identity
+												);
+
+												UnityEngine.Object.Instantiate(
+													ZNetScene.instance.GetPrefab("vfx_coin_pile_destroyed"),
+													__instance.GetCenterPoint(),
+													UnityEngine.Quaternion.identity
+												);
+											}
+
+											if (localPlayer.GetInventory().CanAddItem(
+												ValheimLegends.coinsItem.m_itemData.m_dropPrefab,
+												coinsSpoiled))
+											{
+												localPlayer.GetInventory().AddItem(
+													ValheimLegends.coinsItem.m_itemData.m_dropPrefab,
+													coinsSpoiled
+												);
+											}
+											else
+											{
+												ItemDrop.DropItem(
+													ValheimLegends.coinsItem.m_itemData,
+													coinsSpoiled,
+													localPlayer.transform.position,
+													UnityEngine.Quaternion.identity
+												);
+											}
+
+											localPlayer.Message(
+												MessageHud.MessageType.TopLeft,
+												"Snatched " + coinsSpoiled.ToString("#") +
+												" coins from " + __instance.GetHoverName() + "!"
+											);
+
+											sE_Rogue.hitCount--;
+
+											if (sE_Rogue.lastSnatched == null)
+											{
+												sE_Rogue.lastSnatched = new List<int>();
+												sE_Rogue.lastSnatched.Clear();
+											}
+
+											sE_Rogue.lastSnatched.Add(__instance.GetInstanceID());
 										}
-										if (localPlayer.GetInventory().CanAddItem(ValheimLegends.coinsItem.m_itemData.m_dropPrefab, coinsSpoiled))
-										{
-											localPlayer.GetInventory().AddItem(ValheimLegends.coinsItem.m_itemData.m_dropPrefab, coinsSpoiled);
-										}
-										else
-										{
-											ItemDrop.DropItem(ValheimLegends.coinsItem.m_itemData, coinsSpoiled, localPlayer.transform.position, UnityEngine.Quaternion.identity);
-										}
-										localPlayer.Message(MessageHud.MessageType.TopLeft, "Snatched " + coinsSpoiled.ToString("#") + " coins from " + __instance.GetHoverName() + "!");
-										sE_Rogue.hitCount--;
-										if (sE_Rogue.lastSnatched == null)
-										{
-											sE_Rogue.lastSnatched = new List<int>();
-											sE_Rogue.lastSnatched.Clear();
-										}
-										sE_Rogue.lastSnatched.Add(__instance.GetInstanceID());
 									}
 								}
 							}
